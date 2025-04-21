@@ -162,5 +162,75 @@ Le framework met à disposition une couche logicielle aidant à maintenir à jou
 
 Le contenu des arbres ainsi stockés localement peut être consulté _offline_, quand l'application n'est pas connectée au réseau et ne fait pas appel aux Cloud Functions.
 
-## Notifications _poussées_ d'applications distantes par les Cloud Functions.
-(en rédaction)
+## Notifications _poussées_ par un _serveur_ aux applications clientes
+Le troisième objectif est de conférer au _serveur_ la possibilité de _pousser des notifications_ vers des applications clientes:
+- chaque application cliente peut recevoir des avis de modification du périmètre qui l'intéresse,
+- elle peut ainsi,
+  - avertir l'utilisateur par un message,
+  - faire rafraîchir une copie plus ou moins partielle de son périmètre et afficher automatiquement l'état le plus récent de certaines données, même quand ces changements ont été issus d'autres sessions de travail d'autres utilisateurs.
+
+# Applications clientes
+## PWA : _progressive web app_
+Une telle application s'exécute dans le contexte d'un browser mais a sa propre fenêtre:
+- l'application (son logiciel) est identifiée par son URL.
+- une instance d'application correspond à une installation dans un browser sur un device donné (par exemple une sous Chrome et une sur Edge).
+
+Pour simplifier il n'y a à un instant donné au plus une instance d'application donnée sur un device donné.
+
+> Rien n'interdit de mettre en ligne le même logiciel (au détail près de son `manifest`) sous 3 URLs: dans ce cas on peut ouvrir une fois ... 3 applications identiques (au nom près).
+
+## Application Mobile (androïd)
+Il n'y a au plus qu'une instance d'une application donnée sur un mobile donné. Elle a pu être lancée au démarrage du mobile et s'exécuter en _background_.
+
+> Remarque: si une application s'exécute sous l'habilitation d'un _user authentifié_ elle doit prévoir:
+- soit de connecter à un _user_ puis se déconnecter avant de se connecter à un autre.
+- soit de gérer autant de contextes qu'il y a de users connectés en même temps dans l'application.
+
+## Token
+Une **instance d'application** distante (Web ou mobile) est identifiée par un `token` qui est une adresse à laquelle des messages pourront être poussés depuis un serveur (Cloud Function, ...) afin d'alerter l'instance de l'application sur l'évolution des documents de son, ou **ses** _périmètres_ d'intérêt.
+
+Une instance d'application peut être en état,
+- _foreground_: elle est visible par l'utilisateur et a le focus. Pour une application PWA sa fenêtre est sur le dessus et a le focus. Dans cet état l'application reçoit immédiatement les messages poussés et peuvent mettre à jour leurs copies locales de documents et leur UI.
+- _background_: l'application n'est pas visible, cachée, voire même pas lancée. Dans cet état l'arrivée d'un message poussé provoque quand l'utilisateur clique sur la notification qui s'affiche,
+  - si l'application est en exécution, son pop au premier plan,
+  - si elle ne l'est pas son lancement.
+
+## Authentification
+Après avoir été lancée une application (PWA par exemple) peut soumettre des requêtes à son serveur (ou un de _ses_ serveurs) mais ne pourra pas accéder à beaucoup de données, la quasi totalité d'entre elles requérant un `Account` authentifié.
+
+S'authentifier auprès d'un serveur consiste à lui soumettre des données de _credential_ (login / password, phrase secrète, etc.) celui-ci retournant à l'application en cas de succès un document `Account` portant a minima les propriétés:
+- `id` : l'identifiant permanent du compte,
+- `perimeter` : le périmètre du compte, une liste d'identifiants d'arbres `treetype itd` donnant pour chacun la liste des types de documents qui l'intéressent.
+
+### Restrictions de périmètre
+Le périmètre par défaut d'un `Account` est son périmètre le plus large, celui pour lequel l'utilisateur a le droit de consultation du maximum de documents.
+
+Plusieurs applications peuvent se référer à un même `Account` mais avec des restrictions de périmètre:
+- une application de mise à jour peut avoir le périmètre sans restriction,
+- une application de monitoring peut avoir un périmètre réduit à certains types de documents, voire à des arbres ayant un certain profil.
+
+Après authentification l'application peut si nécessaire:
+- avoir un dialogue avec l'utilisateur afin de fixer un objet `options`.
+- calculer un périmètre réduit depuis `Account` et `options`.
+
+L'application va faire soumettre une _souscription_ auprès du serveur avec les données suivantes:
+- son `token`: il sera utiliser par le serveur pour pousser des messages d'avis d'évolution de documents.
+- **lURL de l'application** pour une application PWA.
+- **son ou ses périmètres** avec pour chacun:
+  - l'id de son `Account`,
+  - le périmètre à notifier: pour chaque arbre `typetree tid` la liste des _types de documents_ à notifier.
+
+La souscription est enregistré en base de données:
+- sa clé primaire / path est son token,
+- une date-heure est enregistrée afin de pouvoir purger les tokens inutilisés / non rafraîchis.
+
+### Utilisation par le serveur
+A la fin de chaque opération, le framework dispose de la liste des documents mis à jour avec leur arbre.
+- pour chaque arbre mis à jour il obtient les souscriptions l'ayant dans leur périmètre et leurs types de documents surveillés,
+- il peut établir pour chaque token un message signalant les mises à jour du ou des périmètres surveillés.
+
+### Problème
+Une application cliente pourrait se fabriquer un périmètre hors de ses limites.
+
+Il faut faire calculer le périmètres sur le serveur et le retourner scellés / cryptés par la clé du serveur.
+
