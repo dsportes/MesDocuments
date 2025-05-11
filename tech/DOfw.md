@@ -1,7 +1,199 @@
 ---
 layout: page
-title: Réflexions à propos d'un framework "TreeFw"
+title: Réflexions à propos d'un framework "Orienté document"
 ---
+
+# Personnes, appareils, applications
+## Personne
+Une personne _physique_ est un humain identifiable de manière unique:
+- par une empreinte digitale si sa représentation informatique était absolue et unique, l'iris d'un de ses yeux ...
+- plus prosaïquement on va considérer que son cerveau est capable de restituer une _phrase_ qu'il a défini lui-même et dont il a pu s'assurer de son unicité dans le cadre de sa vie numérique.
+
+> Dans le système un enregistrement ayant un identifiant unique (non significatif) est associé à UNE personne grâce à une ou des _phrases_ (du moins leur _hash_) choisies par celle-ci.
+
+## Appareil (_device_)
+Un PC, une tablette, un mobile sont des _appareils_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...).
+
+> Un _serveur_ n'est pas un appareil dans ce sens.
+
+**Cas particulier des _browsers_**
+Deux _browsers_ différents, par exemple Firefox et Chrome, installés sur un même système sont vus comme deux appareils distincts.
+
+## Application
+Le logiciel d'une application est disponible depuis deux sources:
+- une page Web (de type PWA) identifiée par son URL.
+  - un browser la charge depuis le site de distribution et peut ou doit (selon les OS) _l'installer_ en tant qu'application.
+- un conteneur (par exemple un APK) téléchargé depuis un magasin d'applications (voire un site Web) et installé sur l'appareil.
+
+**Sur un appareil donné** une **application** au sens ci-dessus ne peut être en exécution qu'en un seul exemplaire: on ne peut pas y lancer deux exécutions simultanées.
+
+#### Jeton (token) identifiant une application sur un appareil
+Sur un appareil donné, una application reçoit lors de sa toute première exécution un identifiant technique unique (son _token_), une sorte de numéro de téléphone de l'application: des logiciels s'exécutant n'importe où et ayant un accès internet, peuvent _pousser_ des **notifications** à des applications externes dont ils connaissent le _token_.
+
+Une **notification** se manifeste sur l'appareil cible par un court message affiché à l'utilisateur, portant un texte assez court et le cas échéant un lien qu'il peut cliquer.
+
+#### États d'un application sur son appareil
+Une application sur un appareil peut avoir trois états:
+- être en exécution au **premier plan**. Sa fenêtre est affichée et a le _focus_ (elle capte les actions de la souris ou du clavier). Pour un mobile c'est celle (ou l'une des deux) visibles.
+- être en **arrière plan** : elle a été lancée mais est recouverte par d'autres.
+  - sur un browser, c'est un autre onglet qui a le focus, mais l'utilisateur peut cliquer son onglet pour l'amener au premier plan.
+  - sur un mobile elle est cachée mais peut être ramenée au premier plan quand l'utilisateur la choisit dans sa liste des applications _ouvertes mais cachées_.
+- être **non lancée**: son exécution n'a pas encore été demandée, ou a été active et fermée.
+
+#### Réception par une application d'une _notification_ venant de l'extérieur
+**Si elle est au premier plan**: elle est directement traitée par l'application.
+
+**Si elle est en arrière plan**, un court message apparaît:
+- soit l'utilisateur l'a lu (ou non) mais ne donne pas suite,
+- soit l'utilisateur clique dessus et l'application correspondante passe au premier plan et traite la notification.
+
+**Si elle n'était pas lancée**, un court message apparaît:
+- soit l'utilisateur l'a lu (ou non) mais ne donne pas suite,
+- soit l'utilisateur clique dessus et l'application correspondante est lancée.
+
+> Pour una application sous contrôle d'un _browser_, c'est le _browser_ qui gère les notifications: il faut donc qu'il soit lancé, le cas échéant en arrière plan sans page affichée, pour afficher et faire traiter la notification.
+
+## Serveurs
+Une application en exécution depuis un appareil peut envoyer des requêtes (HTTP) à un ou des serveurs _centraux_, chacun étant identifié par une URL, afin de déclencher un traitement distant de mise à jour / consultation de données partagées.
+
+Le terme générique de _serveur_ recouvre plusieurs possibilités techniques dont les variantes ne sont pas perceptibles de l'extérieur:
+- **_processus unique_**: un processus s'exécute en permanence sur une machine (virtuelle ou réelle).
+- **_ferme_**: plusieurs processus sont capables de traiter les requêtes qui parvenues sur l'URL de la ferme qui les a routées vers l'un ou l'autre des processus de la ferme.
+- **Cloud Function**: un _serveur éphémère_ du _Cloud_ est lancé pour traiter une requête reçu sur son URL:
+  - la requête est traitée et le serveur éphémère reste actif un certain temps pour traiter d'autres requêtes. Un serveur éphémère peut traiter plusieurs dizaines de requêtes en parallèle.
+  - en l'absence de nouvelles requêtes, un serveur éphémère reste en attente (entre 3 et 60 minutes pour fixer les idées) puis s'interrompt.
+  - si le flux de requêtes sature la capacité d'un serveur éphémère, un deuxième, voire un troisième etc. sont lancés.
+
+> Ces choix de déploiement technique ne sont pas détectables par les applications qui émettent des requêtes.
+
+> Chaque requête reçue est traitée comme si elle était la seule à être traitée par le serveur, et ne peut pas bénéficier des effets des éventuelles requêtes traitées antérieurement par le serveur (éphémère ou non).
+
+### Base de données d'un _serveur_
+**UNE base de données** est attachée à chaque _serveur_ identifié par son URL, qu'il soit exécuté par un processus unique ou un nuage de processus.
+
+### Storage d'un _serveur_
+**UN storage** est attaché à chaque _serveur_. Il stocke des _fichiers_ identifiés par leur _path_: la présence de caractères `/` dans un path définit une sorte d'arborescence.
+
+Le _contenu_ de chaque fichier est une suite d'octets opaque.
+
+## Organisations
+**Un serveur gère une ou plusieurs organisations:** chacune a ses données distinctes, en base de données comme en storage. 
+
+Les données sont partitionnées par _organisation_.
+
+Sauf exception ci-après, chaque requête concerne UNE seule organisation et n'accède donc qu'aux seules données de _son_ organisation.
+
+> Certaines requêtes **d'administration** ont pour cible _le répertoire des organisations_ et la gestion de celles-ci. Elles ne ciblent pas au départ _une_ organisation spécifique mais peuvent ensuite exécuter un traitement portant sur l'une ou plusieurs d'entre elles.
+
+## Comptes d'une organisation
+Une organisation a, en général, plusieurs **comptes**, le cas échéant beaucoup.
+
+Chaque requête au serveur s'exécute (en général) **sous contrôle d'un compte** ce qui va déterminer:
+- quelles données de l'organisation (en base de données / storage) sont accessibles par la requête,
+- quels traitements peuvent être exécutés sous quelles conditions.
+
+#### Un _compte_ n'est PAS assimilable à une _personne_
+Certains comptes correspondent à des _rôles_ ou _personnes morales_: comptable, administrateur, modérateur, représentant d'une famille, chef d'équipe ... ces comptes peuvent être référencées par des _personnes_ (physiques) différentes.
+
+Certains comptes peuvent sembler avoir un rôle plus _personnel_ mais si on pense par exemple à un compte en banque, des _procurations_ peuvent être attribuées à plusieurs personnes physiques.
+
+## Sessions d'une application
+Quand une personne lance une première fois l'application sur un appareil où elle n'a jamais été lancée, l'application s'ouvre sur un écran _vierge_ de tout contexte.
+
+A ce moment la personne ne peut qu'accéder qu'à des informations générales, la météo, une information générale sur l'état du serveur, un manuel d'aide en ligne ... bref guère plus que ce que délivre un site Web statique, et encore **pour autant que l'application ait prévu de fournir ces informations gratuitement**.
+
+### Ouverture d'une _session_ : identification / authentification de l'utilisateur
+Pour utiliser _vraiment_ l'application une personne doit s'identifier (dire qui elle est) et s'authentifier (le prouver).
+
+Après cette opération, une **session** est ouverte.
+
+La personne peut accéder à plus d'informations (toujours pour autant que l'application l'ait prévu), par exemple à des informations éventuellement payantes (puisque qu'elle identifiée) ou réservées aux personnes _identifiées_.
+
+Dans le cas où l'application est payante, la personne peut accéder:
+- à sa situation _comptable_: le solde de son compte, des informations sur ses abonnements d'espace et consommations de calcul.
+- à la déclaration d'un paiement, ou à sa pré-annonce quand le paiement effectif est reçu par un autre canal anonymisé.
+
+#### Réception de _notifications_
+Dès lors qu'une session est ouverte elle _peut_ recevoir des _notifications_: par exemple si sa situation comptable évolue du fait d'actions déclenchées par ailleurs. 
+
+### Connexion d'une _session_ à un _compte_
+Une _session_ ouverte peut se _connecter_ à un ou plusieurs comptes: c'est la logique applicative du logiciel du serveur qui détermine comment et quelles personnes (physiques) peuvent ou non se connecter à un _compte_ d'une organisation et comment il est identifié.
+
+Une connexion d'une session peut avoir deux statuts différents:
+- **active**: des requêtes peuvent être émises pour déclencher des traitements sous contrôle du compte.
+- **monitoring**: le compte est sous _surveillance_ les modifications des données de son périmètre d'intérêt vont déclencher des **notifications**.
+
+Une seule connexion d'une session est _active_ à un instant donné, les autres sont en _monitoring_.
+
+> Une session peut en conséquence travailler activement sur un compte et en avoir d'autres  sous _monitoring_ et recevoir des notifications.
+
+Le _compte actif_ d'une session dispose dans celle-ci d'une mémoire de _documents_ copies retardées (ou non) de ceux détenus par le serveur central: les _notifications_ reçues du compte actif signalent l'existence d'une mise à jour (création ou suppression) de documents du _périmètre d'intérêt_ du compte.
+
+> Cette copie distante synchronisée permet d'afficher à l'écran, sans intervention de l'utilisateur, un état le plus à jour possible des données du fait d'évolutions quelqu'en soit les origines.
+
+#### Une session peut ne pas avoir de _compte actif_
+Si l'essentiel des requêtes émises depuis une session concerne le _compte actif_, certaines sont indépendantes de tout comptes:
+- les requêtes de _connexion_ qui ont justement pour objectif de déterminer quel compte doit être rattaché à la session (pour devenir actif ou simplement monitoré).
+- certaines requêtes de lecture de données considérées comme _publiques_ dans l'organisation.
+
+### Réception de _notifications_ dans une session
+Chacune a pour source un compte auquel la session est connectée:
+- si c'est le _compte actif_ la notification peut signaler une évolution de documents du _périmètre d'intérêt_, la session en demandera le nouvel état afin que sa mémoire locale en soit synchronisée.
+- si c'est un _compte monitoré_ la notification signale un événement digne d'intérêt, sans déclencher pour autant une mise à jour de copies de documents dans la mémoire de la session.
+
+
+### Fermeture de l'application SANS fermeture de la session
+La fenêtre de l'application est fermée, elle n'est plus en exécution, mais sa **session** est toujours considérée comme ouverte par les comptes connectés: en conséquence l'appareil (ou le browser) recevra toujours des notifications liées aux évolutions des données des comptes associés à la session.
+
+Si la personne derrière l'appareil à cet instant, clique sur une telle notification, l'application s'ouvrira et rétablira sa session (ce qui peut ou non constituer un problème).
+
+### Fermeture EXPLICITE de la session en cours
+Les comptes connectés dans une session peuvent toujours en cours de session être _déconnectés_ individuellement. 
+
+Quand la session est **explicitement** fermée par l'utilisateur,
+- tous les comptes connectés sont déconnectés.
+- l'identification de la personne est effacée.
+- l' application se retrouve _vierge_ dans le même état que si elle n'avait jamais été lancée.
+- plus aucune notification n'apparaîtra pour cette application.
+
+## Déconnexions _automatiques_ ?
+Certaines applications sensibles peuvent prévoir une déconnexion automatique du compte actif (voire des autres) au bout d'un certain temps sans activité de l'utilisateur. 
+
+Sans déconnexions automatiques l'appareil va  continuer d'afficher des notifications relatives à une personne (et les comptes qu'elle avait connectés) qui _était_ celle derrière l'appareil il y a quelque temps MAIS ne l'est peut-être plus. Comme un clic sur une telle notification rouvre la session, la nouvelle personne derrière l'appareil se retrouve avec une session ouverte par la précédente (et les autorisations qui vont avec).
+
+## Code PIN de passage au premier plan suite à une notification
+Quand l'application était _en arrière plan_ et se retrouve propulsé au _premier plan_ parce que l'utilisateur a cliqué sur une notification, ça peut faire longtemps qu'elle était en arrière plan: dans ce cas il doit saisir un code PIN avant d'obtenir le ré-affichage de la session ouverte. 
+
+En cas d'échec (une ou deux fois au plus) la session est fermée par précaution.
+
+De même si l'application était avec une session en cours et que l'utilisateur clique sur une notification,
+- si le bon code PIN est fourni elle s'ouvre à nouveau sur la session laissée ouverte au moment de la fermeture,
+- sinon la session est fermée, les connexions fermées et l'identification de l'utilisateur à refaire.
+
+## Synthèse
+Laisser sa session ouverte en fermant l'application permet:
+- de voir s'afficher des notifications relatives aux données de celle-ci, d'être en monitoring des comptes connectés à la session.
+- de la réactiver rapidement sans avoir à s'authentifier et se connecter à nouveau aux comptes.
+- un code PIN permet d'éviter qu'une autre personne en profite.
+- a contrario la personne _suivante_ sur l'appareil verra s'afficher en notifications des informations qui concernent la personne précédente (à éviter quelles soient trop précises / confidentielles).
+
+Des déconnexions automatiques en cas d'inactivité, et / ou en cas de fermeture de l'application:
+- empêche de voir s'afficher des notifications,
+- empêche de réactiver sa session rapidement,
+- procure une confidentialité rigoureuse sur l'appareil quelqu'en soit la personne qui l'a sous la main.
+
+Le comportement dépend du type d'appareil sur lequel une session est ouverte:
+- au cyber-café ou sur un PC ou mobile NON personnel, il faut fermer ses sessions.
+- sur un appareil très _personnel_ dont le login est bien protégé, c'est plus pratique de les laisser ouvertes.
+
+# Mémoire _cache_ locale de données sur un appareil / mode "avion"
+Au lancement d'une application sur un appareil, l'utilisateur se trouve devant plusieurs possibilités:
+- il y a du réseau et l'utilisateur le considère comme fiable (non écouté malicieusement):
+  - si une session est _ouverte_, il peut saisir son code PIN et la reprendre.
+- sinon s'identifier 
+
+Au lancement d'une application sur un appareil, l'utilisateur va déclarer si cet appareil est _personnel_, soit qu'il lui appartient, soit qu'il le partage avec une ou quelques personnes de confiance.
+
 
 # Arbres de documents
 ## Documents, type de document
