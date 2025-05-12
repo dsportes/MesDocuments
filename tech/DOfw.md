@@ -3,18 +3,68 @@ layout: page
 title: Réflexions à propos d'un framework "Orienté document"
 ---
 
-# Personnes, appareils, applications
+Dans le langage courant on emploie le mot _application_ (Facebook, TikTok ...) pour désigner en réalité un système applicatif dont l'architecture schématique peut se résumer en deux niveaux:
+- un _serveur central_ détient les données et effectue les calculs sollicités par ...
+- des _applications_ s'exécutant sur les terminaux / appareils des utilisateurs.
+
+### Installation de l'application sur un appareil / terminal (_device_)
+Un PC, une tablette, un mobile sont des _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...).
+
+Selon la variante technique choisie, il faut installer l'application terminale sur chaque appareil d'où un utilisateur souhaite s'en servir.
+
+#### Application de type Web PWA (_Progressive Web Application_)
+Depuis un browser l'utilisateur appelle une URL qui ouvre une page contenant l'application:
+- l'application peut être directement utilisable depuis cette page, mais certains OS (comme iOS) des appareils ne le permettent pas. L'utilisateur peut, en général, déclarer un _raccourci sur son bureau_ vers cette page afin d'éviter l saisie de l'URL de l'application.
+- l'application _peut ou non ou doit_ (selon le browser utilisé et l'OS de l'appareil) être _installée_ par le browser et apparaît désormais comme une application locale de l'appareil avec une icône de lancement (par exemple sur le bureau).
+
+#### Application de type _mobile_
+L'utilisateur l'installée depuis le ou un des magasins d'application supportés par l'OS du mobile.
+
+> Il n'y a ensuite quasiment pas de différence perceptible par l'utilisateur à l'utilisation de l'application, il clique sur une icône pour l'ouvrir (la lancer).
+
+### Serveur
+Les applications en exécution sur leur appareil sollicitent d'un **serveur central** en général de mise à jour et consultation des données de l'application.
+
+Le terme générique de _serveur_ recouvre plusieurs possibilités techniques dont les variantes ne sont pas perceptibles de l'extérieur:
+- **_processus unique_**: un processus s'exécute en permanence sur une machine (virtuelle ou réelle).
+- **_ferme_**: plusieurs processus sont capables de traiter les requêtes qui parviennent sur l'URL de la ferme et ont été routées vers l'un ou l'autre des processus de la ferme.
+- **Cloud Function**: un _serveur éphémère_ du _Cloud_ est lancé pour traiter une demande de service reçue sur son URL:
+  - la demande est traitée et le serveur éphémère reste actif un certain temps pour traiter d'autres demandes. Un serveur éphémère peut traiter plusieurs dizaines de demandes en parallèle.
+  - en l'absence de nouvelles demandes, un serveur éphémère reste en attente (entre 3 et 60 minutes pour fixer les idées) puis s'interrompt.
+  - si le flux des demandes sature la capacité d'un serveur éphémère, un deuxième, voire un troisième etc. sont lancés.
+
+> Ces choix de déploiement technique ne sont pas détectables par les applications qui émettent des requêtes.
+
+# L'exécution d'une application sur un appareil
+Sur un appareil donné, on ne peut pas lancer plus d'une exécution de l'application.
+
+> Dans le cas d'une application Web (PWA), chaque browser (Firefox, Chrome ...) est vu comme un **appareil différent**: on pourrait avoir s'exécutant au même instant sur son PC, une application sous Firefox ET une application sous Chrome .
+
+**Une application sur UN appareil** peut avoir trois états:
+- être en exécution au **premier plan**. Sa fenêtre est affichée et a le _focus_ (elle capte les actions de la souris ou du clavier). Pour un mobile c'est celle (ou l'une des deux) visibles.
+- être en **arrière plan** : elle a été lancée mais est recouverte par d'autres.
+  - sur un browser, c'est un autre onglet qui a le focus (ou toute autre fenêtre), mais l'utilisateur peut cliquer sur son onglet pour l'amener au premier plan.
+  - sur un mobile elle est cachée mais peut être ramenée au premier plan quand l'utilisateur la choisit dans sa liste des applications _ouvertes mais cachées_.
+- être **non lancée**: son exécution n'a pas encore été demandée, ou a été active et fermée.
+
+# Abonnements à une application
+Pour pouvoir utiliser l'application un utilisateur doit justifier qu'il est **abonné** à l'application.
+
+Selon les applications, les abonnements peuvent être gratuits ou payants. ce qui suit considère des abonnements payants.
+
+Un utilisateur peut déclarer un abonnement en fixant:
+- un code identifiant long (plus de 16 signes).
+- une clé d'accès longue (plus de 16 signes).
+- un code éventuel de _cadeau de bienvenue_ quand un généreux sponsor a déclaré un cadeau permettant au nouvel abonné de démarrer son abonnement avec un crédit positif.
+
+
+
 ## Personne
 Une personne _physique_ est un humain identifiable de manière unique:
 - par une empreinte digitale si sa représentation informatique était absolue et unique, l'iris d'un de ses yeux ...
 - plus prosaïquement on va considérer que son cerveau est capable de restituer une _phrase_ qu'il a défini lui-même et dont il a pu s'assurer de son unicité dans le cadre de sa vie numérique.
 
 > Dans le système un enregistrement ayant un identifiant unique (non significatif) est associé à UNE personne grâce à une ou des _phrases_ (du moins leur _hash_) choisies par celle-ci.
-
-## Appareil (_device_)
-Un PC, une tablette, un mobile sont des _appareils_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...).
-
-> Un _serveur_ n'est pas un appareil dans ce sens.
 
 **Cas particulier des _browsers_**
 Deux _browsers_ différents, par exemple Firefox et Chrome, installés sur un même système sont vus comme deux appareils distincts.
@@ -53,18 +103,7 @@ Une application sur un appareil peut avoir trois états:
 
 > Pour una application sous contrôle d'un _browser_, c'est le _browser_ qui gère les notifications: il faut donc qu'il soit lancé, le cas échéant en arrière plan sans page affichée, pour afficher et faire traiter la notification.
 
-## Serveurs
-Une application en exécution depuis un appareil peut envoyer des requêtes (HTTP) à un ou des serveurs _centraux_, chacun étant identifié par une URL, afin de déclencher un traitement distant de mise à jour / consultation de données partagées.
 
-Le terme générique de _serveur_ recouvre plusieurs possibilités techniques dont les variantes ne sont pas perceptibles de l'extérieur:
-- **_processus unique_**: un processus s'exécute en permanence sur une machine (virtuelle ou réelle).
-- **_ferme_**: plusieurs processus sont capables de traiter les requêtes qui parvenues sur l'URL de la ferme qui les a routées vers l'un ou l'autre des processus de la ferme.
-- **Cloud Function**: un _serveur éphémère_ du _Cloud_ est lancé pour traiter une requête reçu sur son URL:
-  - la requête est traitée et le serveur éphémère reste actif un certain temps pour traiter d'autres requêtes. Un serveur éphémère peut traiter plusieurs dizaines de requêtes en parallèle.
-  - en l'absence de nouvelles requêtes, un serveur éphémère reste en attente (entre 3 et 60 minutes pour fixer les idées) puis s'interrompt.
-  - si le flux de requêtes sature la capacité d'un serveur éphémère, un deuxième, voire un troisième etc. sont lancés.
-
-> Ces choix de déploiement technique ne sont pas détectables par les applications qui émettent des requêtes.
 
 > Chaque requête reçue est traitée comme si elle était la seule à être traitée par le serveur, et ne peut pas bénéficier des effets des éventuelles requêtes traitées antérieurement par le serveur (éphémère ou non).
 
