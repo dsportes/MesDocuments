@@ -4,48 +4,113 @@ title: Réflexions à propos d'un framework "Orienté document"
 ---
 
 Dans le langage courant on emploie le mot _application_ (Facebook, TikTok ...) pour désigner en réalité un système applicatif dont l'architecture schématique peut se résumer en deux niveaux:
-- un _serveur central_ détient les données et effectue les calculs sollicités par ...
-- des _applications_ s'exécutant sur les terminaux / appareils des utilisateurs.
+- des _serveurs centraux_ détiennentt les données et effectuent les calculs sollicités par des demandes émises par ...
+- des _applications_ s'exécutant sur les terminaux / appareils des utilisateurs et sollicitent les serveurs centraux.
 
 ### Installation de l'application sur un appareil / terminal (_device_)
 Un PC, une tablette, un mobile sont des _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...).
 
 Selon la variante technique choisie, il faut installer l'application terminale sur chaque appareil d'où un utilisateur souhaite s'en servir.
 
-#### Application de type Web PWA (_Progressive Web Application_)
-Depuis un browser l'utilisateur appelle une URL qui ouvre une page contenant l'application:
-- l'application peut être directement utilisable depuis cette page, mais certains OS (comme iOS) des appareils ne le permettent pas. L'utilisateur peut, en général, déclarer un _raccourci sur son bureau_ vers cette page afin d'éviter l saisie de l'URL de l'application.
-- l'application _peut ou non ou doit_ (selon le browser utilisé et l'OS de l'appareil) être _installée_ par le browser et apparaît désormais comme une application locale de l'appareil avec une icône de lancement (par exemple sur le bureau).
+#### Application de type Web : PWA _Progressive Web Application_
+Depuis un browser l'utilisateur appelle une URL d'un _magasin d'applications_ qui ouvre une page contenant l'application:
+- l'application peut être directement utilisable depuis cette page, mais certains OS (comme iOS) des appareils ne le permettent pas. L'utilisateur peut, en général, déclarer un _raccourci sur son bureau_ vers cette page afin d'éviter la saisie de l'URL de l'application.
+- l'application _peut ou non ou doit_ (selon le browser utilisé et l'OS de l'appareil) être _installée_ par le browser et apparaît ensuite comme une application locale de l'appareil avec une icône de lancement (par exemple sur le bureau).
 
 #### Application de type _mobile_
-L'utilisateur l'installée depuis le ou un des magasins d'application supportés par l'OS du mobile.
+L'utilisateur l'installe depuis le ou un des magasins d'application supportés par l'OS du mobile.
 
 > Il n'y a ensuite quasiment pas de différence perceptible par l'utilisateur à l'utilisation de l'application, il clique sur une icône pour l'ouvrir (la lancer).
 
-### Serveur
-Les applications en exécution sur leur appareil sollicitent d'un **serveur central** en général de mise à jour et consultation des données de l'application.
+### Serveurs
+Les applications en exécution sur leur appareil envoient aux **serveurs centraux** des demandes de mise à jour et consultation des données de l'application.
 
 Le terme générique de _serveur_ recouvre plusieurs possibilités techniques dont les variantes ne sont pas perceptibles de l'extérieur:
 - **_processus unique_**: un processus s'exécute en permanence sur une machine (virtuelle ou réelle).
 - **_ferme_**: plusieurs processus sont capables de traiter les requêtes qui parviennent sur l'URL de la ferme et ont été routées vers l'un ou l'autre des processus de la ferme.
 - **Cloud Function**: un _serveur éphémère_ du _Cloud_ est lancé pour traiter une demande de service reçue sur son URL:
   - la demande est traitée et le serveur éphémère reste actif un certain temps pour traiter d'autres demandes. Un serveur éphémère peut traiter plusieurs dizaines de demandes en parallèle.
-  - en l'absence de nouvelles demandes, un serveur éphémère reste en attente (entre 3 et 60 minutes pour fixer les idées) puis s'interrompt.
+  - en l'absence de nouvelles demandes, un serveur éphémère reste en attente, entre 3 et 60 minutes pour fixer les idées, puis s'interrompt.
   - si le flux des demandes sature la capacité d'un serveur éphémère, un deuxième, voire un troisième etc. sont lancés.
 
-> Ces choix de déploiement technique ne sont pas détectables par les applications qui émettent des requêtes.
+> Ces choix de déploiement technique ne sont pas détectables par les applications qui envoient des demandes au serveur.
 
 # L'exécution d'une application sur un appareil
 Sur un appareil donné, on ne peut pas lancer plus d'une exécution de l'application.
 
-> Dans le cas d'une application Web (PWA), chaque browser (Firefox, Chrome ...) est vu comme un **appareil différent**: on pourrait avoir s'exécutant au même instant sur son PC, une application sous Firefox ET une application sous Chrome .
+> Dans le cas d'une application Web (PWA), chaque browser (Firefox, Chrome ...) est vu comme un **appareil différent**: on peut avoir s'exécutant au même instant sur son PC, une application sous Firefox ET une application sous Chrome.
 
 **Une application sur UN appareil** peut avoir trois états:
 - être en exécution au **premier plan**. Sa fenêtre est affichée et a le _focus_ (elle capte les actions de la souris ou du clavier). Pour un mobile c'est celle (ou l'une des deux) visibles.
 - être en **arrière plan** : elle a été lancée mais est recouverte par d'autres.
-  - sur un browser, c'est un autre onglet qui a le focus (ou toute autre fenêtre), mais l'utilisateur peut cliquer sur son onglet pour l'amener au premier plan.
+  - sur un browser, c'est un autre onglet qui a le focus, mais l'utilisateur peut cliquer sur son onglet pour l'amener au premier plan; ou la fenêtre du browser est en icône.
   - sur un mobile elle est cachée mais peut être ramenée au premier plan quand l'utilisateur la choisit dans sa liste des applications _ouvertes mais cachées_.
 - être **non lancée**: son exécution n'a pas encore été demandée, ou a été active et fermée.
+
+### Une application peut _envoyer_ des requêtes aux serveurs
+C'est l'application qui appelle un serveur identifié par son URL: le serveur traite la requête et retourne un résultat.
+- requêtes et réponses peuvent être volumineuses.
+
+### Une application peut _écouter_ des notifications émises par les serveurs
+Chaque application sur un appareil est identifiée par un _token_ qui une sorte de numéro de téléphone universel: tout serveur ayant connaissance du token d'une application peut lui envoyer des _notifications_.
+
+Une notification ressemble à un SMS:
+- son texte est _court_ (certes plus long que celui d'un SMS).
+- on ne répond pas _directement_ à une notification: le serveur émetteur ne sait rien de la suite donnée, ou non, par l'application destinataire.
+
+> Toutefois l'application peut évidemment en tenir compte et effectuer des traitements et des requêtes aux serveurs.
+
+**Quand l'application destinatrice est au PREMIER PLAN:**
+- elle peut afficher un court message en _pop-up_ (et émettre un son ...) pour alerter l'utilisateur,
+- elle peut effectuer un traitement simple ou complexe depuis le texte de la notification.
+
+**Quand l'application destinatrice est en ARRIÈRE PLAN:**
+- elle peut (ou l'OS de l'appareil ou le browser dans lequel elle s'exécute) peut afficher en _pop-up_ la notification ce qui alerte l'utilisateur,
+- si l'utilisateur clique sur cette alerte, l'application repasse au premier plan.
+
+**Quand l'application destinatrice N'EST PAS en exécution:**
+- l'OS de l'appareil ou le browser dans lequel elle est enregistrée, peut afficher en _pop-up_ la notification ce qui alerte l'utilisateur,
+- si l'utilisateur clique sur cette alerte, l'application est lancée.
+
+## Des applications _écoutantes_ réagissant au flux d'informations poussées
+Les applications **_sourdes_** ne peuvent afficher des écrans que sur sollicitation de l'utilisateur: l'écran ne se remet à jour **suite** que suite à une action de l'utilisateur:
+- si ce dernier ne fait rien, l'écran ne change pas et affiche le cas échéant des données qui de fait ont déjà été modifiées par l'action d'autres utilisateurs, du temps qui passe, etc.
+
+Les applications **_écoutantes_** peuvent remettre à jour leurs écrans et données détenues localement même sans action d'un utilisateur mais en fonction des _notifications_ poussées vers elles par les serveurs.
+
+# Le paradigme _fils d'information_ / _collections de documents synchronisés_
+Les _données_ sont vues comme des collections de documents, chaque document pouvant rassembler un volume significatif de données structurées de manière relativement complexe.
+
+Suivant ce paradigme, une application présente à son utilisateur deux concepts:
+- des _fils d'information_ annonçant des évolutions de documents ou de collections de documents qui l'intéresse: des nouvelles sur un _chat_ (un document), uné évolution tarifaire (un tarif vu comme une collection de documents). Ces fils **annoncent** par des notifications une évolution, mais n'en donne q'un minimum d'information.
+- des _collections de documents synchronisés_: les documents de la collection sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur.
+
+Une collection de documents synchronisés est maintenue à jour dans une application **en premier plan**:
+- celle-ci garde dans une mémoire locale une image _retardée_ des documents.
+- en passant au premier plan elle demande aux serveurs les mises à jour survenues depuis cet état.
+- puis elle reçoit au fil de l'eau les annonces de changement sur ces documents effectués par le ou les serveurs, et pour chaque annonce demande au serveur la mise à jour (incrémentale) correspondante.
+
+### Affichage riche en premier plan
+Les écrans présentés sont _dynamiques_ et se mettent à jour automatiquement en fonctions des mises à jours,
+- demandées par l'utilisateur lui-même,
+- demandées par les autres utilisateurs, des traitements réguliers de masse, etc.
+
+### Pas d'affichage en arrière plan
+- Les documents ne sont plus synchronisés et d'ailleurs il n'y a rien pour les afficher.
+- L'application traite les notifications parvenant sur les _fils d'information_ de son périmètre d'intérêt.
+- La communication avec l'utilisateur se limite aux pop-up limités des notifications sur les fils, mais l'application est capable d'un minimum de traitement.
+
+### Quand l'application n'est plus en exécution
+Il continue de s'afficher des notifications sommaires correspondant aux fils d'information actifs.
+- ce n'est plus l'application qui produit ces pop-ups, mais soir l'OS pour une application_mobile_, soit le browser où l'application est enregistrée pour une application Web-PWA.
+- dans ce cernier cas il faut que le browser en question ne soit pas fermé: il peut être en icône avec sa seule page d'accueil (ou rien).
+
+### Des _fils d'information_ plus ou moins riches
+Pour assurer la synchronisation d'une collection de documents, le _fil_ correspondant est riche: il peut y avoir beaucoup de documents modifiés souvent. Les **_fils de synchronisation_** ne donnent lieu à des pop-up que sur des critères précis gérés par l'application afin de ne pas submerger l'utilisateur.
+
+Les _fils d'information_ sont a contrario beaucoup plus sobres: ils correspondent à quelques documents / collections bien ciblés et pas à tous ceux qui seraient nécessaires à une synchronisation complète de ces documents.
+
+> Ce paradigme ne peut pas être mis en œuvre dans toute sa généralité: la solution générique décrite ci-après est une restriction des concepts qui permet de faire fonctionner des applications avec un minimum d'effort. 
 
 # Abonnements à une application
 Pour pouvoir utiliser l'application un utilisateur doit justifier qu'il est **abonné** à l'application.
@@ -69,26 +134,10 @@ Une personne _physique_ est un humain identifiable de manière unique:
 **Cas particulier des _browsers_**
 Deux _browsers_ différents, par exemple Firefox et Chrome, installés sur un même système sont vus comme deux appareils distincts.
 
-## Application
-Le logiciel d'une application est disponible depuis deux sources:
-- une page Web (de type PWA) identifiée par son URL.
-  - un browser la charge depuis le site de distribution et peut ou doit (selon les OS) _l'installer_ en tant qu'application.
-- un conteneur (par exemple un APK) téléchargé depuis un magasin d'applications (voire un site Web) et installé sur l'appareil.
-
-**Sur un appareil donné** une **application** au sens ci-dessus ne peut être en exécution qu'en un seul exemplaire: on ne peut pas y lancer deux exécutions simultanées.
-
 #### Jeton (token) identifiant une application sur un appareil
 Sur un appareil donné, una application reçoit lors de sa toute première exécution un identifiant technique unique (son _token_), une sorte de numéro de téléphone de l'application: des logiciels s'exécutant n'importe où et ayant un accès internet, peuvent _pousser_ des **notifications** à des applications externes dont ils connaissent le _token_.
 
 Une **notification** se manifeste sur l'appareil cible par un court message affiché à l'utilisateur, portant un texte assez court et le cas échéant un lien qu'il peut cliquer.
-
-#### États d'un application sur son appareil
-Une application sur un appareil peut avoir trois états:
-- être en exécution au **premier plan**. Sa fenêtre est affichée et a le _focus_ (elle capte les actions de la souris ou du clavier). Pour un mobile c'est celle (ou l'une des deux) visibles.
-- être en **arrière plan** : elle a été lancée mais est recouverte par d'autres.
-  - sur un browser, c'est un autre onglet qui a le focus, mais l'utilisateur peut cliquer son onglet pour l'amener au premier plan.
-  - sur un mobile elle est cachée mais peut être ramenée au premier plan quand l'utilisateur la choisit dans sa liste des applications _ouvertes mais cachées_.
-- être **non lancée**: son exécution n'a pas encore été demandée, ou a été active et fermée.
 
 #### Réception par une application d'une _notification_ venant de l'extérieur
 **Si elle est au premier plan**: elle est directement traitée par l'application.
