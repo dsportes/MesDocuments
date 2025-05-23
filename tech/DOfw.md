@@ -228,28 +228,33 @@ La fermeture de l'application ne laisse pas le choix: tous les _fils de news_ so
 ### Mode _veille_
 Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'application se met en veille en cas de non utilisation pendant quelques minutes (fixés selon le degré de paranoïa de l'utilisateur). Pour sortir de la veille un code PIN est nécessaire et au second échec l'application se ferme.
 
+# Données d'un service
+Un _service donné pour un prestataire donné_ dispose de deux entités de stockage dédiées:
+- **UNE Base de données** pour toutes les données devant être gérées par des transactions.
+- **UN Storage de fichiers**, non géré par des transactions mais dont la sécurité transactionnelle peut être assurée par la base de données avec un protocole léger pré-validation / validation. Il stocke des _fichiers_ identifiés par leur _path_: la présence de caractères `/` dans un path définit une sorte d'arborescence. Le _contenu_ de chaque fichier est une suite d'octets opaque.
 
+Le Storage permet de disposer d'un volume pratiquement 10 fois plus importants à coût identique par rapport à la base de données: de nombreuses applications ont des données historiques / mortes ou d'évolutions sporadiques qui s’accommodent bien d'un support sur Storage.
 
+> La Base et le Storage sont gérées et accédées exclusivement par le prestataire du service.
 
+#### Le répertoire des applications terminales _abonnées_
+Chaque application sur un appareil a un _jeton_ qui l'identifie de manière unique. Ce répertoire assure la gestion des applications _actives_ (ayant un abonnement en cours):
+- maintien du répertoire à jour et détection des applications inactives: une application terminale _s'abonne_ auprès du prestataire pour toutes les organisations gérées par le prestataire et faisant partie du domaine d'intérêt de l'utilisateur de l'application.
+- pour chaque application _active_, le répertoire détient la liste des identifiants des _dossiers à synchroniser_ et des _flux de news_ auxquels elle est _abonnée_.
+- à l'occasion d'une évolution des données, une publication de notifications est déclenchée vers toutes les applications abonnées à un des flux / dossiers mis à jour.
 
+> Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plus d'un prestataire si toutes les organisations de son domaine d'intérêt ne sont pas toutes gérées par le même prestataire.
 
+### Base de données partagée par tous les prestataires
+Cette base de données gère un **répertoire des organisations supportées par chaque prestataire**, un peu comme un DNS, et n'est pas spécifique d'une application donnée.
 
-### Base de données d'un _serveur_
-**UNE base de données** est attachée à chaque _serveur_ identifié par son URL, qu'il soit exécuté par un processus unique ou un nuage de processus.
+Quelques opérations simples de gestion sont proposées:
+- aux prestataires pour enregistrer une nouvelle organisation s'assurant de son unicité.
+- aux applications pour obtenir l'URL d'appel du service gestionnaire en fonction de l'application et de l'organisation: vers quel prestataire (au singulier) diriger les requêtes.
 
-### Storage d'un _serveur_
-**UN storage** est attaché à chaque _serveur_. Il stocke des _fichiers_ identifiés par leur _path_: la présence de caractères `/` dans un path définit une sorte d'arborescence.
+---
 
-Le _contenu_ de chaque fichier est une suite d'octets opaque.
-
-## Organisations
-**Un serveur gère une ou plusieurs organisations:** chacune a ses données distinctes, en base de données comme en storage. 
-
-Les données sont partitionnées par _organisation_.
-
-Sauf exception ci-après, chaque requête concerne UNE seule organisation et n'accède donc qu'aux seules données de _son_ organisation.
-
-> Certaines requêtes **d'administration** ont pour cible _le répertoire des organisations_ et la gestion de celles-ci. Elles ne ciblent pas au départ _une_ organisation spécifique mais peuvent ensuite exécuter un traitement portant sur l'une ou plusieurs d'entre elles.
+# Contributions antérieures
 
 ## Comptes d'une organisation
 Une organisation a, en général, plusieurs **comptes**, le cas échéant beaucoup.
@@ -527,31 +532,6 @@ Le troisième objectif est de conférer au _serveur_ la possibilité de _pousser
   - avertir l'utilisateur par un message,
   - faire rafraîchir une copie plus ou moins partielle de son périmètre et afficher automatiquement l'état le plus récent de certaines données, même quand ces changements ont été issus d'autres sessions de travail d'autres utilisateurs.
 
-# Applications clientes
-## PWA : _progressive web app_
-Une telle application s'exécute dans le contexte d'un browser mais a sa propre fenêtre:
-- l'application (son logiciel) est identifiée par son URL.
-- une instance d'application correspond à une installation dans un browser sur un device donné (par exemple une sous Chrome et une sur Edge).
-
-Pour simplifier il n'y a à un instant donné au plus une instance d'application donnée sur un device donné.
-
-> Rien n'interdit de mettre en ligne le même logiciel (au détail près de son `manifest`) sous 3 URLs: dans ce cas on peut ouvrir une fois ... 3 applications identiques (au nom près).
-
-## Application Mobile (androïd)
-Il n'y a au plus qu'une instance d'une application donnée sur un mobile donné. Elle a pu être lancée au démarrage du mobile et s'exécuter en _background_.
-
-> Remarque: si une application s'exécute sous l'habilitation d'un _user authentifié_ elle doit prévoir:
-- soit de connecter à un _user_ puis se déconnecter avant de se connecter à un autre.
-- soit de gérer autant de contextes qu'il y a de users connectés en même temps dans l'application.
-
-## Token
-Une **instance d'application** distante (Web ou mobile) est identifiée par un `token` qui est une adresse à laquelle des messages pourront être poussés depuis un serveur (Cloud Function, ...) afin d'alerter l'instance de l'application sur l'évolution des documents de son, ou **ses** _périmètres_ d'intérêt.
-
-Une instance d'application peut être en état,
-- _foreground_: elle est visible par l'utilisateur et a le focus. Pour une application PWA sa fenêtre est sur le dessus et a le focus. Dans cet état l'application reçoit immédiatement les messages poussés et peuvent mettre à jour leurs copies locales de documents et leur UI.
-- _background_: l'application n'est pas visible, cachée, voire même pas lancée. Dans cet état l'arrivée d'un message poussé provoque quand l'utilisateur clique sur la notification qui s'affiche,
-  - si l'application est en exécution, son pop au premier plan,
-  - si elle ne l'est pas son lancement.
 
 ## Authentification
 Après avoir été lancée une application (PWA par exemple) peut soumettre des requêtes à son serveur (ou un de _ses_ serveurs) mais ne pourra pas accéder à beaucoup de données, la quasi totalité d'entre elles requérant un `Account` authentifié.
