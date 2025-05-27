@@ -490,106 +490,6 @@ Les stockages locaux de document sont stockés où, cryptés par quoi ? La clé 
 
 # Contributions antérieures
 
-## Comptes d'une organisation
-Une organisation a, en général, plusieurs **comptes**, le cas échéant beaucoup.
-
-Chaque requête au serveur s'exécute (en général) **sous contrôle d'un compte** ce qui va déterminer:
-- quelles données de l'organisation (en base de données / storage) sont accessibles par la requête,
-- quels traitements peuvent être exécutés sous quelles conditions.
-
-#### Un _compte_ n'est PAS assimilable à une _personne_
-Certains comptes correspondent à des _rôles_ ou _personnes morales_: comptable, administrateur, modérateur, représentant d'une famille, chef d'équipe ... ces comptes peuvent être référencées par des _personnes_ (physiques) différentes.
-
-Certains comptes peuvent sembler avoir un rôle plus _personnel_ mais si on pense par exemple à un compte en banque, des _procurations_ peuvent être attribuées à plusieurs personnes physiques.
-
-## Sessions d'une application
-Quand une personne lance une première fois l'application sur un appareil où elle n'a jamais été lancée, l'application s'ouvre sur un écran _vierge_ de tout contexte.
-
-A ce moment la personne ne peut qu'accéder qu'à des informations générales, la météo, une information générale sur l'état du serveur, un manuel d'aide en ligne ... bref guère plus que ce que délivre un site Web statique, et encore **pour autant que l'application ait prévu de fournir ces informations gratuitement**.
-
-### Ouverture d'une _session_ : identification / authentification de l'utilisateur
-Pour utiliser _vraiment_ l'application une personne doit s'identifier (dire qui elle est) et s'authentifier (le prouver).
-
-Après cette opération, une **session** est ouverte.
-
-La personne peut accéder à plus d'informations (toujours pour autant que l'application l'ait prévu), par exemple à des informations éventuellement payantes (puisque qu'elle identifiée) ou réservées aux personnes _identifiées_.
-
-Dans le cas où l'application est payante, la personne peut accéder:
-- à sa situation _comptable_: le solde de son compte, des informations sur ses abonnements d'espace et consommations de calcul.
-- à la déclaration d'un paiement, ou à sa pré-annonce quand le paiement effectif est reçu par un autre canal anonymisé.
-
-#### Réception de _notifications_
-Dès lors qu'une session est ouverte elle _peut_ recevoir des _notifications_: par exemple si sa situation comptable évolue du fait d'actions déclenchées par ailleurs. 
-
-### Connexion d'une _session_ à un _compte_
-Une _session_ ouverte peut se _connecter_ à un ou plusieurs comptes: c'est la logique applicative du logiciel du serveur qui détermine comment et quelles personnes (physiques) peuvent ou non se connecter à un _compte_ d'une organisation et comment il est identifié.
-
-Une connexion d'une session peut avoir deux statuts différents:
-- **active**: des requêtes peuvent être émises pour déclencher des traitements sous contrôle du compte.
-- **monitoring**: le compte est sous _surveillance_ les modifications des données de son périmètre d'intérêt vont déclencher des **notifications**.
-
-Une seule connexion d'une session est _active_ à un instant donné, les autres sont en _monitoring_.
-
-> Une session peut en conséquence travailler activement sur un compte et en avoir d'autres  sous _monitoring_ et recevoir des notifications.
-
-Le _compte actif_ d'une session dispose dans celle-ci d'une mémoire de _documents_ copies retardées (ou non) de ceux détenus par le serveur central: les _notifications_ reçues du compte actif signalent l'existence d'une mise à jour (création ou suppression) de documents du _périmètre d'intérêt_ du compte.
-
-> Cette copie distante synchronisée permet d'afficher à l'écran, sans intervention de l'utilisateur, un état le plus à jour possible des données du fait d'évolutions quelqu'en soit les origines.
-
-#### Une session peut ne pas avoir de _compte actif_
-Si l'essentiel des requêtes émises depuis une session concerne le _compte actif_, certaines sont indépendantes de tout comptes:
-- les requêtes de _connexion_ qui ont justement pour objectif de déterminer quel compte doit être rattaché à la session (pour devenir actif ou simplement monitoré).
-- certaines requêtes de lecture de données considérées comme _publiques_ dans l'organisation.
-
-### Réception de _notifications_ dans une session
-Chacune a pour source un compte auquel la session est connectée:
-- si c'est le _compte actif_ la notification peut signaler une évolution de documents du _périmètre d'intérêt_, la session en demandera le nouvel état afin que sa mémoire locale en soit synchronisée.
-- si c'est un _compte monitoré_ la notification signale un événement digne d'intérêt, sans déclencher pour autant une mise à jour de copies de documents dans la mémoire de la session.
-
-
-### Fermeture de l'application SANS fermeture de la session
-La fenêtre de l'application est fermée, elle n'est plus en exécution, mais sa **session** est toujours considérée comme ouverte par les comptes connectés: en conséquence l'appareil (ou le browser) recevra toujours des notifications liées aux évolutions des données des comptes associés à la session.
-
-Si la personne derrière l'appareil à cet instant, clique sur une telle notification, l'application s'ouvrira et rétablira sa session (ce qui peut ou non constituer un problème).
-
-### Fermeture EXPLICITE de la session en cours
-Les comptes connectés dans une session peuvent toujours en cours de session être _déconnectés_ individuellement. 
-
-Quand la session est **explicitement** fermée par l'utilisateur,
-- tous les comptes connectés sont déconnectés.
-- l'identification de la personne est effacée.
-- l' application se retrouve _vierge_ dans le même état que si elle n'avait jamais été lancée.
-- plus aucune notification n'apparaîtra pour cette application.
-
-## Déconnexions _automatiques_ ?
-Certaines applications sensibles peuvent prévoir une déconnexion automatique du compte actif (voire des autres) au bout d'un certain temps sans activité de l'utilisateur. 
-
-Sans déconnexions automatiques l'appareil va  continuer d'afficher des notifications relatives à une personne (et les comptes qu'elle avait connectés) qui _était_ celle derrière l'appareil il y a quelque temps MAIS ne l'est peut-être plus. Comme un clic sur une telle notification rouvre la session, la nouvelle personne derrière l'appareil se retrouve avec une session ouverte par la précédente (et les autorisations qui vont avec).
-
-## Code PIN de passage au premier plan suite à une notification
-Quand l'application était _en arrière plan_ et se retrouve propulsé au _premier plan_ parce que l'utilisateur a cliqué sur une notification, ça peut faire longtemps qu'elle était en arrière plan: dans ce cas il doit saisir un code PIN avant d'obtenir le ré-affichage de la session ouverte. 
-
-En cas d'échec (une ou deux fois au plus) la session est fermée par précaution.
-
-De même si l'application était avec une session en cours et que l'utilisateur clique sur une notification,
-- si le bon code PIN est fourni elle s'ouvre à nouveau sur la session laissée ouverte au moment de la fermeture,
-- sinon la session est fermée, les connexions fermées et l'identification de l'utilisateur à refaire.
-
-## Synthèse
-Laisser sa session ouverte en fermant l'application permet:
-- de voir s'afficher des notifications relatives aux données de celle-ci, d'être en monitoring des comptes connectés à la session.
-- de la réactiver rapidement sans avoir à s'authentifier et se connecter à nouveau aux comptes.
-- un code PIN permet d'éviter qu'une autre personne en profite.
-- a contrario la personne _suivante_ sur l'appareil verra s'afficher en notifications des informations qui concernent la personne précédente (à éviter quelles soient trop précises / confidentielles).
-
-Des déconnexions automatiques en cas d'inactivité, et / ou en cas de fermeture de l'application:
-- empêche de voir s'afficher des notifications,
-- empêche de réactiver sa session rapidement,
-- procure une confidentialité rigoureuse sur l'appareil quelqu'en soit la personne qui l'a sous la main.
-
-Le comportement dépend du type d'appareil sur lequel une session est ouverte:
-- au cyber-café ou sur un PC ou mobile NON personnel, il faut fermer ses sessions.
-- sur un appareil très _personnel_ dont le login est bien protégé, c'est plus pratique de les laisser ouvertes.
 
 # Mémoire _cache_ locale de données sur un appareil / mode "avion"
 Au lancement d'une application sur un appareil, l'utilisateur se trouve devant plusieurs possibilités:
@@ -668,25 +568,6 @@ En cas de suppression, le numéro de version augmente aussi (ça sera la derniè
 
 Un arbre conserve ainsi _un certain temps_, par exemple 200 jours, la liste de ses documents supprimées. Une copie ancienne de cet arbre de moins de 200 jours peut ainsi être rafraîchie incrémentalement: les documents mis à jour sont détectés depuis leur numéro de version ainsi que les documents supprimés depuis.
 
-# Objectifs du framework
-Cette couche logicielle a plusieurs objectifs:
-- gérer la persistance des arbres de documents et fichiers dans la base de données et le storage.
-- gérer la _synchronisation cohérente_ de copies distantes des arbres.
-- notifier par _push_ des applications distantes des évolutions des arbres auxquels elles ont souscrites.
-
-Le framework a deux niveaux d'action:
-- **dans une Cloud Function _centrale_** ayant accès à la base de données et au Storage. Ce peut être un serveur HTTPS standard, ou une Cloud Function sous différentes variantes technique.
-- **dans des applications de différentes natures techniques** faisant appel aux services des Cloud Functions centrales, typiquement une application Web, une application mobile, etc.
-
-## Gestion de la persistance _centrale_ dans une Cloud Function
-Le framework gère le stockage des documents et fichiers dans le couple base de données qui Storage détient _l'original_ des **documents et fichiers regroupés en arbres** comme expliqué ci-avant.
-- cette gestion est sécurisée par des transactions ayant la propriété ACID du SGBD.
-- les contenus des fichiers créés / modifiés par une transaction doivent avoir fait l'objet d'un `preLoad` en Storage AVANT mise à jour par une transaction. Le framework assure le nettoyage des contenus du Storage non référencés dans un arbre (suite à un incident technique).
-
-### Création / mise à jour / suppression
-Une couche logicielle d'API permet à la couche applicative de Cloud Functions d'accéder aux documents en mémoire sous forme d'objet de classes applicatives et de déclarer des créations / suppressions / mises à jour des documents en mémoire.
-
-Les _arbres_ sont créés explicitement et supprimés explicitement: un arbre vide peut exister.
 
 ### Lecture d'un arbre
 La lecture d'un arbre retourne les documents de l'arbre:
@@ -736,7 +617,7 @@ Une liste est construite indiquant pour chaque arbre du périmètre dont un des 
 
 Cette liste est retourné comme résultat de la requête: l'application distante ayant sollicité une opération reçoit donc en retour tous les **avis de changement** ayant affecté son _périmètre_. C'est ensuite à l'application de solliciter par des transactions ultérieures les mises à jour effectives des arbres concernés.
 
-#### Cohérence _forte_ ans un arbre, _faible_ entre arbres
+#### Cohérence _forte_ dans un arbre, _faible_ entre arbres
 L'état d'un arbre retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
 
 Mais deux demandes faites pour deux arbres à des instants différents retourne deux états d'arbres qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre arbres, un éta qui globalement peut être fonctionnellement incohérent temporairement.
@@ -766,14 +647,6 @@ Le troisième objectif est de conférer au _serveur_ la possibilité de _pousser
   - avertir l'utilisateur par un message,
   - faire rafraîchir une copie plus ou moins partielle de son périmètre et afficher automatiquement l'état le plus récent de certaines données, même quand ces changements ont été issus d'autres sessions de travail d'autres utilisateurs.
 
-
-## Authentification
-Après avoir été lancée une application (PWA par exemple) peut soumettre des requêtes à son serveur (ou un de _ses_ serveurs) mais ne pourra pas accéder à beaucoup de données, la quasi totalité d'entre elles requérant un `Account` authentifié.
-
-S'authentifier auprès d'un serveur consiste à lui soumettre des données de _credential_ (login / password, phrase secrète, etc.) celui-ci retournant à l'application en cas de succès un document `Account` portant a minima les propriétés:
-- `id` : l'identifiant permanent du compte,
-- `perimeter` : le périmètre du compte, une liste d'identifiants d'arbres `treetype itd` donnant pour chacun la liste des types de documents qui l'intéressent.
-
 ### Restrictions de périmètre
 Le périmètre par défaut d'un `Account` est son périmètre le plus large, celui pour lequel l'utilisateur a le droit de consultation du maximum de documents.
 
@@ -801,8 +674,106 @@ A la fin de chaque opération, le framework dispose de la liste des documents mi
 - pour chaque arbre mis à jour il obtient les souscriptions l'ayant dans leur périmètre et leurs types de documents surveillés,
 - il peut établir pour chaque token un message signalant les mises à jour du ou des périmètres surveillés.
 
-### Problème
-Une application cliente pourrait se fabriquer un périmètre hors de ses limites.
+# Use Case _circuit court_
 
-Il faut faire calculer le périmètres sur le serveur et le retourner scellés / cryptés par la clé du serveur.
+## Concepts
+Un groupe de consommateurs est identifié par son code gc. Sa fiche de renseignement donne des informations de contact, son ou ses mots de passe et spécifie la liste des groupements de producteurs auxquels il peut commander. 
+
+Un consommateur est identifié par son code dans son groupe: gc co. Sa fiche de renseignement donne des informations de contact et son mot de passe.
+
+Un groupement de producteurs est identifié par son code gp. Sa fiche de renseignement donne des informations de contact, son ou ses mots de passe et spécifie la liste des groupes de consommateurs qui peuvent lui émettre des commandes.
+
+Un producteur est identifié par son code dans son groupement: gp pr. Sa fiche de renseignement donne des informations de contact et son mot de passe.
+
+Une référence de produit est identifié par son code dans son producteur: gp pr rp.
+
+Une livraison d'un groupement est identifiée par le groupement livrant et sa date de livraison: gp livr. La date est immuable une fois déclarée, mais des dates effectives peuvent être déclarées et changées:
+- date-heure d'ouverture: on ne peut pas commander avant cette date. Les conditions de vente (prix / poids des produits) sont fixées mais peuvent subir des variations après ouverture. Dans ce cas les conditions à l'ouverture et les conditions courantes existent toutes les deux.
+- date-heure de clôture: on ne peut plus commander après cette date-heure.
+- date-heure d'expédition. Les conditions prix / poids des produits ne peuvent plus changer après cet instant, des paiements effectifs et définitifs peuvent s'engager.
+- date-heure de livraison: il y a une date-heure par point de livraison au groupe de consommateur.
+- date-heure de distribution: il y a une date-heure par point de livraison au groupe de consommateur, les produits peuvent commencer à être récupérés.
+- date-heure de clôture: plus rien ne peut changer, les rectifications ultérieures sont traitées manuellement, la livraison est archivée.
+
+Les commandes par les consommateurs indiquent une quantité pour chaque produit. 
+- La quantité peut être en unité ou en poids au Kg. 
+- Les unités peuvent être des _demi_ (une demi caisse) selon les produits (pas de _demi_ paquet de café).
+
+La _commande_ d'un groupe de consommateurs est la somme des commandes des consommateurs du groupe.
+
+Quand une commande est réceptionnée, pour chaque produit (en général commandé mais pas forcément), figure une quantité livrée ou un poids livré.
+- pour certains produits, des poulets par exemple, la quantité livrée est le nombre N de poulets et le poids livré est un tableau de N poids individuels des poulets. Quand il y a un poids total c'est, soit temporaire en estimation avant obtention des poids individuels, soit la somme des poids individuels.
+
+Le calendrier des livraisons d'un groupement de producteurs donne pour chaque livraison:
+- sa date de livraison (théorique et immuable).
+- ses dates-heures d'ouverture, expédition ... Des règles fixent comment et quand ces dates peuvent être changées, en particulier les unes par rapports aux autres.
+- la liste des groupes de consommateurs livrés (point de livraison).
+
+La catalogue des produits d'un groupement
+Il est constitué de 2 documents:
+- un catalogue général. Il donne pour chaque produit:
+  - un descriptif permanent: 
+    - son code et sa référence (_code-barre_).
+    - un descriptif (libellé) et des indicateurs de label / qualité, taux de TVA applicable, si c'est un produit _sec_, _frais_ ou _surgelé_.
+    - si le produit est vendu à l'unité, au poids et / ou par _caisse_ ou _demi-caisse_.
+    - ces caractéristiques ne peuvent pas changer, sauf rectifications orthographiques / documentaires (un produit _à l'unité_ ne peut pas devenir _au poids_, il faut définir un autre produit).
+  - une liste chronologique de date-heure à laquelle les conditions de ventes du produit ont changé:
+  - sa disponibilité,
+  - son prix,
+  - ses poids _net_ et _brut_: le poids _net_ est celui sans l'emballage (ce que mange le consommateur), son poids _brut_ inclut l'emballage (ce que ça pèse dans le camion).
+
+- un catalogue par livraison. Il donne pour une livraison donnée, la liste des produits avec pour chacun sa conditions de vente.
+  - la catalogue d'une livraison est _calculé_ avant ouverture de la livraison depuis le catalogue général.
+  - il peut être amendé ponctuellement jusqu'à l'ouverture de la commande.
+  - après ouverture de la commande, quand une condition de vente d'un produit change, les deux conditions existent: celle _actuelle_ et celle _à l'ouverture de la commande_.
+  - les conditions de vente ne peuvent plus changer après la date-heure de livraison (des paiements définitifs ont pu avoir lieu).
+
+News / chats par livraison
+- une news / chat alimentée par chaque groupement de producteurs: gp livr. Tous les groupes de consommateurs sont concernés. Un groupe de consommateurs peuvent y déposer aussi des news (avec modération).
+- une news alimentée par chaque groupe de consommateur: gc livr. Tous les consommateurs du groupe sont concernés. Un groupement de producteur est également habilité à y déposer des news.
+
+News / chats par groupe de consommateurs: écrits par le groupe et les consommateurs du groupe indépendamment de toute livraison.
+
+News / chats par groupements de producteurs: écrits par le groupement et les producteurs du groupement indépendamment de toute livraison.
+
+> La partie de gestion des paiements est omise dans ce use-case.
+
+> La partie de consultation de _l'historique_ figé des commandes clôturées est omise dans ce use-case.
+
+## Objectifs
+On s'intéresse ici aux deux scénarios simplifiés se rapportant à un groupement de consommateurs et à un consommateur. Des scénarios voisins
+
+### Point de vue d'un consommateur.
+Documents de son périmètre d'intérêt
+- les calendriers généraux des livraisons: vision de _reporting_, il n'a pas à en suivre en temps-réel les variations avec zoom à la demande sur chaque calendrier.
+- la liste des livraisons ouvertes avec leur statut et dates-heures: vison _synchronisée_ présentant pour chaque livraison la _synthèse de sa commande_ : nombre de références, somme des poids brut et somme des prix.
+- il peut _zoomer sur une livraison et avoir une vision _synchronisée_ de la livraison:
+  - le détail de sa commande,
+  - la synthèse de la commande pour son groupe: en effet pour chaque produit un consommateur aime à savoir le montant global des autres membres du groupe.
+- les catalogues généraux des produits de chaque groupement: vision _reporting_ avec zoom à la demande de chaque catalogue.
+- les catalogues des produits spécifiques des livraisons ouvertes: vision _reporting_ avec zoom à la demande de chaque catalogue.
+- chat de son groupe: avec vision _synchronisée_.
+
+Fils de news
+- chat de son groupe.
+- chats des livraisons ouvertes. 
+
+> Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupement qui en fera les informations de synthèses sur le chat du groupe.
+
+### Point de vue d'un groupe (un de ses animateurs) (A SUIVRE).
+Documents de son périmètre d'intérêt
+- les calendriers généraux des livraisons: vision de _reporting_, il n'a pas à en suivre en temps-réel les variations avec zoom à la demande sur chaque calendrier.
+- la liste des livraisons ouvertes avec leur statut et dates-heures: vison _synchronisée_ présentant pour chaque livraison la _synthèse de sa commande_ : nombre de références, somme des poids brut et somme des prix.
+- il peut _zoomer sur une livraison et avoir une vision _synchronisée_ de la livraison:
+  - le détail de sa commande,
+  - la synthèse de la commande pour son groupe: en effet pour chaque produit un consommateur aime à savoir le montant global des autres membres du groupe.
+- les catalogues généraux des produits de chaque groupement: vision _reporting_ avec zoom à la demande de chaque catalogue.
+- les catalogues des produits spécifiques des livraisons ouvertes: vision _reporting_ avec zoom à la demande de chaque catalogue.
+- chat de son groupe: avec vision _synchronisée_.
+
+Fils de news
+- chat de son groupe.
+- chats des livraisons ouvertes. 
+
+> Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupement qui en fera les informations de synthèses sur le chat du groupe.
 
