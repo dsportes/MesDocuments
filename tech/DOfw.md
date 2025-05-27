@@ -109,7 +109,7 @@ Sur un appareil donné, on ne peut pas lancer plus d'une exécution d'une applic
 - être **non lancée**: son exécution n'a pas encore été demandée, ou a été active puis fermée.
 
 ### Une application peut _envoyer_ des requêtes aux serveurs
-C'est l'application qui appelle un serveur identifié par son URL: le serveur traite la requête et retourne un résultat.
+C'est l'application qui appelle un serveur identifié par son URL: le serveur **traite la requête et retourne un résultat**.
 - requêtes et réponses peuvent être volumineuses.
 
 ### Une application peut _écouter_ des notifications émises par les serveurs
@@ -117,7 +117,7 @@ Une application donnée sur un appareil donné est identifiée par un _jeton_ qu
 
 Une notification ressemble à un SMS:
 - son texte est _court_ (certes plus long que celui d'un SMS).
-- on ne répond pas _directement_ à une notification: le serveur émetteur ne sait rien de la suite donnée, ou non, par l'application destinataire.
+- on ne répond pas à une notification: le serveur émetteur ne sait rien de la suite donnée, ou non, par l'application destinataire.
 
 > Toutefois l'application peut évidemment en tenir compte et effectuer des traitements et des requêtes ultérieures aux serveurs.
 
@@ -152,7 +152,7 @@ Suivant ce paradigme, une application présente à son utilisateur trois concept
 - en repassant au premier plan, elle demandera aux services de lui fournir les mises à jour survenues sur les documents synchronisés depuis l'arrêt de cette synchronisation.
 
 ### Quand l'application n'est plus en exécution
-Quand une application est en exécution elle est _abonnée_ à des _fils d'information_.
+Quand une application est en exécution elle peut rester _abonnée_ à des _fils d'information_.
 
 Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, ces abonnements restent actifs, du moins un certain temps:
 - les notifications correspondantes continueront à s'afficher en _popups_, l'OS ou le browser de l'application s'en chargeant.
@@ -171,23 +171,25 @@ Les **_fils de news_** sont a contrario beaucoup plus sobres: ils correspondent 
 Un utilisateur qui veut utiliser une application (Web-PWA ou non) est placé devant deux cas de figure:
 - **l'appareil qu'il s'apprête à utiliser est _le sien_**: un peu plus généralement c'est un appareil,
   - qu'il utilise régulièrement, que se soit le sien ou celui d'un proche,
-  - c'est un appareil de confiance: il peut laisser quelques informations personnelles localement dessus.
+  - c'est un appareil de confiance: il peut laisser quelques informations personnelles localement dessus (mais cryptées).
 - **l'appareil qu'il s'apprête à utiliser ne lui est pas familier**, il est partagé par un grand nombre d'utilisateurs comme au cyber-café ou est celui d'une connaissance qui le lui a prêté temporairement:
   - il ne doit pas y laisser quelques informations que ce soit, aucune trace de son utilisation de l'application,
   - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement.
 
 ### Appareil _personnel_: ses profils
-En pratique dans bien des cas c'est un appareil qui peut être utilisé par d'autres que soi-même. Typiquement dans un cadre familial ou un couple, l'appareil n'est pas strictement _personnel_.
+En pratique c'est en général un appareil qui peut être utilisé par d'autres que soi-même. Typiquement dans un cadre familial ou un couple, l'appareil n'est pas strictement _personnel_.
 
-En général un tel appareil est _protégé_ par un mot de passe ou tout autre dispositif que seuls des proches connaissent (à moins d'ailleurs que l'appareil leur soit prêté avec une session ouverte). Il n'empêche que _plusieurs personnes peuvent plus ou moins occasionnellement s'en servir_: d'où le principe d'y avoir possiblement plusieurs _profils_.
+En général le _login_ à un tel appareil est _protégé_ par un mot de passe ou tout autre dispositif que seuls des proches connaissent (à moins d'ailleurs que l'appareil leur soit prêté avec une session ouverte). 
+
+Il n'empêche que _plusieurs personnes peuvent plus ou moins occasionnellement s'en servir_: d'où le principe d'y avoir possiblement plusieurs _profils_.
 - un browser comme Firefox a une notion d'utilisateur: on peut basculer d'un utilisateur à un autre (sans pour autant avoir changé de connexion au niveau de l'OS), ce qui va conférer à chacun ses sites favoris, son historique de navigation et ses mots de passe enregistrés.
 - Thunderbird, le gestionnaire de mails locaux, supporte de gérer plusieurs _profils_, chacun avec ses comptes mails.
 
 ### Des _profils_ plus ou moins bien défendus
-Ce n'est pas parce qu'on partage un appareil avec un proche qu'on a envie de partager ses informations confidentielles.
+Ce n'est pas parce qu'on partage un appareil avec un proche qu'on a envie de partager avec lui ses informations confidentielles.
 
 Or dans les cas cités ci-dessus, la confidentialité est plutôt _lâche_:
-- Thunderbird ne demande rien: on choisit son profil, sans mot de passe ou quoi que ce soit. Les boîtes mail sont de toutes les façons en clair dans le file-system, confidentialité zéro.
+- Thunderbird ne demande rien: on choisit son profil, sans mot de passe ou quoi que ce soit. Les boîtes mail sont de toutes les façons en clair dans le file-system, confidentialité _intra-familiale_ zéro.
 - Chrome s'ouvre sur le compte _courant_: si vous ne vous déconnectez pas **explicitement** avant de fermer le browser, il s'ouvre la fois suivante sur votre compte, ses mots de passe, ses historiques et ses favoris. Si vous vous déconnectez il est strict sur la connexion et demandera même à votre téléphone si c'est vraiment vous qui essayez de vous connecter: il suffit d'y répondre OUI et c'est bon (même si vous vous êtes fait voler votre téléphone en état déverrouillé, Google est content).
 
 ### Profil personnel local à un appareil
@@ -245,14 +247,246 @@ Chaque application sur un appareil a un _jeton_ qui l'identifie de manière uniq
 
 > Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plus d'un prestataire si toutes les organisations de son domaine d'intérêt ne sont pas toutes gérées par le même prestataire.
 
-### Base de données partagée par tous les prestataires
-Cette base de données gère un **répertoire des organisations supportées par chaque prestataire**, un peu comme un DNS, et n'est pas spécifique d'une application donnée.
+# Base de données partagée par tous les prestataires
+Cette base unique n'est concerne toutes les applications et tous les prestataires.
 
-Quelques opérations simples de gestion sont proposées:
-- aux prestataires pour enregistrer une nouvelle organisation s'assurant de son unicité.
-- aux applications pour obtenir l'URL d'appel du service gestionnaire en fonction de l'application et de l'organisation: vers quel prestataire (au singulier) diriger les requêtes.
+Tous les services des prestataires peuvent y accéder pour les opérations qui leur sont ouvertes.
 
----
+Toutes les applications terminales peuvent solliciter un quelconque des sprestataires afin d'accéder concernant un de leurs utilisateurs.
+
+Les données de cette base sont:
+- Le **répertoire des services**.
+  - il liste pour toutes les applications le prestataire (son URL) gérant chaque organisation.
+- Le **répertoire des utilisateurs**. Tout utilisateur qui s'y est inscrit (c'est une facilité pas une obligation) dispose d'une entrée personnelle confidentielle et sécurisée. Il y trouve:
+  - un enregistrement de _préférences_ personnelles.
+  - des _droits d'accès scellés_ déposés par un service d'une application. Chaque _droit_ est spécifiquement attribués à cet utilisateur et lui confère la possibilité d'accéder à des données et de s'abonner à des fils de news.
+
+#### Glossaire technique
+- **SH(s1, s2)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une logueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquement utilisés.
+- **PP-x** : couples de clés publique / privée (Pub / Priv).
+- **K-x** : clés AES de 32 bytes.
+
+Soit `PP-S` le couple de clés généré par un serveur:
+- `Pub-S` est une clé publique: toutes les applications l'obtiennent libremenet par un simple GET au serveur.
+- `Priv-S` est la clé privée du serveur et fait partie des _secrets_ du logiciel serveur.
+
+Soit `PP-ti` un couple de clés généré par une application terminale `ti` pour une conversation donnée avec le serveur `S`:
+- `Pub-ti` est transmise dans les requêtes au serveur.
+- Le serveur peut génèrer une clé `K-S-ti` à parir du couple `Pub-ti / Priv-S`: il s'en sert pour crypter ses réponses à l'application terminale ou toute donnée dont il veut que seule `ti` puisse les lire.
+- L'application terminale peut génèrer une clé `K-ti-S` à parir du couple `Pub-S / Priv-ti`. Comme `K-ti-S` et `K-S-ti` sont égales, l'application terminale peut s'en serir pour décrypter les réponses / données cryptées pour elle par l'application serveur (et nul autre ne peut le faire).
+
+Les applications terminales connaissent la clé publique du serveur Pub-S. Quand l'une d'elle veut échanger des données confidentielles avec le serveur:
+- elle génère un couple PP-t,
+- elle envoie ses requêtes au serveur en fournissant Pub-t.
+- elle décryptera les réponses / données cryptées par le serveur par la clé Pub-S.
+
+## Répertoire des services
+Ce répertoire est en deux parties.
+
+#### Liste des _application / prestataire_
+Cette liste donne pour chaque _service_ identifié par le couple **application / prestataire**  
+- son **URL** d'accès qui permet de lui adresser des requêtes.
+- sa **clé publique** PUB-S de cryptage qui permet à qui le souhaite de crypter des données de manière à ce que seul les serveurs de ce service puissent les décrypter en sachant qui les a crypté.
+- son **statut** à propos de l'état du service (ouvert / restreint / suspendu / fermé) et un _texte d'explication_ de cet état.
+- un court texte d'information à propos du service.
+
+#### Liste des _organisations par application_
+Pour chaque couple **application / organisation**, cette liste donne:
+- le code du **prestataire** qui la sert.
+- un **statut** à propos de l'état du service vis à vis de l'organisation (ouvert / restreint / suspendu / fermé) et un texte éventuel d'explication de cet état.
+- un court texte d'information à propos de l'organisation.
+
+Quelques opérations de gestion sont proposées aux prestataires pour:
+- s'enregistrer, donner son URL et sa clé publique, maintenir à jour son statut et son texte d'information.
+- enregistrer une nouvelle organisation s'assurant de son unicité et lui attribuer / modifier son label, fixer son statut et son texte d'information.
+
+Ce répertoire permet aux applications terminales:
+- d'obtenir l'URL d'appel du service gestionnaire en fonction de l'organisation et sa clé publique de cryptage,
+- de lire le statut du service et ses restrictions d'usage éventuelles fixées par l'adminisrateur du service à l'égard de leur organisation.
+
+## Répertoire des utilisateurs
+Chaque utilisateur **_PEUT_** et non _DOIT_ s'enregistrer dans ce répertoire dans le seul but de raccourcir les saisies d'information à fournir pour accéder aux applications de son choix. Il y est identifié par un USERID généré aléatoirement et sans signification.
+
+Il y a deux natures d'informations qui peuvent être stockées dans l'entrée de l'utilisateur:
+- des _droits d'accès_,
+- des _préférences_.
+
+#### Droit d'accès
+Un droit d'accès est enregistré par un service pour l'utilisateur et est une donnée cryptée qui _autorise_ l'utilisateur à accéder,
+- à des documents identifiés, voire à s'abonner aux évolutions de certains d'entre eux,
+- à des flux de news identifiés.
+
+Un droit d'accès contient deux parties:
+- une partie **cible** interprétable par les applications terminales comme les serveurs:
+  - à qui il est attribué (USERID),
+  - pour quel _usage_ dont la codification est spécifique de chaque application.
+- un **jeton opaque** pour les applications terminales, crypté par le serveur, donnant les authentifications nécessaires à accéder aux documents et fils de news.
+
+Les services génèrent des _droits d'accès_: ceux-ci sont scellés. Les applications terminales peuvent:
+- les obtenir des services et les lire mais sans pouvoir interpréter le jeton opaque.
+- les enregistrer dans leur entrée de répertoire.
+- ultérieurement les relire et les transmettre à un service pour bénéficier de l'accès correspondant.
+
+#### Préférences
+Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné une ou des valeurs par défaut / préférées:
+- langue préférée,
+- mode sombre / clair,
+- nom, e-mail, adresses, numéros de téléphone ...
+- etc.
+
+Quand une application demande l'une de ces informations, il est proposé à l'utilisateur en pré-saisie la valeur ou l'une valeurs inscrites en _préférences_ si elle y figure. L'utilisateur n'est pas obligé de s'y conformer et peut toujours fixer sa propre valeur à cet instant.
+
+> Le défi est de garantir une stricte confidentialité de ces droits d'accès et préférences: a) seul l'utilisateur peut les obtenir et les changer, b) aucun serveur ne doit jamais être en mesure de les accéder, ni en lecture, ni en écriture.
+
+#### Auto-enregistrement d'un utilisateur
+
+Chaque _utilisateur_ peut s'enregistrer dans ce répertoire afin d'y disposer d'une entrée personnelle: il lui faut toutefois avoir été _parrainé_ dans le cadre d'une application qui lui a fourni un _jeton de parrainage_:
+- **soit par un intermédiaire humain** qui lui a communiqué ce jeton sous forme d'une _phrase de parrainage_ par le canal humain de son choix.
+- **soit par un code envoyé par le serveur** par exemple une moitié du code envoyée par mail à l'adresse donnée par l'utilisateur, la seconde passée en _notification_ sur l'appareil de l'utilisateur.
+
+Une demande de parrainage est gérée par le service auquel l'utilisateur s'adresse. En général ceci va passer par un _formulaire_, minimal ou non, par lequel le service va juger de la pertinence de cette demande et si elle doit ou non corrélativement accorder un droit d'accès à l'application pour l'utilisateur demandeur.
+- la _vraie_ demande de parrainage peut avoir été faite _humainement_ par la rencontre d'un parrain et d'un parrainé, le premier ayant à la suite de cette rencontre enregistré un _parrainage_ et communiqué le jeton au parrainé par le canal de son choix.
+- une demande peut aussi être établie par un formulaire de demande, traitée sur l'instant ou non: le cas échéant ultérieurement un traitement différé peut générer les _parrainages_ par lot et en diffuser le résultat par mail.
+
+> Ce protocole est fait pour éviter une inflation non contrôlée d'enregistrements sans objectifs d'accès aux applications.
+
+Chaque application est responsable de sa logique de distribution de ses _jetons de parrainage_:
+- le `USERID` de l'utilisateur est généré par l'application distributrice (long, aléatoire et sans signification).
+- un `statut` _en création_ est fixé avec une date et heure limite de validité:
+  - si l'utilisateur s'enregistre avant cette limite, le statut passe à _actif_, sinon l'enregistrement est supprimé à échéance.
+- une `phrase ou jeton de parrainage` ouvrant un droit d'inscription au répertoire à une personne la connaissant. C'est le SHA du SH de cette phrase / jeton qui est enregistré.
+- un `message d'information / bienvenue` éventuel: ce texte n'est pas forcément uniquement de _politesse_ et peut contenir des conditions techniques attachées à cette inscription.
+- un `droit d'accès` éventuel permettant à l'utilisateur, en cas d'acceptation, de disposer d'un accès à l'application à laquelle il a demandé de parrainer sont enregistrement.
+- deux URLs:
+  - l'une à utiliser **après acceptation** et enregistrement: l'utilisateur pourra accompagner cet avis d'acceptation par un message de remerciement (ou non) et joindre le _droit d'accès_ attaché.
+  - l'autre à utiliser **en cas de renoncement** d'enregistrement. Au vu du message d'information / bienvenue, ou pour toute raison, l'utilisateur peut renoncer et peut utiliser cette URL pour expliquer le motif de renoncement ou toute autre formule de politesse.
+
+> Le cas échéant un _enregistrement_ dans le répertoire des utilisateurs peut également fournir conjointement un accès pour cet utilisateur au service.
+
+Un utilisateur peut s'enregistrer:
+- en fournissant le SH de la `phrase / jeton de parrainage` qui lui a été communiquée.
+- en ayant généré une clé AES de cryptage `Kp`.
+- en ayant généré un **couple de clés publique / privée** crypté par la clé Kp ci-dessus.
+- en donnant **deux alias d'accès** qui lui permettront de s'identifier en tant qu'utilisateur:
+  - un seul fait courir le risque de le perdre,
+  - un second de _secours_ limite ce risque. Avec un des deux alias l'utilisateur pourra réinitialiser l'autre s'il est définitivement oublié ou s'il souhaite en changer.
+
+Un alias d'accès est constitué de:
+- `s1` : un texte identifiant (d'une longueur minimale) choisi par l'utilisateur.
+- `s2` : un texte d'authentification (d'une longueur minimale) choisi aussi par l'utilisateur.
+- la clé `Kp` cryptée par `s1 + s2`.
+
+> L'utilisateur est le seul à connaître, dans sa tête, le couple `s1 s2`, jamais mémorisé nulle part et transmis seulement dans des SH.
+
+#### Remarques techniques
+- l'application terminale d'enregistrement allonge `s1` en `s1+` par un texte de remplissage quand sa longueur est inférieure au maximum mais supérieure au minimum (refus si inférieur à la longueur minimale). L'unicité du `SH(s1+, s1+)` est vérifiée.
+- l'application terminale d'enregistrement allonge `s2` en `s2+` de même, mais le texte de remplissage est généré en fonction de `s1`.
+- l'unicité de `s1` est vérifiée par l'enregistrement du `SHA(SH(s1+, s1+))`.
+- l'unicité de `s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
+
+#### Accès par l'utilisateur à son enregistrement
+Désormais l'utilisateur est enregistré dans le répertoire des utilisateurs:
+- en lui demandant l'un de ses couples d'accès `s1 s2`, l'application terminale peut fournir les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
+- le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour cet `USERID`. Il peut retourner,
+  - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître s1 et s2).
+  - le couple de clés privée / publique que l'application terminale peut décrypter puisqu'ayant décrypter Kp.
+  - le set des _préférences_ de l'utilisateur cryptées par cette clé `Kp`.
+  - la liste des _droits d'accès_ enregistrés, dont il peut lire et interpréter une partie mais ne peut pas ni interpréter ni modifier la partie _opaque_ générée par les serveurs.
+
+L'application dispose ainsi en mémoire d'une _fiche en clair_ représentant le décryptage de l'entrée cryptée de l'utilisateur dans le répertoire des utilisateurs.
+
+L'application terminale peut ainsi désormais:
+- mettre à jour ses _préférences_ et les enregistrer cryptées par la clé `Kp` qu'il vient de récupérer.
+- pour chaque droit,
+  - l'effacer le cas échéant,
+  - le _commenter_ et le réenregistrer crypté par la clé `Kp` qu'il vient de récupérer. Un commentaire permet à l'utilisateur d'interpréter plus aisément l'usage du droit dont la codification peut être assez absconse.
+
+#### Sauvegarde _locale_ de la fiche de l'utilisateur
+L'utilisateur _peut_ sauvegarder localement cette fiche dans un stockage local avec plusieurs conditions:
+- fournir un code local de _profil_, par exemple `bob`,
+- fournir un couple `s1 s2` pour en crypter le contenu stocké dans le _storage_ local de son browser.
+
+> L'utilisateur peut aussi demander _l'impression_ en HTML de sa fiche en clair ... qui dans cet état est utilisable par tout hacker un peu débrouillé, mais permet aussi à l'utilisateur de la stocker en lieu sûr hors de l'application.
+
+## Profils locaux sur des appareils _personnels_
+L'accès à sa _fiche personnelle_ cryptée dans le répertoire des utilisateurs est un service générique fourni par toute les applications et cette fiche va lui faciliter la vie au cours des accès aux applications.
+
+**MAIS pour y accéder l'utilisateur aura dû fournir un couple `s1 s2` ce qui représente un texte long et le cas échéant fastidieux à saisir.**
+
+D'où l'idée que sur un appareil _personnel_ il serait souhaitable de pouvoir être possible d'accéder à sa _fiche personnelle_ en s'identifiant de manière plus raccourcie, et ce sans (trop) compromettre la confidentialité qui était garantie par la longueur de `s1 s2`.
+
+### Sur un appareil donné: nom local de _profil_ et son code PIN
+Une application sur un appareil est identifiée par un _jeton_ technique qui permet aux serveurs de lui pousser des notifications.
+
+Pour qu'une application s'exécute sur un appareil, il faut qu'une session de l'OS y ait été ouverte et avoir fourni a minima un mot de passe ou une empreinte digitale, bref avoir réussi une première authentification _personnelle_. 
+
+> Si le login correspond à un compte _invité_ le dispositif ci-dessous **NE DOIT PAS** être employé: le _login_ de l'OS n'offre aucune garantie.
+
+Un utilisateur peut sur un poste personnel déclarer l'ouverture d'un _profil_ qui lui est propre et lui donner un nom local, par exemple `bob`.
+- ce nom N'EST PAS confidentiel.
+- ultérieurement un utilisateur peut même choisir son profil dans la liste de ceux enregistrés sur le poste.
+
+Lors de l'enregistrement de son profil `bob` sur un appareil l'utilisateur va déclarer:
+- un `code PIN`, d'une taille minimale de 8 signes: voire plus avant l'importance de code.
+- un des couples `s1 s2` d'accès à sa fiche dans le répertoire des utilisateurs.
+
+Si le couple d'accès `s1 s2` est correct, la _fiche de l'utilisateur_ est en mémoire, sa clé Kp est connue. L'application peut alors faire enregistrer un nouveau _profil_ dans son entrée de répertoire:
+- l'application sur l'appareil est identifiée par son _token_.
+- cette entrée est identifiée par le SH(token, profil `bob`).
+- un compteur d'échec de code PIN est initialisé à 0.
+- la clé Kp cryptée le SH(code PIN _bruité_).
+
+### Accès à sa _fiche_ par un utilisateur depuis son appareil
+En fournissant son code de profil bob et son code PIN, l'application:
+- retrouve l'entrée de l'utilisateur dans le le répertoire en fournissant le SH(_token_, profil).
+- elle tente de décrypter la clé Kp depuis le code PIN: en cas de succès, la clé Kp est retourné ce qui permet à l'application de décrypter la fiche de l'utilisateur, le compteur d'échec est mis à 0 s'il ne l'était pas déjà.
+
+En cas d'échec le nombre d'échec dans la fiche est incrémenté: **au second échec, l'entrée pour ce token et ce profil est détruite.**
+
+### Principes de sécurité
+Le code PIN **N'EST PAS** stocké localement: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
+- en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
+- sous forme Strong Hash dans le serveur.
+
+Toutefois même si le hash est `fort`, le code PIN pouvant être court, le retrouver par _force brute_ (en essayant toutes les combinaisons possibles) reste potentiellement faisable.
+
+> A noter que pour accéder à ce code PIN crypté dans le répertoire des utilisateurs il faut disposer du _token_ de l'application sur l'appareil ce qui a obligé à, a) dérober l'appareil, b) y lancer l'application, c) accéder à ce token en _debug_.
+
+**Mais le serveur détruit l'entrée de `bob` au second essai infructueux** d'un code PIN.
+
+La découverte par _force brute_ est donc impossible.
+
+### Découverte par complicité
+L'administrateur du serveur protège l'accès à la base de données et les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
+- a) avoir accès à la base,
+- b) avoir la clé de l'administrateur.
+
+En supposant avoir les deux par complicité ou contrainte, un hacker peut obtenir le Strong Hash des codes PIN, en particulier celui de `bob`. Avec beaucoup de temps calcul, le code étant (relativement) court, sur un appareil quelconque, il arrivera à trouver ce code après un nombre d'essais faramineux mais que plus rien ne l'empêche de faire.
+
+En conséquence pour casser le code PIN de `bob` sur son appareil, un hacker doit:
+- dérober l'appareil pour en obtenir le _token_ de l'application,
+- avoir la complicité de l'administration technique du serveur,
+- avoir de gros moyens informatiques.
+
+Cette triple condition est déjà un handicap sérieux ... et demande beaucoup d'argent et / ou l'usage de la force physique sur les humains. Si ce dernier cas est envisageable, le moins coûteux est de _persuader_ `bob` de donner son code PIN !
+
+### _Dureté_ du code PIN
+Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
+
+Toutefois UN SEUL essai d'un code demande un temps calcul important, le Strong Hash n'est _strong_ que parce qu'il exige du temps calcul non parallélisable et inapte à bénéficier de processeurs dits _graphiques_.
+
+Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il peut être incassable: pour être mnémotechnique certes il va s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevables de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
+
+## Accès en mode _avion_ à un profil (A AFFINER)
+En mode _avion_ il n'y a pas d'accès à Internet: la fiche d'un utilisateur ne peut pas être obtenue depuis un nom de profil et un code PIN.
+
+Si la fiche de l'utilisateur a été enregistrée localement, elle est lisible en fournissant:
+- le code du profil sous lequel elle a été enregistrée.
+- le couple `s1 s2` de textes qui la crypte.
+
+Les stockages locaux de document sont stockés où, cryptés par quoi ? La clé Kp ? Si oui l'enregistrement de l'utilisateur en répertoire est obligatoire par accéder au mode avion.
+
+-----------------------------------------------------------------------
 
 # Contributions antérieures
 
