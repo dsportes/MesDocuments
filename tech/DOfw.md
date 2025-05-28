@@ -676,104 +676,250 @@ A la fin de chaque opération, le framework dispose de la liste des documents mi
 
 # Use Case _circuit court_
 
-## Concepts
-Un groupe de consommateurs est identifié par son code gc. Sa fiche de renseignement donne des informations de contact, son ou ses mots de passe et spécifie la liste des groupements de producteurs auxquels il peut commander. 
+## Vision générale: les _documents_
 
-Un consommateur est identifié par son code dans son groupe: gc co. Sa fiche de renseignement donne des informations de contact et son mot de passe.
+Un **groupe de consommateurs** est identifié par son code `gc`. 
+- **Document FGC** : fiche de renseignement donnant des informations de contact, son ou ses mots de passe, liste des groupements de producteurs auxquels il peut commander. 
 
-Un groupement de producteurs est identifié par son code gp. Sa fiche de renseignement donne des informations de contact, son ou ses mots de passe et spécifie la liste des groupes de consommateurs qui peuvent lui émettre des commandes.
+Un **consommateur** est identifié par son code dans son groupe: `gc co`. 
+- **Document FCO** : fiche de renseignement donnant des informations de contact, son mot de passe, un statut de blocage.
 
-Un producteur est identifié par son code dans son groupement: gp pr. Sa fiche de renseignement donne des informations de contact et son mot de passe.
+Un **groupement de producteurs** est identifié par son code `gp`. 
+- **Document FGP** : fiche de renseignement donnant des informations de contact, son ou ses mots de passe, liste des groupes de consommateurs qui peuvent lui émettre des commandes.
 
-Une référence de produit est identifié par son code dans son producteur: gp pr rp.
+Un `producteur` est identifié par son code dans son groupement: `gp pr`. 
+- **Document FPR** : fiche de renseignement donnant des informations de contact et son mot de passe.
 
-Une livraison d'un groupement est identifiée par le groupement livrant et sa date de livraison: gp livr. La date est immuable une fois déclarée, mais des dates effectives peuvent être déclarées et changées:
-- date-heure d'ouverture: on ne peut pas commander avant cette date. Les conditions de vente (prix / poids des produits) sont fixées mais peuvent subir des variations après ouverture. Dans ce cas les conditions à l'ouverture et les conditions courantes existent toutes les deux.
-- date-heure de clôture: on ne peut plus commander après cette date-heure.
-- date-heure d'expédition. Les conditions prix / poids des produits ne peuvent plus changer après cet instant, des paiements effectifs et définitifs peuvent s'engager.
-- date-heure de livraison: il y a une date-heure par point de livraison au groupe de consommateur.
-- date-heure de distribution: il y a une date-heure par point de livraison au groupe de consommateur, les produits peuvent commencer à être récupérés.
-- date-heure de clôture: plus rien ne peut changer, les rectifications ultérieures sont traitées manuellement, la livraison est archivée.
+Une **référence de produit** est identifiée par son code dans son producteur: `gp pr rp`.
 
-Les commandes par les consommateurs indiquent une quantité pour chaque produit. 
-- La quantité peut être en unité ou en poids au Kg. 
-- Les unités peuvent être des _demi_ (une demi caisse) selon les produits (pas de _demi_ paquet de café).
+Le **calendrier des livraisons d'un groupement** de producteurs est identifié par le code du groupement `gp`.
+- **Document CALG** : il donne la liste des livraisons déclarées avec pour chacune:
+  - son de code `livr`, date de livraison (théorique et immuable).
+  - les dates-heures d'ouverture, de clôture des commandes, d'expédition et d'archivage. Des règles fixent comment et quand ces dates peuvent être changées, en particulier les unes par rapports aux autres.
+  - la liste des groupes de consommateurs livrés (point de livraison).
 
-La _commande_ d'un groupe de consommateurs est la somme des commandes des consommateurs du groupe.
+Une **livraison d'un groupement** est identifiée par le groupement livrant et son numéro de livraison: `gp livr`.
+- **Document LIVRG**:
+  - _date-heure d'ouverture_: on ne peut pas commander avant cette date. Les conditions de vente (prix / poids des produits) sont fixées mais peuvent subir des variations après ouverture. Dans ce cas les conditions à l'ouverture et les conditions courantes existent toutes les deux.
+  - _date-heure de clôture des commandes_: on ne peut plus commander après cette date-heure.
+  - _date-heure d'expédition_. Début du chargement des camions. Les conditions prix / poids des produits ne peuvent plus changer après cet instant, des paiements effectifs et définitifs pouvant s'engager.
+  - _dates-heures de livraison_: il y a une date-heure et une adresse de livraison par point de livraison au groupe de consommateur.
+  - _dates-heures de distribution_: il y a une date-heure et une adresse de distribution par point de livraison au groupe de consommateur, les produits peuvent commencer à être récupérés.
+  - _date-heure d'archivage_: plus rien ne peut changer, les rectifications ultérieures sont traitées manuellement, la livraison est archivée.
 
-Quand une commande est réceptionnée, pour chaque produit (en général commandé mais pas forcément), figure une quantité livrée ou un poids livré.
-- pour certains produits, des poulets par exemple, la quantité livrée est le nombre N de poulets et le poids livré est un tableau de N poids individuels des poulets. Quand il y a un poids total c'est, soit temporaire en estimation avant obtention des poids individuels, soit la somme des poids individuels.
+_Remarque_: il y a des redondances entre le calendrier des livraisons **CALG** et les livraisons **LIVRG**. Le calendrier est en avance, mais dès qu'une livraison est _détaillée_, le détail est reporté dans le calendrier (s'il y a lieu).
 
-Le calendrier des livraisons d'un groupement de producteurs donne pour chaque livraison:
-- sa date de livraison (théorique et immuable).
-- ses dates-heures d'ouverture, expédition ... Des règles fixent comment et quand ces dates peuvent être changées, en particulier les unes par rapports aux autres.
-- la liste des groupes de consommateurs livrés (point de livraison).
+Un **bon de commande d'un consommateur** est identifié par `gc co gp livr`.
+- Il contient les informations:
+  - relatives à la commande (ce qu'il souhaitait).
+  - relative à la distribution (ce qu'il a eu).
+- **Document BCC**: il donne pour chaque produit la quantité qui peut être en unité ou en poids au Kg. Les unités peuvent être des _demi_ (une demi caisse) selon les produits (pas de _demi_ paquet de café). Pour la distribution, le _poids_ peut être donné par une liste de poids de paquets individualisés (des poulets par exemple).
 
-La catalogue des produits d'un groupement
-Il est constitué de 2 documents:
-- un catalogue général. Il donne pour chaque produit:
-  - un descriptif permanent: 
+Un **bon de commande d'un groupement** est identifié par `gc gp livr`.
+- Il contient les informations:
+  - relatives à la commande: la somme des commandes des consommateurs.
+  - relative à la distribution: ce qui a été déchargé du camion.
+- **Document BCG**:
+  - **généré / mis à jour à chaque mise à jour d'un BCC** d'un consommateur du groupe. Redondance partielle, il a des informations propres.
+  - il donne pour chaque produit la quantité qui peut être en unité ou en poids au Kg. Les unités peuvent être des _demi_ (une demi caisse) selon les produits (pas de _demi_ paquet de café). Pour la livraison, le _poids_ peut être donné par une liste de poids de paquets individualisés (des poulets par exemple).
+
+Un **carton d'un producteur pour la livraison à un groupe** est identifié par `gp pr livr gc`.
+- **Document CART**: 
+  - généré / mis à jour à chaque mise à jour d'un BCC du groupe pour une ligne concernant un produit de ce producteur. 
+  - il donne par produit du producteur la somme des quantités commandées dans le groupe. Ce document est une redondance générée / mise à jour à chaque mise à jour 
+
+
+_Remarque 1_: quand une commande est réceptionnée, pour chaque produit (en général commandé mais pas forcément), figure une quantité livrée ou un poids livré.
+- pour certains produits, des poulets par exemple, la quantité livrée est le nombre N de poulets et le poids livré est une liste de N poids individuels des poulets. Quand il y a un poids total c'est, soit temporaire en estimation avant obtention des poids individuels, soit la somme des poids individuels.
+
+_Remarque 2_: le rapprochement entre les informations de commande et celles de livraison (réception) permet de détecter des problèmes à résoudre:
+- des quantités excédentaires ou insuffisantes: il faudra pour chaque consommateur ajuster la quantité.
+- des paquets individualisés (des poulets) au déchargement non attribués et des consommateurs n'ayant pas reçu leurs paquets.
+- des produits livrés mais pas commandés:il faudra les répartir sur des consommateurs, le cas échéant le _groupement_ lui-même.
+
+Le **catalogue général des produits** d'un groupement est identifié par `gp`.
+- **Document CATG**. Il donne pour chaque produit:
+  - un _descriptif permanent_ ne pouvant pas changer après déclaration, sauf le libellé. Un produit _à l'unité_ ne peut pas devenir _au poids_, il faut définir un autre produit.
     - son code et sa référence (_code-barre_).
-    - un descriptif (libellé) et des indicateurs de label / qualité, taux de TVA applicable, si c'est un produit _sec_, _frais_ ou _surgelé_.
-    - si le produit est vendu à l'unité, au poids et / ou par _caisse_ ou _demi-caisse_.
-    - ces caractéristiques ne peuvent pas changer, sauf rectifications orthographiques / documentaires (un produit _à l'unité_ ne peut pas devenir _au poids_, il faut définir un autre produit).
-  - une liste chronologique de date-heure à laquelle les conditions de ventes du produit ont changé:
-  - sa disponibilité,
-  - son prix,
-  - ses poids _net_ et _brut_: le poids _net_ est celui sans l'emballage (ce que mange le consommateur), son poids _brut_ inclut l'emballage (ce que ça pèse dans le camion).
+    - un libellé descriptif,
+    - si c'est un produit _sec_, _frais_ ou _surgelé_.
+    - des indicateurs de label / qualité, taux de TVA applicable, 
+    - si le produit est vendu à l'unité, au poids et / ou par _caisse_ / _demi-caisse_.
+  - une _liste chronologique_ de dates à laquelle les conditions de ventes du produit ont changé:
+    - sa disponibilité,
+    - son prix unitaire,
+    - ses poids _net_ et _brut_: le poids _net_ est celui sans l'emballage (ce que mange le consommateur), son poids _brut_ inclut l'emballage (ce que ça pèse dans le camion).
 
-- un catalogue par livraison. Il donne pour une livraison donnée, la liste des produits avec pour chacun sa conditions de vente.
+Le **catalogue d'une livraison** d'un groupement est identifié par `gp livr`.
+- **Document CATL**. Il donne pour une livraison, la liste des produits avec pour chacun sa conditions de vente.
   - la catalogue d'une livraison est _calculé_ avant ouverture de la livraison depuis le catalogue général.
   - il peut être amendé ponctuellement jusqu'à l'ouverture de la commande.
   - après ouverture de la commande, quand une condition de vente d'un produit change, les deux conditions existent: celle _actuelle_ et celle _à l'ouverture de la commande_.
-  - les conditions de vente ne peuvent plus changer après la date-heure de livraison (des paiements définitifs ont pu avoir lieu).
+  - les conditions de vente ne peuvent plus changer après la date-heure d'expédition (des paiements définitifs ont pu avoir lieu).
 
-News / chats par livraison
-- une news / chat alimentée par chaque groupement de producteurs: gp livr. Tous les groupes de consommateurs sont concernés. Un groupe de consommateurs peuvent y déposer aussi des news (avec modération).
-- une news alimentée par chaque groupe de consommateur: gc livr. Tous les consommateurs du groupe sont concernés. Un groupement de producteur est également habilité à y déposer des news.
+Le **répertoire général** des groupes et groupements n'a pas d'identifiant (c'est un singleton):
+- **Document RG**:
+  - pour chaque groupe, une _carte de visite_ du groupe.
+  - pour chaque groupement, une _carte de visite_ du groupement.
 
-News / chats par groupe de consommateurs: écrits par le groupe et les consommateurs du groupe indépendamment de toute livraison.
+Le **répertoire des consommateurs** d'un groupe est identifié par le code du groupe `gc`.
+- **Document RCO** : pour le groupe lui-même et pour chaque consommateur il donne une fiche de contact.
 
-News / chats par groupements de producteurs: écrits par le groupement et les producteurs du groupement indépendamment de toute livraison.
+Le **répertoire des producteurs** d'un groupe est identifié par le code du groupe `gc`.
+- **Document RPR** : pour le groupement lui-même et pour chaque producteur il donne une fiche de contact.
 
-> La partie de gestion des paiements est omise dans ce use-case.
+Le **chat d'une livraison** est identifié par le groupement livrant et la date de livraison `gp livr`.
+- **Document CHL**: c'est une suite chronologique de news alimentée par le groupement. Tous les groupes de consommateurs sont concernés. Un groupe de consommateurs peuvent y déposer aussi des news (avec modération).
 
-> La partie de consultation de _l'historique_ figé des commandes clôturées est omise dans ce use-case.
+Le **chat d'une distribution** est identifié par le groupement livrant, la date de livraison et le groupe distributeur `gp livr gc`.
+- **Document CHD**: c'est une suite chronologique de news alimentée par le groupe et les consommateurs.
 
-## Objectifs
-On s'intéresse ici aux deux scénarios simplifiés se rapportant à un groupement de consommateurs et à un consommateur. Des scénarios voisins
+Le **chat d'un groupe de consommateurs** est écrit par le groupe et les consommateurs du groupe indépendamment de toute livraison et est identifié par `gc`.
+- **Document CHCO**: c'est une suite chronologique de news alimentée par le groupe et les consommateurs. Les groupements de producteurs peuvent émettre, avec modération, des news.
 
-### Point de vue d'un consommateur.
-Documents de son périmètre d'intérêt
-- les calendriers généraux des livraisons: vision de _reporting_, il n'a pas à en suivre en temps-réel les variations avec zoom à la demande sur chaque calendrier.
-- la liste des livraisons ouvertes avec leur statut et dates-heures: vison _synchronisée_ présentant pour chaque livraison la _synthèse de sa commande_ : nombre de références, somme des poids brut et somme des prix.
-- il peut _zoomer sur une livraison et avoir une vision _synchronisée_ de la livraison:
-  - le détail de sa commande,
-  - la synthèse de la commande pour son groupe: en effet pour chaque produit un consommateur aime à savoir le montant global des autres membres du groupe.
-- les catalogues généraux des produits de chaque groupement: vision _reporting_ avec zoom à la demande de chaque catalogue.
-- les catalogues des produits spécifiques des livraisons ouvertes: vision _reporting_ avec zoom à la demande de chaque catalogue.
-- chat de son groupe: avec vision _synchronisée_.
+Le **chat d'un groupement de producteurs** est écrit par le groupement et les producteurs du groupement indépendamment de toute livraison et est identifié par `gc`.
+- **Document CHPR**: c'est une suite chronologique de news alimentée par le groupement et les producteurs. Les groupes de consommateurs peuvent émettre, avec modération, des news.
 
-Fils de news
-- chat de son groupe.
-- chats des livraisons ouvertes. 
+> La partie de gestion des paiements est omise dans ce use-case tout comme la gestion et la consultation historique des livraisons archivées.
+
+## Point de vue d'un consommateur
+Un consommateur souhaite voir:
+- **les calendriers généraux des livraisons**: vision de _reporting_, il n'a pas à en suivre en temps-réel les variations. Zoom à la demande sur chaque calendrier.
+- **la liste des livraisons ouvertes avec leur statut et dates-heures**: vison _synchronisée_ présentant pour chaque livraison la _synthèse de sa commande_ : nombre de références, somme des poids brut et somme des prix.
+  - il peut _zoomer sur une livraison et avoir une vision _synchronisée_ de la livraison:
+    - le détail de sa commande,
+    - la synthèse de la commande pour son groupe: en effet pour chaque produit un consommateur aime à savoir globalement ce que les autres membres du groupe ont commandé.
+- **les catalogues généraux des produits de chaque groupement**: vision _reporting_ avec zoom à la demande de chaque catalogue.
+- **les catalogues des produits spécifiques des livraisons ouvertes**: vision _reporting_ avec zoom à la demande sur le catalogue applicable à une livraison.
+- **le chat de son groupe**: vision _synchronisée_.
+- **les chats des livraisons ouvertes**: vision _synchronisée_.
+- **le répertoire des groupes et groupements**: vision _reporting_ donnant les _cartes de visite_ avec zoom sur certains répertoires:
+  - pour _le répertoire des consommateurs de son groupe_ la fiche de contact du consommateur sauf les données _confidentielles_ qui ne sont visibles que pour lui-même.
+  - pour -le répertoire d'un groupement_ la fiche contact (réduite) du groupement et les _cartes de visite_ des producteurs.
+
+### Fils de news notifiés quand l'application n'est pas ouverte
+- chat de son groupe
+- chats des livraisons ouvertes de son groupe
+- ses commandes sur les livraisons ouvertes. Ce dernier fil peut être utile pour un _consommateur_ pour lequel il y a plusieurs utilisateurs susceptibles de commander: famille, proches, voisins... Il permet de voir apparaître des notifications quand un de ces utilisateurs a modifié une commande.
 
 > Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupement qui en fera les informations de synthèses sur le chat du groupe.
 
 ### Point de vue d'un groupe (un de ses animateurs) (A SUIVRE).
-Documents de son périmètre d'intérêt
-- les calendriers généraux des livraisons: vision de _reporting_, il n'a pas à en suivre en temps-réel les variations avec zoom à la demande sur chaque calendrier.
-- la liste des livraisons ouvertes avec leur statut et dates-heures: vison _synchronisée_ présentant pour chaque livraison la _synthèse de sa commande_ : nombre de références, somme des poids brut et somme des prix.
-- il peut _zoomer sur une livraison et avoir une vision _synchronisée_ de la livraison:
-  - le détail de sa commande,
-  - la synthèse de la commande pour son groupe: en effet pour chaque produit un consommateur aime à savoir le montant global des autres membres du groupe.
-- les catalogues généraux des produits de chaque groupement: vision _reporting_ avec zoom à la demande de chaque catalogue.
-- les catalogues des produits spécifiques des livraisons ouvertes: vision _reporting_ avec zoom à la demande de chaque catalogue.
-- chat de son groupe: avec vision _synchronisée_.
-
-Fils de news
-- chat de son groupe.
-- chats des livraisons ouvertes. 
 
 > Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupement qui en fera les informations de synthèses sur le chat du groupe.
+
+### _Fils de synchronisation_ des documents
+Chaque document est accessible par son identifiant.
+
+Certains documents peuvent être _synchronisés_: pour cela il faut définir dans quels _fils de synchronisation_ chaque document est rattaché:
+- chaque application terminale déclare à quels _fils_ elle est abonnée de manière à recevoir une notification circonstanciée quand un document rattaché à ce fil a changé.
+- chaque document peut être rattaché à au plus DEUX fils de synchronisation.
+
+#### Liste des documents
+- FGC: fiche d'un groupe. gc
+- FCO: fiche d'un consommateur: gc co
+- FGP: fiche d'un groupement: gp
+- FPR: fiche d'un producteur: gp pr
+- CALG: calendrier d'un groupement: gp
+- LIVRG: livraison d'un groupement: gp livr
+- BCC: bon de commande d'un consommateur: gc co gp livr
+- BCG: bon de commande d'un groupement: gc gp livr
+- CART: carton d'un producteur pour la livraison à un groupe: gp pr livr gc
+- CATG: catalogue des produits d'un groupement: gp
+- CATL: catalogue d'une livraison: gp livr
+- RG: répertoire général des groupes et groupements
+- RC: répertoire des consommateurs: gc
+- RP: répertoire des producteurs: gp
+- CHL: chat d'une livraison: gp livr
+- CHD: chat d'une distribution: gp livr gc
+- CHCO: chat d'un groupe de consommateurs: gc
+- CHPR: chat d'un groupement de producteur: gp
+
+Fil #CMDG : gc gp livr - commande d'un groupe à un groupement
+- BCG : 
+- CART : pr
+- BCC : co
+
+Fil #CMDC : gc gp livr - commandes des consommateurs
+- BCC : co
+
+Fil #CMDG : gc gp - commandes ouvertes d'un groupe à un groupement
+- BCG : livr
+
+Fil #CALGP : gp - calendrier des livraisons d'un groupement
+- CALG :
+- LIVRG : livr
+
+Fil #CMDGP : gp livr - commandes des groupes à un groupement
+- CHD :
+- BCG : gc
+- CART : pr gc
+
+Fil #CMDPR : gp pr : commandes ouvertes d'un producteur
+- CART : livr gc
+
+Fil #RGC
+- RG :
+- RC : gc
+
+Fil #RGP
+- RG :
+- RP : gp
+
+Fil #CHL : gp
+- CHL : livr
+- CHD : gc livr
+
+Fil #CHCO : gc
+- CHCQ :
+
+Fil #CHPR : gp
+- CHPR :
+
+
+#### Abonnement
+Pour s'abonner il faut fixer:
+- son code et son path exact: #CMDGP/gc.gp.livr
+- un filtre s'appliquant seulment quand le path a matché: ne générer une notification que si le ou les documents modifiés ont une id compatibe avec la condition de filtre pour son type,
+  - aucun CHD ou tous CHD/* ou tous CHD  dont le gc de l'id est égal à la valeur indiquée: CHD/gc=gc
+
+#### Abonnements pour un groupe: `gc`
+Abonnement à `#RGP [RG, RP]` : donne une liste des groupements `gp` à qui il peut commander.
+
+Abonnements aux fils `#CALGP/gp [CALG, LIVRG]` pour tous les `gp` récupérés.
+
+Quand il fixe une livraison courante `gp.livr` il s'abonne au fil `#CMDG/gc.gp.livr [CMD, BCG, CART]`.
+
+Abonnements à tous les fils `#CHL/gp [CHL, CHD/gc=gc]`
+
+Abonnements à `#CHCO/gc`.
+
+#### Abonnements pour un consommateur: `gc co`
+Abonnement à `#RGP [RG, RP]` : donne une liste des groupements `gp` à qui il peut commander.
+
+Abonnements aux fils `#CALGP/gp [CALG, LIVRG]` pour tous les `gp` récupérés.
+
+Quand il fixe une livraison courante `gp.livr`, abonnement au fil `#CMDC/gc.gp.livr, [BCC/co=co]`.
+
+Abonnements à tous les fils `#CHL/gp [CHL, CHD/gc=gc]`
+
+Abonnements à `#CHCO/gc`.
+
+#### Abonnements pour un groupement: `gp`
+Abonnement à `#RGC [RG, RC]` : donne une liste des groupes `gc` qui peuvent commander.
+
+Abonnement au fil `#CALGP/gp [CALG, LIVRG]`
+
+Quand il a fixé une livraison `livr`, abonnement à `#CMDGP/gp.livr [CHD, BCG, CART]`.
+
+Abonnement au fil `#CHL/gp [CHL, CHD]`
+
+Abonnements à `#CHPR/gp`.
+
+#### Abonnements pour un producteur: `gp pr`
+(TODO)
+
+### Index sur les documents
+
+
 
