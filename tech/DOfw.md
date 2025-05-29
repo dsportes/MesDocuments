@@ -273,7 +273,7 @@ Soit `PP-S` le couple de clés généré par un serveur:
 Soit `PP-ti` un couple de clés généré par une application terminale `ti` pour une conversation donnée avec le serveur `S`:
 - `Pub-ti` est transmise dans les requêtes au serveur.
 - Le serveur peut génèrer une clé `K-S-ti` à parir du couple `Pub-ti / Priv-S`: il s'en sert pour crypter ses réponses à l'application terminale ou toute donnée dont il veut que seule `ti` puisse les lire.
-- L'application terminale peut génèrer une clé `K-ti-S` à parir du couple `Pub-S / Priv-ti`. Comme `K-ti-S` et `K-S-ti` sont égales, l'application terminale peut s'en serir pour décrypter les réponses / données cryptées pour elle par l'application serveur (et nul autre ne peut le faire).
+- L'application terminale peut générer une clé `K-ti-S` à partir du couple `Pub-S / Priv-ti`. Comme `K-ti-S` et `K-S-ti` sont égales, l'application terminale peut s'en serir pour décrypter les réponses / données cryptées pour elle par l'application serveur (et nul autre ne peut le faire).
 
 Les applications terminales connaissent la clé publique du serveur Pub-S. Quand l'une d'elle veut échanger des données confidentielles avec le serveur:
 - elle génère un couple PP-t,
@@ -486,195 +486,173 @@ Si la fiche de l'utilisateur a été enregistrée localement, elle est lisible e
 
 Les stockages locaux de document sont stockés où, cryptés par quoi ? La clé Kp ? Si oui l'enregistrement de l'utilisateur en répertoire est obligatoire par accéder au mode avion.
 
------------------------------------------------------------------------
+# Documents, fichiers et _fils_ traçant leurs évolutions
+## Document
+Un document est composé de:
+- un agrégat de données structurées selon le concept JSON:
+  - données primitives: _string, number, boolean_.
+  - deux structures:
+    - liste ordonnée,
+    - map _clé (string) / valeur.
+- un ensemble de _fichiers_.
 
-# Contributions antérieures
+> Un document peut en conséquence être volumineux.
 
+Il y a plusieurs _types_ de document, chacun correspondant à une structure dont la racine est une map de _propriétés_, chacune pouvant aussi avoir elle-même une valeur primitive ou une liste ou une map.
 
-# Mémoire _cache_ locale de données sur un appareil / mode "avion"
-Au lancement d'une application sur un appareil, l'utilisateur se trouve devant plusieurs possibilités:
-- il y a du réseau et l'utilisateur le considère comme fiable (non écouté malicieusement):
-  - si une session est _ouverte_, il peut saisir son code PIN et la reprendre.
-- sinon s'identifier 
+Parmi ces propriétés une liste ordonnée de propriétés _string_ immuables constitue l'identifiant du document (clé primaire en SQL, path en NOSQL). 
 
-Au lancement d'une application sur un appareil, l'utilisateur va déclarer si cet appareil est _personnel_, soit qu'il lui appartient, soit qu'il le partage avec une ou quelques personnes de confiance.
+Exemple du document `CART` du _use-case circuit court_:
+- un _carton_ est un ensemble de produits emballés ensemble par un producteur `pr` d'un groupement `gp` gérant un camion à destination de points de livraison `gc` pour une livraison donnée `livr`.
+- 4 propriétés sont identifiantes: `gp pr livr gc`.
 
+On peut définir des **regroupements** d'identifiants:
+- le regroupement #1 `gp.livr`: en fixant cette valeur un point de livraison peut obtenir la liste des cartons à décharger du camion expédié par le groupement pour cette livraison, tous producteurs confondus.
+- le regroupement #2 `gp.pr`: en fixant cette valeur un producteur peut obtenir la liste de tous les cartons qu'il doit composer pour toutes les livraisons en cours et tous les points de livraison.
 
-# Arbres de documents
-## Documents, type de document
-Un document contient des données structurées selon sa _classe_: soit directement une _classe majeure_, soit une sous classe de sa classe majeure.
+**Parmi les propriétés certaines (de type _string_ ou _number_) sont _indexables_**.
+- soit pour être utilisées comme identifiants secondaires du document,
+- soit pour filtrer la collection du document par des quantités de seuil.
 
-> Par exemple la classe majeure `Account` peut avoir des sous-classes `AccountAdmin` `AccountStandard`. Le **type d'un document** est le nom de sa classe majeure.
+La propriété `version` du document est un numéro d'ordre de mise à jour: la numérotation est _chronologique_ mais pas _continue_.
 
-## Arbres
-Un **arbre** est un conteneur structuré **de documents et de fichiers** matérialisé par une instance d'une classe `Tree` avec les propriétés suivantes:
-- `treetype`: type d'arbre, un code identifiant la nature de l'arbre. La liste fermée des types est déclarée dans l'application.
-- `tid` : ID de l'arbre (un string court libre).
-- `version` : numéro séquentiel d'ordre de mise à jour du document le plus récent dans l'arbre.
-- `versions` : donne pour chaque type de document de l'arbre le dernier numéro de version, soit _du_ document si c'est un singleton, soit du document de la collection _le plus récemment mis à jour_.
-- `cleandate` : date du dernier jour où les documents supprimés de l'arbre depuis plus d'un certain temps ont été physiquement détruits.
+La propriété `del` contient le jour de suppression quand la document est supprimé logiquement mais pas purgé physiquement (il est _zombi_).
 
-Un arbre est persisté en base de données par un record ayant les propriétés ci-dessus sous un path / clé primaire `treetype / tid`.
+### Stockage d'un document d'un type donné
+Le document stocké dans une table (SQL) ou une collection (NOSQL) spécifique du type de document.
 
-#### Documents
-- des **singletons**: chaque document est identifié dans son arbre par son **type de document**.
-- des **collections typées** de documents. Chaque document est identifié relativement à son arbre par,
-  - `doctype` : son type de document.
-  - `did` : son ID de document dans l'arbre (un string court). Cet ID peut être par exemple de la forme `A1.B1.C1` définissant de facto une arborescence fonctionnelle.
+**L'ensemble des propriétés** est sérialisé dans un champ dénommé `_data_`: ce contenu est désérialisable dans les applications terminales et les serveurs.
 
-Toutes les classes de documents sont des sous-classes des classes abstraites `Document` ou `Singleton` (elle-même sous-classe de `Document`). Elles ont les propriétés suivantes: 
-- `treetype tid` : identifiant de leur arbre.
-- `doctype did` : identifiant relatif à leur arbre.
-- `version`: numéro d'ordre de mise à jour dans leur arbre.
-- `deldate` : jour de suppression du document si le document n'existe plus.
-- `data` : données du document sérialisées en binaire si le document existe.
+En base de données, les propriétés **visibles de la base de données** sont:
+- `id` : clé primaire ou path.
+- `version`.
+- `del`.
+- `_data_`.
+- `_files_` : structure descriptive des fichiers attachés aux document.
+- `z1 z2 ...` : les _regroupements_ de propriétés identifiantes (s'il y en a).
+- `p1 p2 ...` : les _propriétés_ indexables.
 
-Un arbre est persisté en base de données par un record ayant les propriétés ci-dessus sous un path / clé primaire `treetype / tid / doctype / did`.
+Le contenu structuré complexe du document est en conséquence _opaque_ pour la base de données (et crypté pour la plupart des types de documents).
 
-#### Fichiers
-Un fichier est persisté en deux parties:
-- un descriptif attaché à un arbre persisté en base de données,
-- son contenu effectif stocké dans un **Storage** (de type AWS/S3, Google Storage, etc.) sous le path `treetype / tid / fid` où `fid` est un identifiant universel unique attribué lors du stockage du contenu.
+### Fichiers attachés à un document
+Un fichier est stocké en deux parties:
+- son **descriptif** figurant dans le document (dans _files_).
+- son **contenu effectif** stocké dans un **Storage** (de type AWS/S3, Google Storage, etc.).
 
-Le descriptif d'un fichier est accessible depuis son arbre par sa clé / path `treetype/tid/"file"/did` et a les propriétés suivantes: 
-- `treetype tid` : identifiant de son arbre.
-- `"file" did` : identifiant relatif à son arbre.
-- `version`: numéro d'ordre de mise à jour dans son arbre.
-- `deldate` : jour de suppression du fichier si le fichier n'existe plus.
-- `data` : données définies par l'application du document et sérialisées en binaire si le document existe, par exemple _un nom de fichier, un type MIME, sa taille, son SHA, etc._
-- `fid` : identifiant du fichier dans le Storage.
+Un fichier est identifié par `fid` un id aléatoire universel:
+- un fichier **ne change pas** de contenu, un autre est créé avec un nouveau contenu.
 
-La mise à jour d'un fichier `treetype tid "file" id` dans son arbre est une opération double:
-- le stockage d'un nouveau contenu. Une opération `preLoad` lui attribue son identifiant de Storage `fid2` et le charge dans le Storage. L'opération enregistre dans un record `toDelete` de la base de données l'identifiant `treetype tid fid2` du fichier avec sa date de stockage.
-- la validation de ce changement dans le cadre d'une transaction de la base de données en remplaçant dans son descriptif le `fid` actuel par le nouveau `fid2` et en changeant sa version. Le record correspondant de `toDelete` est supprimé.
+Le descriptif d'un fichier a les propriétés suivantes: 
+- `nom` : c'est un texte dont la seule contrainte est d'être un nom acceptable dans un système de fichiers (ne pas contenir de `/` ...).
+- `time` : la date-heure de la transaction qui l'a validé.
+- `type` : type mime du fichier comme 'image/jpg'.
+- `size` : sa taille en bytes (son _original non crypté_).
+- `sha` : le digest SH256 de l'original non crypté.
 
-La suppression d'un fichier est aussi une opération double:
-- validation dans une transaction de sa suppression dans son descriptif dans son arbre (propriété `delDate`). Un record `toDelete` de la base de données est enregistré avec l'identifiant du fichier et sa date de suppression.
-- la suppression physique dans le Storage du fichier identifié, puis la suppression du record correspondant dans `toDelete`.
+La propriété `_files_` du document est une map avec une entrée fid par fichier et pour valeur le descriptif du fichier.
 
-Les mises à jour comme les suppressions sont donc en deux phases et il se peut que suite à un incident une phase s'exécute et pas la seconde. En scannant périodiquement dans la base de données toDelete on récupère les identifiants des fichiers _fantômes_ à nettoyer du Storage et qui ne sont plus référencés dans la base de données (donc injoignables).
+> Selon la logique de l'application, la propriété `nom` **est ou non unique dans son document**. Si elle est unique, le stockage d'un fichier d'un nom donné supprime d'office le fichier portant antérieurement ce nom. Si la propriété nom n'est contrainte à être unique, plusieurs fichiers porteront le même nom dans un document (avec des propriétés `time` différentes) vus comme autant de _révisions_ pour un nom donné.
 
-## Gestion des numéros de version et des suppressions
-Depuis un arbre portant la version 12, 
-- la mise à jour d'un document de cet arbre portera la version 13,
-- la version de l'arbre sera elle-même portée à 13. 
+Le contenu du fichier est stocké sous un _path_ dans l'espace de stockage `folderId/fid`:
+- `fid` est suffisant pour garantir l'unicité du contenu.
+- `folderId` définit un _folder_ de rangement et a une structure `a/b/c ...` dont le seul intérêt est de pouvoir purger en une seule commande tous les fichiers sous une partie de ce path, par exemple les fichiers dont le path commence par `a/b`.
+- les termes qui définissent le folderId sont ceux apparaissant dans l'id du document:
+  - `gp pr livr gc` dans l'exemple ci-avant, l'id du document,
+  - `gp livr` le groupement d'id #2 défini pour le rattachement au fil CMDGP.
 
-Si dans une même transaction il y a plusieurs mises à jour, elles portent toutes le même numéro de version.
+### Protocole de stockage / suppression d'un ou plusieurs fichiers
+Une ou plusieurs opérations de **preload** charge le contenu du fichier dans le storage sous le path `folderId/fid`, `fid` étant généré à cet instant.
 
-### Gestion des suppressions
-En cas de suppression, le numéro de version augmente aussi (ça sera la dernière fois pour ce document):
-- sa propriété `deldate` porte la date du jour.
-- sa propriété `data` est nulle.
+Avant le stockage physique la ou les opérations de _preload_ note dans la table `todelete` le couple (`folderId/id`, `date du jour`).
 
-Un arbre conserve ainsi _un certain temps_, par exemple 200 jours, la liste de ses documents supprimées. Une copie ancienne de cet arbre de moins de 200 jours peut ainsi être rafraîchie incrémentalement: les documents mis à jour sont détectés depuis leur numéro de version ainsi que les documents supprimés depuis.
+Une opération de validation enregistre ensuite dans le ou les documents concernés les nouveaux fichiers fid et leurs descriptifs. Cette opération s'accompagne éventuellement d'une liste de fid à détruire dans ces mêmes documents.
+- pour chaque document sa propriété _files_ est mise à jour.
+- s'il y a des fichiers à détruire,
+  - leurs entrées sont enlevés des propriétés _files_ de leurs documents.
+  - leur couple (`folderId/id`, `date du jour`) est inséré dans la table todelete.
+- la transaction est _validée par un commit_ de la base de données, les fichiers nouveaux _existent_ les fichiers supprimés n'existent plus.
 
+Après cette étape transactionnelle, une étape terminale prend place:
+- les fichiers à supprimer sont effectivement purgés de leur répertoire de storage.
+- les références des fichiers créés et de ceux supprimés sont purgées de la table `todelete`, cette seconde phase de transaction est validée par commit.
 
-### Lecture d'un arbre
-La lecture d'un arbre retourne les documents de l'arbre:
-- une lecture **partielle** ne retourne que les documents dont les types sont listés dans la demande.
-- une lecture **incrémentale** ne retourne que les documents dont la version est supérieure à celle passée en argument dans la demande.
+Les mises à jour comme les suppressions sont donc en deux phases et il se peut que suite à un incident une phase s'exécute et pas la seconde.
 
-Ces lectures sont _consistantes_, correspondent à un état cohérent des données dans la base de données.
+Un traitement périodique de nettoyage liste les fichiers inscrits dans `todelete` depuis plus d'un jour:
+- ils sont purgés de l'espace de storage,
+- ils sont purgés de la table `todelete`.
 
-### Lecture D'UN document
-La demande spécifie l'identifiant du document.
+> Moyennant le respect de ce protocole simple, la gestion des fichiers dans un document bénéficie de la même sécurité transactionnelle que les autres propriétés du document.
 
-### Désérialisation de la propriété `data` du document
-Elle consiste à retourner une _map_ nom, valeur des propriétés du document, dont celles d'identification et la version.
+## _Fils_ de documents
+Un _fil de document_ est défini pour que des documents puissent s'y rattacher, sachant qu'un document peut,
+- n'être rattaché à aucun fil,
+- être rattaché à plusieurs fils.
 
-La couche applicative est en charge de créer une instance de la classe appropriée depuis cette _map_ en utilisant le type de l'arbre, le type du document et si nécessaire d'autres propriétés de _data_.
+Créer et maintenir un _fil_ est le moyen retenu pour **tracer** les évolutions des documents qui lui sont attachés: une application terminale (voir un traitement d'un serveur) peut ainsi être informé / notifié qu'au moins un des documents d'un fil a changé ou a été ajouté ou supprimé.
 
-### Lecture d'un fichier
-Elle peut s'effectuer de deux manières:
-- en retournant le contenu binaire du fichier dans la couche applicative,
-- en retournant une URL d'accès sécurisé valable un certain temps, typiquement à transmettre à une application externe.
+### Type de  _fil_
+Le _type_ d'un fil définit son objectif: tracer les évolutions d'un certain nombre de documents et pour chaque selon quel filtrage sur son id. 
 
-### L'écriture d'un fichier
-En deux phases (deux transactions):
-- préchargement du contenu du fichier en Storage:
-  - directement en fournissant le contenu,
-  - indirectement par retour d'une URL sécurisé permettant à une application externe d'effectuer _l'upload_ direct dans le Storage sans faire transiter le contenu du fichier dans la Cloud Function.
+Dans le _use-case circuit court_ par exemple `CMDGP` sert à rattacher tous les documents utiles à une livraison `livr` gérée par un groupement `gp`.
+- l'identifiant d'un fil de type `CMDGP` est `gp.livr`.
+- les types de documents rattachés à ce fil sont listés `CHD, BCG, CART`.
+  - `CHD` (le chat ouvert pour une livraison donnée) a pour identifiant `gp livr`: il n'y aura au plus qu'un seul document `CHD` rattaché au fil.
+  - `BCG` (un bon de commande d'un point de livraison) a pour identifiant `gp livr gc`: il y aura donc une collection de documents `BCG` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr` (soit au plus un par point-de-livraison `gc`).
+  - `CART` à pour identifiant `gp pr livr gc`: il y aura donc une collection de documents `CART` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr`. Un carton est créé par un producteur qui y met tous les produits d'une livraison destiné à un même point-de-livraison.
 
-### Contrôle d'habilitation
-Tous les appels de l'API se font dans le cadre d'une requête contrôlée par une transaction du SGBD.
+> Connaissant le type et l'identifiant d'un fil, par exemple `CMDGP/gp.livr` on peut _tirer_ toute une collection, le cas échéant nombreuse, de documents `CHD`,  `BCG`, `CART` rattachés au même fil, en l'occurrence celui concernant la livraison d'un camion organisé par un groupement de producteur pour une livraison donnée à plusieurs point-de-livraison (une _tournée_).
 
-Cette requête a systématiquement un contexte avec un objet `Account` géré par l'application:
-- soit un document `Account` d'un arbre,
-- soit un `Account` _anonyme_ donnant peu d'autorisations.
+Un _type de fil_ définit de facto un critère de sélection s'appliquant à un ensemble de documents ayant pour identifiant ou regroupement d'identifiant une valeur donnée.
 
-Cet objet est systématiquement consulté à chaque appel de l'API (lecture comme écriture) et peut lever une exception applicative pour refus de l'accès demandé.
+**Un fil donné, une instance de son type pour un identifiant donné, est _stocké_ en base de données** dans une table / collection portant le nom du type, par exemple `CMDGP`. Ces tables / collections ont toutes le même schéma.
 
-### _Périmètre_ d'un `Account`
-Un Account représente un utilisateur, humain ou non, identifiable et authentifiable.
+**Propriétés indexées:**
+- `id` : concaténation des ids de sa clé primaire / path: `gp.livr`. Les valeurs individuelles des éléments de la clé ne sont pas citées (mais extractibles depuis l'ID).
+- `version` : numéro séquentiel d'ordre de mise à jour du document le plus récent attaché au fil (ou détruit).
 
-L'objet Account est responsable de la gestion et détention du _périmètre_ d'intérêt de son utilisateur. C'est une liste d'identifiants d'arbres `treetype itd` donnant pour chacun la liste des types de documents qui l'intéresse.
+**Propriété opaque _data_:**
+- `versions` est une map avec une entrée pour chaque type de document donnant le dernier numéro de version, soit _du_ document si c'est un singleton, soit du document de la collection _le plus récemment mis à jour_.
+- `cleandate` : c'est la date du dernier nettoyages des suppressions (voir plus avant).
 
-A la fin d'une transaction le framework connaît:
-- le périmètre retourné par l'objet Account sous le contrôle duquel la transaction s'est exécuté.
-- la liste des documents créés / modifiés / supprimés. Chacun concerne un arbre et a un type de document.
+### Utilisation des _fils_
+Chaque fil est une **trace** de l'évolution la plus récente des documents qui lui sont attachés: 
+- le fait que la version d'un fil s'incrémente à chaque mise à jour d'un de ses documents fait du fil un événement _notifiable_.
+- dans cette _notification_, une application terminale peut retrouver pour chaque type de document (UN document si c'est un singleton dans le fil, sinon une collection des documents) si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
 
-Une liste est construite indiquant pour chaque arbre du périmètre dont un des objets a été mis à jour, les couples (type de document, version) contenant un des objets mis à jour.
+Une application terminale qui a gardé en mémoire le dernier fil qui lui lui a été transmis, peut à réception du nouvel état du fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
+- optimale: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé.
+- incrémentale: seuls les documents ayant changé depuis la version connue de l'application terminale sont transmis.
 
-Cette liste est retourné comme résultat de la requête: l'application distante ayant sollicité une opération reçoit donc en retour tous les **avis de changement** ayant affecté son _périmètre_. C'est ensuite à l'application de solliciter par des transactions ultérieures les mises à jour effectives des arbres concernés.
+### Traitements dans un serveur: attachement / mise à jour d'un document dans un fil
+- récupération des `version` `vi` de tous les fils dans lequel le document est à insérer / mettre à jour.
+- la version du document `v` est le maximum des `vi` + 1.
+- dans chacun de ces fils:
+  - la `version` est mise à `v`.
+  - dans `_data_` la `version` pour le type du document est mise à `v`.
 
-#### Cohérence _forte_ dans un arbre, _faible_ entre arbres
-L'état d'un arbre retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
+### Traitement des _suppressions_
+Pour que la mise à jour soit incrémentale dans une sous-collection d'un type de documents, un document ne peut pas être simplement _supprimé_: en demandant la liste des documents ayant changé il n'apparaîtrait pas, serait considéré comme inchangé et sa suppression non détectée.
 
-Mais deux demandes faites pour deux arbres à des instants différents retourne deux états d'arbres qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre arbres, un éta qui globalement peut être fonctionnellement incohérent temporairement.
+Le document supprimé va être traité comme une mise jour particulière:
+- sa `version` est mise jour (comme pour une mise jour normale).
+- ses propriétés indexables sont mises à null.
+- sa propriété `del` donne le jour de suppression.
+- son _data_ est mis à null.
 
-> On peut certes grouper dans la même requête des demandes concernant plusieurs arbres: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
+Le document est devenu _zombi_.
 
-## Gestion de la synchronisation de copies distantes des arbres
+> _Remarque_: rien ne l'empêche de renaître plus tard.
 
-Des applications distantes et multiples peuvent détenir des _copies partielles_ des arbres stockés en central:
-- seulement certains arbres cités par leurs identifiants;
-- dans ces arbres, seulement des types de documents souhaités.
+La possibilité d'obtention d'une mise à jour incrémentale depuis un état détenu à la date `d` est bornée par la possibilité de disposer des suppressions.
+- si elles sont gardées, même _zombi_ avec une taille minimale, sans limite de temps, la base peut être encombrée de zombis.
+- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants. C'est à l'application terminale de déterminer les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet.
 
-Le framework met à disposition une couche logicielle aidant à maintenir à jour des copies locales d'arbres:
-- en interprétant les notifications de changement des arbres qui proviennent,
-  - soit d'un retour d'une opération de mise à jour sollicitée par l'application,
-  - soit d'une notification de changement _poussée_ par une Cloud Function suite à des mises effectuées sur demande d'autres applications (typiquement des sessions Web d'autres utilisateurs).
-- en sollicitant une Cloud Function pour obtenir les mises à jour des arbres qui ont été annoncés modifiés par ces notifications. En retour, les documents correspondants sont désérialisés et transformés en objets de classes applicatives puis transmis à l'application qui peut:
-  - les ranger dans des mémoires applicatives, le cas échéant des mémoires réactives pouvant mettre à jour un état UI.
-  - les stocker dans une base de données locales, typiquement une base IDB pour une application Web, une base SQLite pour une application mobile.
+Le serveur va à l'occasion d'une suppression d'un document regarder les `cleandate` du ou des fils auxquels est rattaché le document: si ces dates ont plus de 18 mois, il va purger effectivement les documents zombis depuis plus d'an de ces fils (en testant leur propriété `del`). Il mettra à jour la ou les `clean dates` du ou de ces fils.
 
-Le contenu des arbres ainsi stockés localement peut être consulté _offline_, quand l'application n'est pas connectée au réseau et ne fait pas appel aux Cloud Functions.
+De cette façon les documents supprimés seront purgés au fil de l'eau mais avec des opérations distantes de six mois au moins.
 
-## Notifications _poussées_ par un _serveur_ aux applications clientes
-Le troisième objectif est de conférer au _serveur_ la possibilité de _pousser des notifications_ vers des applications clientes:
-- chaque application cliente peut recevoir des avis de modification du périmètre qui l'intéresse,
-- elle peut ainsi,
-  - avertir l'utilisateur par un message,
-  - faire rafraîchir une copie plus ou moins partielle de son périmètre et afficher automatiquement l'état le plus récent de certaines données, même quand ces changements ont été issus d'autres sessions de travail d'autres utilisateurs.
-
-### Restrictions de périmètre
-Le périmètre par défaut d'un `Account` est son périmètre le plus large, celui pour lequel l'utilisateur a le droit de consultation du maximum de documents.
-
-Plusieurs applications peuvent se référer à un même `Account` mais avec des restrictions de périmètre:
-- une application de mise à jour peut avoir le périmètre sans restriction,
-- une application de monitoring peut avoir un périmètre réduit à certains types de documents, voire à des arbres ayant un certain profil.
-
-Après authentification l'application peut si nécessaire:
-- avoir un dialogue avec l'utilisateur afin de fixer un objet `options`.
-- calculer un périmètre réduit depuis `Account` et `options`.
-
-L'application va faire soumettre une _souscription_ auprès du serveur avec les données suivantes:
-- son `token`: il sera utiliser par le serveur pour pousser des messages d'avis d'évolution de documents.
-- **lURL de l'application** pour une application PWA.
-- **son ou ses périmètres** avec pour chacun:
-  - l'id de son `Account`,
-  - le périmètre à notifier: pour chaque arbre `typetree tid` la liste des _types de documents_ à notifier.
-
-La souscription est enregistré en base de données:
-- sa clé primaire / path est son token,
-- une date-heure est enregistrée afin de pouvoir purger les tokens inutilisés / non rafraîchis.
-
-### Utilisation par le serveur
-A la fin de chaque opération, le framework dispose de la liste des documents mis à jour avec leur arbre.
-- pour chaque arbre mis à jour il obtient les souscriptions l'ayant dans leur périmètre et leurs types de documents surveillés,
-- il peut établir pour chaque token un message signalant les mises à jour du ou des périmètres surveillés.
-
-# Use Case _circuit court_
+# Annexe: le Use Case _circuit court_
 
 ## Vision générale: les _documents_
 
@@ -727,7 +705,6 @@ Un **carton d'un producteur pour la livraison à un groupe** est identifié par 
 - **Document CART**: 
   - généré / mis à jour à chaque mise à jour d'un BCC du groupe pour une ligne concernant un produit de ce producteur. 
   - il donne par produit du producteur la somme des quantités commandées dans le groupe. Ce document est une redondance générée / mise à jour à chaque mise à jour 
-
 
 _Remarque 1_: quand une commande est réceptionnée, pour chaque produit (en général commandé mais pas forcément), figure une quantité livrée ou un poids livré.
 - pour certains produits, des poulets par exemple, la quantité livrée est le nombre N de poulets et le poids livré est une liste de N poids individuels des poulets. Quand il y a un poids total c'est, soit temporaire en estimation avant obtention des poids individuels, soit la somme des poids individuels.
@@ -843,7 +820,7 @@ Fil #CMDG : gc gp livr - commande d'un groupe à un groupement
 Fil #CMDC : gc gp livr - commandes des consommateurs
 - BCC : co
 
-Fil #CMDG : gc gp - commandes ouvertes d'un groupe à un groupement
+Fil #CMDOV : gc gp - commandes ouvertes d'un groupe à un groupement
 - BCG : livr
 
 Fil #CALGP : gp - calendrier des livraisons d'un groupement
@@ -876,11 +853,10 @@ Fil #CHCO : gc
 Fil #CHPR : gp
 - CHPR :
 
-
 #### Abonnement
-Pour s'abonner il faut fixer:
+Pour s'abonner à un il faut fixer:
 - son code et son path exact: #CMDGP/gc.gp.livr
-- un filtre s'appliquant seulment quand le path a matché: ne générer une notification que si le ou les documents modifiés ont une id compatibe avec la condition de filtre pour son type,
+- un filtre s'appliquant seulement quand le path a matché: ne générer une notification que si le ou les documents modifiés ont une id compatibe avec la condition de filtre pour son type,
   - aucun CHD ou tous CHD/* ou tous CHD  dont le gc de l'id est égal à la valeur indiquée: CHD/gc=gc
 
 #### Abonnements pour un groupe: `gc`
@@ -920,6 +896,134 @@ Abonnements à `#CHPR/gp`.
 (TODO)
 
 ### Index sur les documents
+Exemple de `CART`
+- ID: `gp pr livr gc`
+- Fait partie des fils:
+  - `#CMDGP gp.livr` - Index requis I1: `gp.livr`
+  - `#CMDPR gp.pr` - Index requis I2: `gp.pr`
+
+CART doit être stocké accessible par son ID:
+- en SQL avec une PK `gp pr livr gc`
+- NOSQL avec un path `gp.pr.livr.gc`
+
+Récupérer tous les `CART` d'un fil `#CMDGP` d'une version `v > vx` est une condition d'égalité sur `gpx.livrx` (index I1) et `> à sur vx`.
 
 
+-----------------------------------------------------------------------
+
+# Contributions antérieures
+
+# Mémoire _cache_ locale de données sur un appareil / mode "avion"
+Au lancement d'une application sur un appareil, l'utilisateur se trouve devant plusieurs possibilités:
+- il y a du réseau et l'utilisateur le considère comme fiable (non écouté malicieusement):
+  - si une session est _ouverte_, il peut saisir son code PIN et la reprendre.
+- sinon s'identifier 
+
+Au lancement d'une application sur un appareil, l'utilisateur va déclarer si cet appareil est _personnel_, soit qu'il lui appartient, soit qu'il le partage avec une ou quelques personnes de confiance.
+
+
+### Lecture d'un arbre
+La lecture d'un arbre retourne les documents de l'arbre:
+- une lecture **partielle** ne retourne que les documents dont les types sont listés dans la demande.
+- une lecture **incrémentale** ne retourne que les documents dont la version est supérieure à celle passée en argument dans la demande.
+
+Ces lectures sont _consistantes_, correspondent à un état cohérent des données dans la base de données.
+
+### Lecture D'UN document
+La demande spécifie l'identifiant du document.
+
+### Désérialisation de la propriété `data` du document
+Elle consiste à retourner une _map_ nom, valeur des propriétés du document, dont celles d'identification et la version.
+
+La couche applicative est en charge de créer une instance de la classe appropriée depuis cette _map_ en utilisant le type de l'arbre, le type du document et si nécessaire d'autres propriétés de _data_.
+
+### Lecture d'un fichier
+Elle peut s'effectuer de deux manières:
+- en retournant le contenu binaire du fichier dans la couche applicative,
+- en retournant une URL d'accès sécurisé valable un certain temps, typiquement à transmettre à une application externe.
+
+### L'écriture d'un fichier
+En deux phases (deux transactions):
+- préchargement du contenu du fichier en Storage:
+  - directement en fournissant le contenu,
+  - indirectement par retour d'une URL sécurisé permettant à une application externe d'effectuer _l'upload_ direct dans le Storage sans faire transiter le contenu du fichier dans la Cloud Function.
+
+### Contrôle d'habilitation
+Tous les appels de l'API se font dans le cadre d'une requête contrôlée par une transaction du SGBD.
+
+Cette requête a systématiquement un contexte avec un objet `Account` géré par l'application:
+- soit un document `Account` d'un arbre,
+- soit un `Account` _anonyme_ donnant peu d'autorisations.
+
+Cet objet est systématiquement consulté à chaque appel de l'API (lecture comme écriture) et peut lever une exception applicative pour refus de l'accès demandé.
+
+### _Périmètre_ d'un `Account`
+Un Account représente un utilisateur, humain ou non, identifiable et authentifiable.
+
+L'objet Account est responsable de la gestion et détention du _périmètre_ d'intérêt de son utilisateur. C'est une liste d'identifiants d'arbres `treetype itd` donnant pour chacun la liste des types de documents qui l'intéresse.
+
+A la fin d'une transaction le framework connaît:
+- le périmètre retourné par l'objet Account sous le contrôle duquel la transaction s'est exécuté.
+- la liste des documents créés / modifiés / supprimés. Chacun concerne un arbre et a un type de document.
+
+Une liste est construite indiquant pour chaque arbre du périmètre dont un des objets a été mis à jour, les couples (type de document, version) contenant un des objets mis à jour.
+
+Cette liste est retourné comme résultat de la requête: l'application distante ayant sollicité une opération reçoit donc en retour tous les **avis de changement** ayant affecté son _périmètre_. C'est ensuite à l'application de solliciter par des transactions ultérieures les mises à jour effectives des arbres concernés.
+
+#### Cohérence _forte_ dans un arbre, _faible_ entre arbres
+L'état d'un arbre retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
+
+Mais deux demandes faites pour deux arbres à des instants différents retourne deux états d'arbres qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre arbres, un éta qui globalement peut être fonctionnellement incohérent temporairement.
+
+> On peut certes grouper dans la même requête des demandes concernant plusieurs arbres: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
+
+## Gestion de la synchronisation de copies distantes des arbres
+
+Des applications distantes et multiples peuvent détenir des _copies partielles_ des arbres stockés en central:
+- seulement certains arbres cités par leurs identifiants;
+- dans ces arbres, seulement des types de documents souhaités.
+
+Le framework met à disposition une couche logicielle aidant à maintenir à jour des copies locales d'arbres:
+- en interprétant les notifications de changement des arbres qui proviennent,
+  - soit d'un retour d'une opération de mise à jour sollicitée par l'application,
+  - soit d'une notification de changement _poussée_ par une Cloud Function suite à des mises effectuées sur demande d'autres applications (typiquement des sessions Web d'autres utilisateurs).
+- en sollicitant une Cloud Function pour obtenir les mises à jour des arbres qui ont été annoncés modifiés par ces notifications. En retour, les documents correspondants sont désérialisés et transformés en objets de classes applicatives puis transmis à l'application qui peut:
+  - les ranger dans des mémoires applicatives, le cas échéant des mémoires réactives pouvant mettre à jour un état UI.
+  - les stocker dans une base de données locales, typiquement une base IDB pour une application Web, une base SQLite pour une application mobile.
+
+Le contenu des arbres ainsi stockés localement peut être consulté _offline_, quand l'application n'est pas connectée au réseau et ne fait pas appel aux Cloud Functions.
+
+## Notifications _poussées_ par un _serveur_ aux applications clientes
+Le troisième objectif est de conférer au _serveur_ la possibilité de _pousser des notifications_ vers des applications clientes:
+- chaque application cliente peut recevoir des avis de modification du périmètre qui l'intéresse,
+- elle peut ainsi,
+  - avertir l'utilisateur par un message,
+  - faire rafraîchir une copie plus ou moins partielle de son périmètre et afficher automatiquement l'état le plus récent de certaines données, même quand ces changements ont été issus d'autres sessions de travail d'autres utilisateurs.
+
+### Restrictions de périmètre
+Le périmètre par défaut d'un `Account` est son périmètre le plus large, celui pour lequel l'utilisateur a le droit de consultation du maximum de documents.
+
+Plusieurs applications peuvent se référer à un même `Account` mais avec des restrictions de périmètre:
+- une application de mise à jour peut avoir le périmètre sans restriction,
+- une application de monitoring peut avoir un périmètre réduit à certains types de documents, voire à des arbres ayant un certain profil.
+
+Après authentification l'application peut si nécessaire:
+- avoir un dialogue avec l'utilisateur afin de fixer un objet `options`.
+- calculer un périmètre réduit depuis `Account` et `options`.
+
+L'application va faire soumettre une _souscription_ auprès du serveur avec les données suivantes:
+- son `token`: il sera utiliser par le serveur pour pousser des messages d'avis d'évolution de documents.
+- **lURL de l'application** pour une application PWA.
+- **son ou ses périmètres** avec pour chacun:
+  - l'id de son `Account`,
+  - le périmètre à notifier: pour chaque arbre `typetree tid` la liste des _types de documents_ à notifier.
+
+La souscription est enregistré en base de données:
+- sa clé primaire / path est son token,
+- une date-heure est enregistrée afin de pouvoir purger les tokens inutilisés / non rafraîchis.
+
+### Utilisation par le serveur
+A la fin de chaque opération, le framework dispose de la liste des documents mis à jour avec leur arbre.
+- pour chaque arbre mis à jour il obtient les souscriptions l'ayant dans leur périmètre et leurs types de documents surveillés,
+- il peut établir pour chaque token un message signalant les mises à jour du ou des périmètres surveillés.
 
