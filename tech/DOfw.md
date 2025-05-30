@@ -389,48 +389,43 @@ L'application terminale peut ainsi désormais:
 
 > L'utilisateur peut avoir plusieurs _credentials_ d'usage plus ou moins fréquent pour accéder à ses applications dans des circonstances diverses: l'utilisation de son _entrée de répertoire_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. Dans ce répertoire il est anonyme, inconnu des GAFAM, n'a fourni aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile. Son existence dans ce répertoire est inviolable (pour autant que les couples s1 s2 qu'il a chois soient respectueux de certaines règles de confidentialité.)
 
-#### Sauvegarde _locale_ de la fiche de l'utilisateur (A REVISER)
-L'utilisateur _peut_ sauvegarder localement cette fiche dans un stockage local à condition de fournir un code local de _profil_, par exemple `bob` (voir ci-après). Cette fiche est stockée localement cryptée par une clé construit depuis le couple `s1 s2` pour en crypter le contenu stocké dans le _storage_ local de son browser.
-
-> L'utilisateur peut aussi demander _l'impression_ en HTML de sa fiche en clair ... qui dans cet état est utilisable par tout hacker un peu débrouillé, mais permet aussi à l'utilisateur de la stocker en lieu sûr hors de l'application.
-
 ## Profils locaux sur des appareils _personnels_
-L'accès à sa _fiche personnelle_ cryptée dans le répertoire des utilisateurs est un service générique fourni par toute les applications et cette fiche va lui faciliter la vie au cours des accès aux applications.
+L'accès à sa _fiche personnelle_ cryptée dans le répertoire des utilisateurs est un service générique fourni par toute les applications et cette fiche va lui faciliter la vie de l'utilisateur au cours de ses accès aux applications.
 
-**MAIS pour y accéder l'utilisateur aura dû fournir un couple `s1 s2` ce qui représente un texte long et le cas échéant fastidieux à saisir.**
+**MAIS pour y accéder à cette _fiche_ l'utilisateur aura dû fournir un couple `s1 s2` ce qui représente un texte long et le cas échéant fastidieux à saisir.**
 
-D'où l'idée que sur un appareil _personnel_ il serait souhaitable de pouvoir être possible d'accéder à sa _fiche personnelle_ en s'identifiant de manière plus raccourcie, et ce sans (trop) compromettre la confidentialité qui était garantie par la longueur de `s1 s2`.
+D'où l'idée que sur un appareil _personnel_ il serait souhaitable de pouvoir accéder à sa _fiche personnelle_ en s'identifiant de manière plus raccourcie sans (trop) compromettre la confidentialité qui était garantie par la longueur de `s1 s2`.
 
 ### Sur un appareil donné: nom local de _profil_ et son code PIN
-Une application sur un appareil est identifiée par un _jeton_ technique qui permet aux serveurs de lui pousser des notifications.
+**Une application sur un appareil** est identifiée par un _token_ technique qui permet aux serveurs de lui pousser des notifications.
 
-Pour qu'une application s'exécute sur un appareil, il faut qu'une session de l'OS y ait été ouverte et avoir fourni a minima un mot de passe ou une empreinte digitale, bref avoir réussi une première authentification _personnelle_. 
+Pour qu'une application s'exécute sur un appareil, il faut qu'une session de l'OS y ait été ouverte et par l'utilisateur qui a dû fournir a minima un mot de passe ou une empreinte digitale, bref avoir réussi une première authentification _personnelle_. 
 
 > Si le login correspond à un compte _invité_ le dispositif ci-dessous **NE DOIT PAS** être employé: le _login_ de l'OS n'offre aucune garantie.
 
-Un utilisateur peut sur un poste personnel déclarer l'ouverture d'un _profil_ qui lui est propre et lui donner un nom local, par exemple `bob`.
+Un utilisateur peut sur un poste personnel, déclarer pour une application un _profil_ qui lui est propre en lui donnant un nom local, par exemple `bob`.
 - ce nom N'EST PAS confidentiel.
-- ultérieurement un utilisateur peut même choisir son profil dans la liste de ceux enregistrés sur le poste.
+- ultérieurement pour cette application un utilisateur peut même choisir son profil dans la liste de ceux enregistrés sur le poste.
 
-Lors de l'enregistrement de son profil `bob` sur un appareil l'utilisateur va déclarer:
-- un `code PIN`, d'une taille minimale de 8 signes: voire plus avant l'importance de code.
+Lors de l'enregistrement de son profil `bob` pour une application sur un appareil l'utilisateur va déclarer:
+- un `code PIN`, d'une taille minimale de 8 signes (voire plus avant l'importance de ce code).
 - un des couples `s1 s2` d'accès à sa fiche dans le répertoire des utilisateurs.
 
-Si le couple d'accès `s1 s2` est correct, la _fiche de l'utilisateur_ est en mémoire, sa clé Kp est connue. L'application peut alors faire enregistrer un nouveau _profil_ dans son entrée de répertoire:
+Si le couple d'accès `s1 s2` est correct, la _fiche de l'utilisateur_ est en mémoire, sa clé `Kp` est connue. L'application va enregistrer un nouveau _profil_ dans l'entrée de répertoire de l'utilisateur:
 - l'application sur l'appareil est identifiée par son _token_.
-- cette entrée est identifiée par le SH(token, profil `bob`).
+- cette entrée est identifiée par le `SH(token, bob)`.
 - un compteur d'échec de code PIN est initialisé à 0.
-- la clé Kp cryptée le SH(code PIN _bruité_).
+- la clé `Kp` cryptée le `SH(code PIN _bruité_)`.
 
-### Accès à sa _fiche_ par un utilisateur depuis son appareil
-En fournissant son code de profil bob et son code PIN, l'application:
-- retrouve l'entrée de l'utilisateur dans le le répertoire en fournissant le SH(_token_, profil).
-- elle tente de décrypter la clé Kp depuis le code PIN: en cas de succès, la clé Kp est retourné ce qui permet à l'application de décrypter la fiche de l'utilisateur, le compteur d'échec est mis à 0 s'il ne l'était pas déjà.
+### Accès ultérieur par l'application sur cet appareil de la _fiche_ de l'utilisateur
+En fournissant son code de profil `bob` et son `code PIN`, l'application:
+- retrouve l'entrée de l'utilisateur dans le répertoire de l'utilisateur en fournissant le `SH(_token_, bob)`.
+- elle tente de décrypter la clé `Kp` depuis le `code PIN`: en cas de succès, la clé `Kp` est retourné ce qui permet à l'application de décrypter la fiche de l'utilisateur, le compteur d'échec est mis à 0 s'il ne l'était pas déjà.
 
 En cas d'échec le nombre d'échec dans la fiche est incrémenté: **au second échec, l'entrée pour ce token et ce profil est détruite.**
 
 ### Principes de sécurité
-Le code PIN **N'EST PAS** stocké localement: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
+Le code PIN **N'EST PAS** stocké localement sur l'appareil: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
 - en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
 - sous forme Strong Hash dans le serveur.
 
@@ -440,37 +435,66 @@ Toutefois même si le hash est `fort`, le code PIN pouvant être court, le retro
 
 **Mais le serveur détruit l'entrée de `bob` au second essai infructueux** d'un code PIN.
 
-La découverte par _force brute_ est donc impossible.
+La découverte par _force brute_ est donc impossible sans _complicité_.
 
 ### Découverte par complicité
-L'administrateur du serveur protège l'accès à la base de données et les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
+L'administrateur du serveur protège l'accès à la base de données. Les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
 - a) avoir accès à la base,
 - b) avoir la clé de l'administrateur.
 
-En supposant avoir les deux par complicité ou contrainte, un hacker peut obtenir le Strong Hash des codes PIN, en particulier celui de `bob`. Avec beaucoup de temps calcul, le code étant (relativement) court, sur un appareil quelconque, il arrivera à trouver ce code après un nombre d'essais faramineux mais que plus rien ne l'empêche de faire.
+En supposant avoir les deux par complicité ou contrainte, un hacker peut obtenir le Strong Hash des codes PIN, en particulier celui de `bob`. Avec beaucoup de temps calcul, le code étant (relativement) court, sur un appareil quelconque, il arrivera à trouver ce code après un nombre d'essais plus ou moins important mais que plus rien ne l'empêche de faire.
 
-En conséquence pour casser le code PIN de `bob` sur son appareil, un hacker doit:
+En conséquence pour casser le code PIN de `bob` sur son appareil pour une application, un hacker doit:
 - dérober l'appareil pour en obtenir le _token_ de l'application,
 - avoir la complicité de l'administration technique du serveur,
 - avoir de gros moyens informatiques.
 
-Cette triple condition est déjà un handicap sérieux ... et demande beaucoup d'argent et / ou l'usage de la force physique sur les humains. Si ce dernier cas est envisageable, le moins coûteux est de _persuader_ `bob` de donner son code PIN !
+Cette triple condition est déjà un handicap sérieux ... et demande beaucoup d'argent et / ou l'usage de la force physique sur les humains. Si ce dernier cas est envisageable, le moins coûteux est de _persuader_ `bob` de donner son code PIN.
 
 ### _Dureté_ du code PIN
 Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
 
 Toutefois UN SEUL essai d'un code demande un temps calcul important, le Strong Hash n'est _strong_ que parce qu'il exige du temps calcul non parallélisable et inapte à bénéficier de processeurs dits _graphiques_.
 
-Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il peut être incassable: pour être mnémotechnique certes il va s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevables de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
+Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique certes il va s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevables de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
 
-## Accès en mode _avion_ à un profil (A AFFINER)
-En mode _avion_ il n'y a pas d'accès à Internet: la fiche d'un utilisateur ne peut pas être obtenue depuis un nom de profil et un code PIN.
+## Base de données locale _cache_ sur un poste personnel
+Pour une application donnée, sur un poste _personnel_, le profil `bob` détient une petite base de données locale dédiée à cette application . Elle contient:
+- des copies (forcément retardées par principe) de documents de l'application, toutes organisations confondues.
+- des copies également retardées de _fils de documents_, toutes organisations confondue - le code de l'organisation préfixant l'ID des fils.
+- un ou deux ou trois index définissent à quels fils, un document est attaché.
+- les contenus des documents et des fils sont cryptés par la clé Kp du profil de l'utilisateur.
 
-Si la fiche de l'utilisateur a été enregistrée localement, elle est lisible en fournissant:
-- le code du profil sous lequel elle a été enregistrée.
-- le couple `s1 s2` de textes qui la crypte.
+Quand une application est lancée elle va déterminer en fonction du souhait de l'utilisateur, quels _fils de documents_ contiennent les documents à charger en mémoire:
+- pour chacun l'application lit le contenu du fil détenu dans la base locale et demande au serveur de lui retourner le dernier état s'il est plus récent que celui obtenu de la base locale.
+- l'application peut ainsi,
+  - a) charger depuis la base locale les documents actuellement déclarés attachés au fil,
+  - b) si nécessaire au vu des versions respectives, demander au serveur tous les documents attachés à ce fil de version supérieure.
+  - c) mette à jour dans la base locale, les documents et le fil.
 
-Les stockages locaux de document sont stockés où, cryptés par quoi ? La clé Kp ? Si oui l'enregistrement de l'utilisateur en répertoire est obligatoire par accéder au mode avion.
+En effectuant ette opération pour tous les fils constituannt le contexte de travail de la session, l'application,
+- a) dispose en mémoire des fils nécessaires et des documents attachés,
+- b) a mis à jour la base de données locales, qui pour ce contexte demandé par l'utilisateur, est à jour.
+
+> Le premier avantage de cette base locale est que pour une application fréquemment utilisée par un utilisateur dans un de ses contextes de travail favoris, la très grande majorité des documents sont déjà connus localement: la mise à jour _incrémentale_ est rapide, économe de réseau et économe d'accès à la base de données distante.
+
+> Le second avantage est l'ouverture d'une possibilité de travail en mode _avion_.
+
+## Le mode _avion_
+Il est possible sur un poste _personnel_ où l'utilisateur a ouvert récemment l'application et accédé à un de ses contextes favoris. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
+
+En effet la base de données locales contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: certes ils ne sont pas du tout dernier état mais a minima dans l'état où il a été accédé la dernière fois sur ce poste.
+
+SAUF QUE la base de données est cryptée par la clé Xp et que l'application ne l'a pas.
+
+En conséquence quand, hors mode avion, l'utilisateur a accédé à l'application depuis son profil, il faut que l'application ait sauvegardé cette clé `Xp` (que l'application détient à ce moment) dans un _storage local_ au nom du profil, mais cryptée.
+- cryptée par le code PIN: c'est trop risqué, il est court et en cas de vol de l'appareil un hacker a du temps devant lui pour la découvrir par force brute.
+- cryptée donc par un couple `s1 s2` fourni par l'utilisateur. Assez simplement il fournira probablement l'une de ses clés d'accès à son profil, mais c'est son choix.
+
+L'application en mode `avion`,
+- demande à l'utilisateur son couple `s1 s2` de protection de son profil,
+- décrypte le stockage local de son profil et en obtient la cle `Kp`,
+- peut ouvrir la base locale et en décrypter les données avec cette clé `Kp`.
 
 # Documents, fichiers et _fils_ traçant leurs évolutions
 ## Document
