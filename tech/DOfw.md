@@ -3,9 +3,9 @@ layout: page
 title: Réflexions à propos d'un framework "Orienté document"
 ---
 
-Dans le langage courant on emploie le mot _application_ (Facebook, TikTok ...) pour désigner en réalité un système applicatif dont l'architecture schématique peut se résumer en deux niveaux:
+Le mot _application_ (Facebook, TikTok ...) désigne en réalité un système applicatif dont l'architecture schématique peut se résumer en deux niveaux:
 - des _serveurs centraux_ détiennent les données et effectuent les calculs sollicités par des demandes émises par ...
-- des _applications_ s'exécutant sur les terminaux / appareils des utilisateurs et sollicitant les serveurs centraux.
+- des _applications terminales_ s'exécutant sur les terminaux / appareils des utilisateurs et sollicitant les serveurs centraux.
 
 ### Installation de l'application sur un appareil / terminal (_device_)
 Un PC, une tablette, un mobile sont des _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...).
@@ -19,14 +19,14 @@ Depuis un browser l'utilisateur appelle une URL d'un _magasin d'applications_ qu
 - l'application peut être directement utilisable depuis cette page.
   - L'utilisateur peut déclarer un _raccourci sur son bureau_ (ou dans son browser) vers cette page afin d'éviter la saisie de l'URL de l'application. 
   - Certains OS (comme iOS) des appareils ne permettent pas une utilisation directe d'une telle page Web et oblige à une installation, au demeurant simple, de l'application depuis cette page.
-- l'application _peut ou doit_ (selon le browser utilisé et l'OS de l'appareil) être _installée_ par le browser. Elle apparaît désormais comme une application locale de l'appareil avec une icône de lancement, typiquement sur le bureau.
+- l'application _peut ou doit_ (selon le browser utilisé et l'OS de l'appareil) être _installée_ par le browser. Elle apparaît ensuite comme une application locale de l'appareil avec une icône de lancement, typiquement sur le bureau.
 
 #### Application de type _mobile_
 L'utilisateur l'installe depuis le ou un des magasins d'application supportés par l'OS du mobile.
 
 > Il n'y a ensuite quasiment pas de différence perceptible par l'utilisateur à l'utilisation de l'application, il clique sur une icône pour l'ouvrir (la lancer).
 
-> On peut installer une application Web-PWA sur un mobile: elle est considérée comme application PWA (et non comme _mobile_).
+> On peut installer une application Web-PWA sur un mobile: elle est dans la suite du document considérée comme application PWA (et non comme _mobile_).
 
 ### Serveurs
 Les applications en exécution sur leur appareil envoient à des **serveurs centraux** des demandes de mise à jour et consultation des données de l'application.
@@ -38,7 +38,7 @@ Le terme générique de _serveurs_ recouvre des variantes techniques non percept
   - en l'absence de nouvelles demandes, un serveur éphémère reste en attente, entre 3 et 60 minutes pour fixer les idées, puis s'interrompt.
   - si le flux des demandes sature la capacité d'un serveur éphémère, un deuxième, voire un troisième etc. sont lancés.
 
-> Ces choix de déploiement technique ne sont pas détectables par les applications qui envoient des demandes au serveur.
+> Ces choix de déploiement technique ne sont pas détectables par les applications terminales qui envoient des demandes aux serveurs.
 
 # Les _services_ et leurs _prestataires_
 Un _prestataire de services_ est une organisation / entreprise / association disposant techniquement de serveurs et proposant des services centralisés. Chaque service à une **finalité applicative** bien délimitée, par exemple:
@@ -59,7 +59,7 @@ Les services `randos` proposés par **Rouge** et **Bleu** sont-ils _identiques_ 
 > Si le nom d'un service comme `randos` traduit sa fonctionnalité générale, un _service précis_ est désigné par le couple du **nom de service / nom du prestataire** le proposant : `randos/Rouge`. Ce couple se traduit par une URL qui permet de solliciter _ce_ service spécifiquement délivré par _ce_ prestataire.
 
 # Les _applications_, leurs magasins, leurs variantes
-Le logiciel d'une application est disponible dans un magasin: dans le cas d'une application Web le magasin est un site Wen statique dont chaque URL correspond à une application.
+Le logiciel d'une application terminale est disponible dans un magasin: dans le cas d'une application Web le magasin est un site Wen statique dont chaque URL correspond à une application.
 
 Pour afficher et gérer ses randos, il faut en conséquence installer l'application `randos` depuis un magasin. Pour un nom donné d'application, il peut exister le cas échéant plus d'une variante:
 - `randos-mobile` par exemple peut se limiter au sous-ensemble des fonctionnalités utiles pendant la rando et sous un format simplifié adapté à consulter un écran de petite taille dans des conditions de luminosité pas optimale.
@@ -88,7 +88,7 @@ UNE base centrale unique pour `randos` indique pour chaque organisation le prest
 > Une organisation peut _migrer_ d'un prestataire à un autre: ce transfert technique des données est génériquement possible, sauf quand un prestataire a des données additionnelles absentes chez l'autre.
 
 ### Une application terminale peut accéder à plus d'une organisation
-Dans le cas de l'application `randos`, un utilisateur donné peut parfaitement faire partie de plus d'une association de randonneurs: une pour ses randonnées près de chez lui, une autre pour les randonnées de montagne et une troisième pour les treks lointains. Depuis la même application il peut basculer d'une organisation à une autre.
+Dans le cas de l'application `randos`, un utilisateur donné peut être membre de plus d'une association de randonneurs: une pour ses randonnées près de chez lui, une autre pour les randonnées de montagne et une troisième pour les treks lointains. Depuis la même application il peut basculer d'une organisation à une autre.
 
 Un gestionnaire de boutiques peut par exemple gérer trois boutiques différentes (trois organisations) avec des rôles différents pour chacune.
 
@@ -119,7 +119,7 @@ Une notification ressemble à un SMS:
 - son texte est _court_ (certes plus long que celui d'un SMS).
 - on ne répond pas à une notification: le serveur émetteur ne sait rien de la suite donnée, ou non, par l'application destinataire.
 
-> Toutefois l'application peut évidemment en tenir compte et effectuer des traitements et des requêtes ultérieures aux serveurs.
+> L'application _peut_ en tenir compte et effectuer des traitements et des requêtes ultérieures aux serveurs.
 
 **Quand l'application destinatrice d'une notification est au PREMIER PLAN:**
 - elle peut afficher un court message dans une petite fenêtre _popup_ (voire émettre un son ...) pour alerter l'utilisateur,
@@ -131,7 +131,7 @@ Une notification ressemble à un SMS:
 
 **Quand l'application destinatrice N'EST PAS en exécution:**
 - l'OS de l'appareil ou le browser dans lequel elle est enregistrée, peut afficher en _popup_ la notification ce qui alerte l'utilisateur,
-- si l'utilisateur clique sur cette _popup_, l'application est lancéee.
+- si l'utilisateur clique sur cette _popup_, l'application est lancée.
 
 ## Des applications _écoutantes_ réagissant au flux d'informations poussées
 Les applications **_sourdes_** classiques ne peuvent afficher des écrans que sur sollicitation de l'utilisateur: l'écran ne se remet à jour que suite à une action de l'utilisateur:
@@ -139,25 +139,31 @@ Les applications **_sourdes_** classiques ne peuvent afficher des écrans que su
 
 Les applications **_écoutantes_** peuvent remettre à jour leurs écrans et données détenues localement même sans action d'un utilisateur simplement en fonction des _notifications_ poussées vers elles par les serveurs.
 
-# Le paradigme _fils de news_ / _collections de documents synchronisés_
-Les _données d'une application_ sont structurées comme des collections de documents, chaque document pouvant rassembler un volume significatif d'informations structurées de manière relativement complexe.
+# Le paradigme _documents / fils de documents / news_
+**Un _document_ contient un ensemble structuré de données:** la structure peut être complexe et un document peut être volumineux. Par exemple un _bon de commande_ d'un consommateur pour une livraison d'un jour donné.
+
+**Chaque document _peut_ être attaché à un ou plusieurs _fils de document_**: en tirant sur le _fil_ de la livraison de samedi on tire tous les documents attachés: par exemple le détail de la livraison et tous les bons de commande attachés à cette livraison.
+
+**Un _fil_ fait aussi office de _news_, d'alerte:** quand un document change (un bon de commande), le ou les fils auxquels il est attaché (la livraison de samedi)sont informés et le fil a noté qu'un bon de commande a changé. Si des applications s'étaient abonné à ce fil, leurs utilisateurs vont voir apparaître sur leurs écrans une _notification_ indiquant _qu'un bon de commande a changé pour la livraison de samedi_. Si l'application d'un utilisateur était lancée et que la page courante montrait cette livraison, l'application est allé chercher les bons de commande attachés au fil de la livraison de samedi ayant une version pplus récente que celle que l'application a en mémoire: la page est mise à jour à l'écran sans intervention de l'utilisateur.
 
 Suivant ce paradigme, une application présente à son utilisateur trois concepts:
 - des **_fils d'information_** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), uné évolution tarifaire (un tarif vu comme une collection de documents). Ces fils **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
-- des **_collections de documents synchronisés_**: les documents de la collection sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur.
-- des **_rapports_**: ce sont vues calculées à un instant donné et qui ne changent pas, sauf bien entendu à redemander le même rapport.
+- des **fils de documents synchronisables**: les documents attachés à un fil synchronisé sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur.
+- des **_rapports_**: ce sont vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
 
 **Les documents synchronisés dans une application** le restent a minima tant que l'application est **au premier plan**:
 - l'application peut décider de ne plus maintenir cette synchronisation quand elle passe **en arrière plan**: c'est une économie de ressources et comme en pratique l'utilisateur ne voit d'une application en arrière plan que les _popups_ de notification, maintenir à jour un volume important de documents synchronisés n'a pas forcément d'intérêt.
-- en repassant au premier plan, elle demandera aux services de lui fournir les mises à jour survenues sur les documents synchronisés depuis l'arrêt de cette synchronisation.
+- en repassant au premier plan, l'application demande aux services de lui fournir les mises à jour survenues sur les fils synchronisés depuis le dernier état synchronisé qui était détenu dans l'application.
 
 ### Quand l'application n'est plus en exécution
 Quand une application est en exécution elle peut rester _abonnée_ à des _fils d'information_.
 
-Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, ces abonnements restent actifs, du moins un certain temps:
+Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, certains de ces abonnements restent actifs, du moins un certain temps:
 - les notifications correspondantes continueront à s'afficher en _popups_, l'OS ou le browser de l'application s'en chargeant.
 - l'utilisateur reste informé des _news_ auxquelles il était abonné.
 - un clic sur un ces _popups_ ouvre l'application ce qui lui permet de connaître en détail les documents ayant changé.
+
+> Chaque application détermine pour chaque fil auquel elle est abonné, si l'abonnement s'interrompt ou non quand l'application s'arrête.
 
 ### Des _fils_ plus ou moins riches
 Pour assurer la synchronisation d'une collection de documents, le _fil_ correspondant est riche: il peut y avoir beaucoup de documents modifiés. Les **_fils de synchronisation_** ne donnent lieu à des _popups_ que sur des critères très restrictifs gérés par l'application afin de ne pas submerger l'utilisateur.
@@ -169,20 +175,20 @@ Les **_fils de news_** sont a contrario beaucoup plus sobres: ils correspondent 
 # Un utilisateur, ses appareils et ses applications
 
 Un utilisateur qui veut utiliser une application (Web-PWA ou non) est placé devant deux cas de figure:
-- **l'appareil qu'il s'apprête à utiliser est _le sien_**: un peu plus généralement c'est un appareil,
+- **soit l'appareil qu'il s'apprête à utiliser est _le sien_**: un peu plus généralement c'est un appareil,
   - qu'il utilise régulièrement, que se soit le sien ou celui d'un proche,
   - c'est un appareil de confiance: il peut laisser quelques informations personnelles localement dessus (mais cryptées).
-- **l'appareil qu'il s'apprête à utiliser ne lui est pas familier**, il est partagé par un grand nombre d'utilisateurs comme au cyber-café ou est celui d'une connaissance qui le lui a prêté temporairement:
+- **soit l'appareil qu'il s'apprête à utiliser ne lui est pas familier**, il est partagé par des utilisateurs inconnus comme au cyber-café ou est celui d'une connaissance qui le lui a prêté temporairement:
   - il ne doit pas y laisser quelques informations que ce soit, aucune trace de son utilisation de l'application,
-  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement.
+  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour raccourcir ses saisies.
 
 ### Appareil _personnel_: ses profils
-En pratique c'est en général un appareil qui peut être utilisé par d'autres que soi-même. Typiquement dans un cadre familial ou un couple, l'appareil n'est pas strictement _personnel_.
+C'est un appareil qui _peut_ être utilisé par d'autres que soi-même. Typiquement dans un cadre familial ou un couple, l'appareil n'est pas strictement _personnel_.
 
-En général le _login_ à un tel appareil est _protégé_ par un mot de passe ou tout autre dispositif que seuls des proches connaissent (à moins d'ailleurs que l'appareil leur soit prêté avec une session ouverte). 
+Le _login_ à un tel appareil est _protégé_ par un mot de passe ou tout autre dispositif que seuls des proches connaissent, à moins que l'appareil leur soit prêté déverrouillé. 
 
-Il n'empêche que _plusieurs personnes peuvent plus ou moins occasionnellement s'en servir_: d'où le principe d'y avoir possiblement plusieurs _profils_.
-- un browser comme Firefox a une notion d'utilisateur: on peut basculer d'un utilisateur à un autre (sans pour autant avoir changé de connexion au niveau de l'OS), ce qui va conférer à chacun ses sites favoris, son historique de navigation et ses mots de passe enregistrés.
+_Plusieurs personnes peuvent plus ou moins occasionnellement s'en servir_: d'où le principe d'y avoir possiblement plusieurs _profils_.
+- un browser comme Firefox a une notion d'utilisateur: on peut basculer d'un utilisateur à un autre (sans pour autant avoir changé de connexion au niveau de l'OS). Chacun a ses sites favoris, son historique de navigation et ses mots de passe enregistrés.
 - Thunderbird, le gestionnaire de mails locaux, supporte de gérer plusieurs _profils_, chacun avec ses comptes mails.
 
 ### Des _profils_ plus ou moins bien défendus
@@ -190,16 +196,16 @@ Ce n'est pas parce qu'on partage un appareil avec un proche qu'on a envie de par
 
 Or dans les cas cités ci-dessus, la confidentialité est plutôt _lâche_:
 - Thunderbird ne demande rien: on choisit son profil, sans mot de passe ou quoi que ce soit. Les boîtes mail sont de toutes les façons en clair dans le file-system, confidentialité _intra-familiale_ zéro.
-- Chrome s'ouvre sur le compte _courant_: si vous ne vous déconnectez pas **explicitement** avant de fermer le browser, il s'ouvre la fois suivante sur votre compte, ses mots de passe, ses historiques et ses favoris. Si vous vous déconnectez il est strict sur la connexion et demandera même à votre téléphone si c'est vraiment vous qui essayez de vous connecter: il suffit d'y répondre OUI et c'est bon (même si vous vous êtes fait voler votre téléphone en état déverrouillé, Google est content).
+- Chrome s'ouvre sur le compte _courant_: si vous ne vous déconnectez pas **explicitement** avant de fermer le browser, il s'ouvre la fois suivante sur votre compte, ses mots de passe, ses historiques et ses favoris. Si vous vous déconnectez Chrome est strict sur la connexion et demandera même à votre téléphone si c'est vraiment vous qui essayez de vous connecter: il suffit d'y répondre OUI et c'est bon (même si vous vous êtes fait voler votre téléphone en état déverrouillé, Google est content).
 
 ### Profil personnel local à un appareil
-C'est un petit stockage local de données destiné à:
+Chaque profil dispose d'un stockage local de données destiné à:
 - faciliter et accélérer le démarrage des applications qui vont y trouver des données d'autorisation, le cas échéant multiples et potentiellement fastidieuses à fournir.
-- permettre d'utiliser, avec des restrictions, une application en _mode avion_, sans aucun accès à Internet, à partir des documents synchronisés lors d'une utilisation antérieure.
+- pouvoir utiliser, avec des restrictions, une application en _mode avion_, sans aucun accès à Internet, à partir des documents synchronisés lors d'une utilisation antérieure.
 
-Ce stockage est **crypté**: même l'accès par le _file-system_ ne permet pas à un _pirate_ d'accéder aux informations.
+Ce stockage est **crypté**: même l'accès par le _file-system_ ne permet pas à un _pirate_ d'accéder à son contenu.
 
-La clé de cryptage est dérivée d'une **phrase** que seul le détenteur du profil connaît: après deux échecs sur la donnée de celle-ci, le _profil_ s'efface (pas les données sur les serveurs des applications).
+La clé de cryptage est dérivée d'une **phrase complexe** que seul le détenteur du profil connaît: après deux échecs sur la donnée de celle-ci, le _profil_ s'efface (pas les données sur les serveurs des applications).
 
 ### Lancement d'une application sur un appareil _personnel_
 La liste des quelques profils enregistrés est présentée:
@@ -209,30 +215,30 @@ La liste des quelques profils enregistrés est présentée:
   - en activer de nouveaux qui compléteront son profil.
 
 En fermant l'application, l'utilisateur peut choisir:
-- de laisser ses _fils de news_ activés: des notifications apparaîtront, même quand l'application sera fermée et même si ce n'est plus vous qui avez l'appareil en main. Toutefois ses _fils_ ne font qu'annoncer des changements sans en donner les détails et jamais d'informations classées confidentielles. 
-- de fermer ses _fils de news_: aucune notification ne parviendront plus sur l'appareil relativement à cette application. On peut le prêter à quelqu'un d'autre sans risque ... mais soi-même on ne recevra plus de notifications (il faut choisir).
+- de laisser ses _fils de news_ activés: des notifications apparaîtront, même quand l'application sera fermée et même si ce n'est plus le même utilisateur qui dispose de l'appareil. Les _notifications_ ne font qu'annoncer des changements sans en donner les détails et jamais d'informations confidentielles. 
+- de fermer ses _fils de news_: aucune notification ne parviendra plus sur l'appareil relativement à cette application. L'utilisateur peut le prêter à quelqu'un d'autre sans risque ... mais lui-même ne recevra plus de notifications (il faut choisir).
 
 ### Lancement d'une application EN MODE AVION sur un appareil _personnel_
 La liste des quelques profils enregistrés est présentée:
 - l'utilisateur choisit le sien et donne sa phrase de protection.
 - si c'est la bonne phrase, l'application va s'ouvrir en disposant des _dossiers synchronisés_ qui l'ont été lors de la dernière utilisation connectée.
-- en mode avion, il n'y a pas de réseau, pas de _fils de news_: les dossiers peuvent être consultés mais pas mis à jour. Toutefois l'utilisateur dispose d'une mémoire locale où il peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations sont cryptées dans le stockage local.
+- en mode avion, il n'y a pas de réseau, pas de _fils de news_: les dossiers peuvent être consultés mais pas mis à jour. L'utilisateur peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations sont cryptées dans le stockage local et pourront être utilisées pour mettre à jour des documents quand le réseau sera à nouveau disponible en sécurité.
 
 ### Lancement d'une application sur un appareil _anonyme_
-L'application se lance sans aucune autorisation activée: elle ne va guère afficher que des informations d'une grande banalité mais surtout va permettre de saisir les autorisations nécessaires pour,
-- accéder à des groupes de dossiers synchronisés ce qui va lui permettre de les consulter et de le mettre à jour selon les droits ouverts par l'autorisation fournie.
+L'application se lance sans aucune autorisation activée: elle ne va guère afficher que des informations d'une grande banalité et proposer de saisir les autorisations nécessaires pour,
+- accéder à des fils de documents synchronisés, les consulter et mettre à jour selon les droits ouverts par l'autorisation fournie.
 - ouvrir des _fils de news_ également en citant les autorisations nécessaires.
 
 > Pour l'application, les possibilités sur un appareil _anonyme_ sont les mêmes que sur un appareil _personnel_: l'utilisateur a seulement fourni plus d'effort pour faire valoir ses droits d'accès (alors que son _profil_ les a préremplis pour un appareil _personnel_).
 
-La fermeture de l'application ne laisse pas le choix: tous les _fils de news_ sont désactivés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
+La fermeture de l'application ne laisse pas le choix sur un appareil _anonyme_: les abonnements aux _fils de news_ sont tous supprimés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
 
 ### Mode _veille_
 Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'application se met en veille en cas de non utilisation pendant quelques minutes (fixés selon le degré de paranoïa de l'utilisateur). Pour sortir de la veille un code PIN est nécessaire et au second échec l'application se ferme.
 
 # Données d'un service
 Un _service donné pour un prestataire donné_ dispose de deux entités de stockage dédiées:
-- **UNE Base de données** pour toutes les données devant être gérées par des transactions.
+- **UNE Base de données** pour gérer les documents et les fils de documents selon un mode _transactionnel_ (ACID).
 - **UN Storage de fichiers**, non géré par des transactions mais dont la sécurité transactionnelle peut être assurée par la base de données avec un protocole léger pré-validation / validation. Il stocke des _fichiers_ identifiés par leur _path_: la présence de caractères `/` dans un path définit une sorte d'arborescence. Le _contenu_ de chaque fichier est une suite d'octets opaque.
 
 Le Storage permet de disposer d'un volume pratiquement 10 fois plus importants à coût identique par rapport à la base de données: de nombreuses applications ont des données historiques / mortes ou d'évolutions sporadiques qui s’accommodent bien d'un support sur Storage.
@@ -240,10 +246,11 @@ Le Storage permet de disposer d'un volume pratiquement 10 fois plus importants �
 > La Base et le Storage sont gérées et accédées exclusivement par le prestataire du service.
 
 #### Le répertoire des applications terminales _abonnées_
-Chaque application sur un appareil a un _jeton_ qui l'identifie de manière unique. Ce répertoire assure la gestion des applications _actives_ (ayant un abonnement en cours):
-- maintien du répertoire à jour et détection des applications inactives: une application terminale _s'abonne_ auprès du prestataire pour toutes les organisations gérées par le prestataire et faisant partie du domaine d'intérêt de l'utilisateur de l'application.
-- pour chaque application _active_, le répertoire détient la liste des identifiants des _dossiers à synchroniser_ et des _flux de news_ auxquels elle est _abonnée_.
-- à l'occasion d'une évolution des données, une publication de notifications est déclenchée vers toutes les applications abonnées à un des flux / dossiers mis à jour.
+Chaque application sur un appareil a un _token_ qui l'identifie de manière unique. Ce répertoire contient les _abonnements_ en cours des applications.
+- Le répertoire détecte les applications n'ayant pas été lancées depuis un certain temps.
+- pour chaque application le répertoire conserve la liste des abonnements en cours aux _fils de documents_.
+
+Quand un document évolue, le répertoire retrouve toutes les applications abonnées à un _fil_ auquel le document est attachés et effectue une publication de notifications vers elles.
 
 > Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plus d'un prestataire si toutes les organisations de son domaine d'intérêt ne sont pas toutes gérées par le même prestataire.
 
@@ -252,14 +259,16 @@ Cette base unique n'est concerne toutes les applications et tous les prestataire
 
 Tous les services des prestataires peuvent y accéder pour les opérations qui leur sont ouvertes.
 
-Toutes les applications terminales peuvent solliciter un quelconque des sprestataires afin d'accéder concernant un de leurs utilisateurs.
+Toutes les applications terminales peuvent solliciter un quelconque des prestataires afin d'accéder concernant un de leurs utilisateurs.
 
 Les données de cette base sont:
 - Le **répertoire des services**.
   - il liste pour toutes les applications le prestataire (son URL) gérant chaque organisation.
 - Le **répertoire des utilisateurs**. Tout utilisateur qui s'y est inscrit (c'est une facilité pas une obligation) dispose d'une entrée personnelle confidentielle et sécurisée. Il y trouve:
-  - un enregistrement de _préférences_ personnelles.
-  - des _droits d'accès scellés_ déposés par un service d'une application. Chaque _droit_ est spécifiquement attribués à cet utilisateur et lui confère la possibilité d'accéder à des données et de s'abonner à des fils de news.
+  - un enregistrement de _ses préférences_ personnelles.
+  - une liste de _credentials_, de _droits d'accès_ déposés par une application terminale au nom de l'utilisateur.
+
+> Un _credential_ est une petite structure qui renferme des données d'authentification comme un couple login / mot de passe (ou tout autre dispositif). Parfois en retour d'une demande d'authentification, un serveur peut retourner un _jeton crypté_ à joindre aux requêtes suivantes: Ce type de jeton peut être enregistré dans un _credential_.
 
 #### Glossaire technique
 - **SH(s1, s2)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une logueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquement utilisés.
