@@ -268,7 +268,7 @@ Les données de cette base sont:
   - un enregistrement de _ses préférences_ personnelles.
   - une liste de _credentials_, de _droits d'accès_ déposés par une application terminale au nom de l'utilisateur.
 
-> Un _credential_ est une petite structure qui renferme des données d'authentification comme un couple login / mot de passe (ou tout autre dispositif). Parfois en retour d'une demande d'authentification, un serveur peut retourner un _jeton crypté_ à joindre aux requêtes suivantes: Ce type de jeton peut être enregistré dans un _credential_.
+> Un _credential_ est une petite donnée structurée qui renferme des données d'authentification comme un couple login / mot de passe (ou tout autre dispositif). Parfois en retour d'une demande d'authentification, un serveur peut retourner un _jeton crypté_ à joindre aux requêtes suivantes: Ce type de jeton peut être enregistré dans un _credential_.
 
 #### Glossaire technique
 - **SH(s1, s2)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une logueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquement utilisés.
@@ -306,35 +306,31 @@ Pour chaque couple **application / organisation**, cette liste donne:
 - un court texte d'information à propos de l'organisation.
 
 Quelques opérations de gestion sont proposées aux prestataires pour:
-- s'enregistrer, donner son URL et sa clé publique, maintenir à jour son statut et son texte d'information.
-- enregistrer une nouvelle organisation s'assurant de son unicité et lui attribuer / modifier son label, fixer son statut et son texte d'information.
+- s'enregistrer, donner leur URL et leur clé publique, maintenir à jour leur statut et leur texte d'information.
+- enregistrer une nouvelle organisation en s'assurant de son unicité, lui attribuer / modifier son label, fixer son statut et son texte d'information.
 
 Ce répertoire permet aux applications terminales:
 - d'obtenir l'URL d'appel du service gestionnaire en fonction de l'organisation et sa clé publique de cryptage,
-- de lire le statut du service et ses restrictions d'usage éventuelles fixées par l'adminisrateur du service à l'égard de leur organisation.
+- de lire le statut du service et ses restrictions d'usage éventuelles fixées par l'administrateur du service à l'égard de leur organisation.
 
 ## Répertoire des utilisateurs
-Chaque utilisateur **_PEUT_** et non _DOIT_ s'enregistrer dans ce répertoire dans le seul but de raccourcir les saisies d'information à fournir pour accéder aux applications de son choix. Il y est identifié par un USERID généré aléatoirement et sans signification.
+Chaque utilisateur **_PEUT_**, et non _DOIT_, s'enregistrer dans ce répertoire dans le seul but de raccourcir les saisies d'information, dont les _credentials_ à fournir pour accéder aux applications de son choix. Il y est identifié par un USERID généré aléatoirement et sans signification.
 
 Il y a deux natures d'informations qui peuvent être stockées dans l'entrée de l'utilisateur:
-- des _droits d'accès_,
+- des _credentials_,
 - des _préférences_.
 
-#### Droit d'accès
-Un droit d'accès est enregistré par un service pour l'utilisateur et est une donnée cryptée qui _autorise_ l'utilisateur à accéder,
-- à des documents identifiés, voire à s'abonner aux évolutions de certains d'entre eux,
-- à des flux de news identifiés.
+#### _Credentials_, droits d'accès
+Un _credential_ est enregistré par une application terminale pour son utilisateur: cette donnée (comme un login / mot de passe ...) est une donnée cryptée par une clé personnelle de l'utilisateur qui l'autorise à accéder à des _fils_ de documents (et fils de news) et à s'abonner à eux.
 
-Un droit d'accès contient deux parties:
+Un _credential_ comporte deux parties:
 - une partie **cible** interprétable par les applications terminales comme les serveurs:
   - à qui il est attribué (USERID),
-  - pour quel _usage_ dont la codification est spécifique de chaque application.
-- un **jeton opaque** pour les applications terminales, crypté par le serveur, donnant les authentifications nécessaires à accéder aux documents et fils de news.
-
-Les services génèrent des _droits d'accès_: ceux-ci sont scellés. Les applications terminales peuvent:
-- les obtenir des services et les lire mais sans pouvoir interpréter le jeton opaque.
-- les enregistrer dans leur entrée de répertoire.
-- ultérieurement les relire et les transmettre à un service pour bénéficier de l'accès correspondant.
+  - pour quelle application,
+  - dans le cadre de quelle organisation,
+  - pour quel _usage_, la codification étant spécifique de chaque application.
+  - un commentaire de l'utilisateur lui donne une interprétation plus personnelle lui permettant de savoir quand il peut faire appel à ce _credential_. 
+- une partie **jeton** d'authentification (login, mot de passe, _passphrase_ ...), voire jeton opaque retourné par un serveur pour authentifier les requêtes ultérieures.
 
 #### Préférences
 Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné une ou des valeurs par défaut / préférées:
@@ -343,40 +339,21 @@ Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné 
 - nom, e-mail, adresses, numéros de téléphone ...
 - etc.
 
-Quand une application demande l'une de ces informations, il est proposé à l'utilisateur en pré-saisie la valeur ou l'une valeurs inscrites en _préférences_ si elle y figure. L'utilisateur n'est pas obligé de s'y conformer et peut toujours fixer sa propre valeur à cet instant.
+Quand une application demande l'une de ces informations, il est proposé à l'utilisateur en pré-saisie la valeur ou l'une valeurs inscrites en _préférences_ si elle y figure. L'utilisateur n'est pas obligé de s'y conformer et peut toujours fixer sa propre valeur à cet instant, voire en enregistrer une nouvelle.
 
-> Le défi est de garantir une stricte confidentialité de ces droits d'accès et préférences: a) seul l'utilisateur peut les obtenir et les changer, b) aucun serveur ne doit jamais être en mesure de les accéder, ni en lecture, ni en écriture.
+> Le défi est de garantir une stricte confidentialité de ces _credentials_ et préférences: a) seul l'utilisateur peut les obtenir et les changer, b) aucun serveur ne doit jamais être en mesure de les accéder, ni en lecture, ni en écriture.
 
 #### Auto-enregistrement d'un utilisateur
+**Après une authentification réussie depuis une application terminale,** celle-ci regarde,
+- si l'utilisateur a obtenu son _credential_ depuis son entrée de répertoire: il y est enregistré. 
+  - si l'appareil utilisé n'y est pas inscrit **ET** que cet appareil est considéré comme personnel par l'utilisateur, il lui est proposé de l'ajouter à la liste de ses appareils connus.
+  - sinon, l'appareil a été déclaré partagé / non sûr cet inscription n'est pas proposé.
+- si l'utilisateur n'a pas fourni son _credential_ depuis son entrée de répertoire, il lui est **proposé** de créer cette entrée.
 
-Chaque _utilisateur_ peut s'enregistrer dans ce répertoire afin d'y disposer d'une entrée personnelle: il lui faut toutefois avoir été _parrainé_ dans le cadre d'une application qui lui a fourni un _jeton de parrainage_:
-- **soit par un intermédiaire humain** qui lui a communiqué ce jeton sous forme d'une _phrase de parrainage_ par le canal humain de son choix.
-- **soit par un code envoyé par le serveur** par exemple une moitié du code envoyée par mail à l'adresse donnée par l'utilisateur, la seconde passée en _notification_ sur l'appareil de l'utilisateur.
-
-Une demande de parrainage est gérée par le service auquel l'utilisateur s'adresse. En général ceci va passer par un _formulaire_, minimal ou non, par lequel le service va juger de la pertinence de cette demande et si elle doit ou non corrélativement accorder un droit d'accès à l'application pour l'utilisateur demandeur.
-- la _vraie_ demande de parrainage peut avoir été faite _humainement_ par la rencontre d'un parrain et d'un parrainé, le premier ayant à la suite de cette rencontre enregistré un _parrainage_ et communiqué le jeton au parrainé par le canal de son choix.
-- une demande peut aussi être établie par un formulaire de demande, traitée sur l'instant ou non: le cas échéant ultérieurement un traitement différé peut générer les _parrainages_ par lot et en diffuser le résultat par mail.
-
-> Ce protocole est fait pour éviter une inflation non contrôlée d'enregistrements sans objectifs d'accès aux applications.
-
-Chaque application est responsable de sa logique de distribution de ses _jetons de parrainage_:
-- le `USERID` de l'utilisateur est généré par l'application distributrice (long, aléatoire et sans signification).
-- un `statut` _en création_ est fixé avec une date et heure limite de validité:
-  - si l'utilisateur s'enregistre avant cette limite, le statut passe à _actif_, sinon l'enregistrement est supprimé à échéance.
-- une `phrase ou jeton de parrainage` ouvrant un droit d'inscription au répertoire à une personne la connaissant. C'est le SHA du SH de cette phrase / jeton qui est enregistré.
-- un `message d'information / bienvenue` éventuel: ce texte n'est pas forcément uniquement de _politesse_ et peut contenir des conditions techniques attachées à cette inscription.
-- un `droit d'accès` éventuel permettant à l'utilisateur, en cas d'acceptation, de disposer d'un accès à l'application à laquelle il a demandé de parrainer sont enregistrement.
-- deux URLs:
-  - l'une à utiliser **après acceptation** et enregistrement: l'utilisateur pourra accompagner cet avis d'acceptation par un message de remerciement (ou non) et joindre le _droit d'accès_ attaché.
-  - l'autre à utiliser **en cas de renoncement** d'enregistrement. Au vu du message d'information / bienvenue, ou pour toute raison, l'utilisateur peut renoncer et peut utiliser cette URL pour expliquer le motif de renoncement ou toute autre formule de politesse.
-
-> Le cas échéant un _enregistrement_ dans le répertoire des utilisateurs peut également fournir conjointement un accès pour cet utilisateur au service.
-
-Un utilisateur peut s'enregistrer:
-- en fournissant le SH de la `phrase / jeton de parrainage` qui lui a été communiquée.
-- en ayant généré une clé AES de cryptage `Kp`.
-- en ayant généré un **couple de clés publique / privée** crypté par la clé Kp ci-dessus.
-- en donnant **deux alias d'accès** qui lui permettront de s'identifier en tant qu'utilisateur:
+Quand il n'est pas déjà enregistrer dans le répertoire des utilisateurs, un utilisateur peut s'auto-enregistrer depuis n'importe quelle application terminale:
+- une clé AES de cryptage `Kp` est générée.
+- un **couple de clés publique / privée** est générée et crypté par la clé `Kp` ci-dessus.
+- en obtenant de l'utilisateur **deux alias d'accès** qui lui permettront de s'identifier dans ce répertoire:
   - un seul fait courir le risque de le perdre,
   - un second de _secours_ limite ce risque. Avec un des deux alias l'utilisateur pourra réinitialiser l'autre s'il est définitivement oublié ou s'il souhaite en changer.
 
@@ -385,7 +362,7 @@ Un alias d'accès est constitué de:
 - `s2` : un texte d'authentification (d'une longueur minimale) choisi aussi par l'utilisateur.
 - la clé `Kp` cryptée par `s1 + s2`.
 
-> L'utilisateur est le seul à connaître, dans sa tête, le couple `s1 s2`, jamais mémorisé nulle part et transmis seulement dans des SH.
+> L'utilisateur est le seul à connaître, dans sa tête, le couple `s1 s2`, jamais mémorisé nulle part et transmis seulement ultérieurement dans des SH.
 
 #### Remarques techniques
 - l'application terminale d'enregistrement allonge `s1` en `s1+` par un texte de remplissage quand sa longueur est inférieure au maximum mais supérieure au minimum (refus si inférieur à la longueur minimale). L'unicité du `SH(s1+, s1+)` est vérifiée.
@@ -394,26 +371,26 @@ Un alias d'accès est constitué de:
 - l'unicité de `s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
 
 #### Accès par l'utilisateur à son enregistrement
-Désormais l'utilisateur est enregistré dans le répertoire des utilisateurs:
-- en lui demandant l'un de ses couples d'accès `s1 s2`, l'application terminale peut fournir les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
+Désormais l'utilisateur est enregistré dans le répertoire des utilisateurs. Quand il veut s'authentifier auprès d'un serveur, l'application terminale propose à l'utilisateur de le faire en utilisant son entrée de répertoire. Si l'utilisateur accepte, l'application:
+- lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
 - le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour cet `USERID`. Il peut retourner,
-  - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître s1 et s2).
-  - le couple de clés privée / publique que l'application terminale peut décrypter puisqu'ayant décrypter Kp.
+  - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître `s1` et `s2`).
+  - le couple de clés privée / publique que l'application terminale peut décrypter puisqu'ayant décrypter `Kp`.
   - le set des _préférences_ de l'utilisateur cryptées par cette clé `Kp`.
-  - la liste des _droits d'accès_ enregistrés, dont il peut lire et interpréter une partie mais ne peut pas ni interpréter ni modifier la partie _opaque_ générée par les serveurs.
+  - la liste des _credentials_ enregistrés: l'application peut faire choisir à l'utilisateur le _credential_ qu'il souhaite utiliser et le soumettre au serveur.
 
-L'application dispose ainsi en mémoire d'une _fiche en clair_ représentant le décryptage de l'entrée cryptée de l'utilisateur dans le répertoire des utilisateurs.
+L'application terminale dispose ainsi en mémoire d'une _fiche en clair_ représentant le décryptage de l'entrée cryptée de l'utilisateur dans le répertoire des utilisateurs.
 
 L'application terminale peut ainsi désormais:
-- mettre à jour ses _préférences_ et les enregistrer cryptées par la clé `Kp` qu'il vient de récupérer.
-- pour chaque droit,
+- mettre à jour les _préférences_ de l'utilisateur et les enregistrer cryptées par la clé `Kp` qu'il vient de récupérer.
+- pour chaque _credential_,
   - l'effacer le cas échéant,
-  - le _commenter_ et le réenregistrer crypté par la clé `Kp` qu'il vient de récupérer. Un commentaire permet à l'utilisateur d'interpréter plus aisément l'usage du droit dont la codification peut être assez absconse.
+  - le _commenter_ et le réenregistrer. Le commentaire permet à l'utilisateur de facilement faire un choix de l'authentification qu'il souhaite utiliser pour chaque situation.
 
-#### Sauvegarde _locale_ de la fiche de l'utilisateur
-L'utilisateur _peut_ sauvegarder localement cette fiche dans un stockage local avec plusieurs conditions:
-- fournir un code local de _profil_, par exemple `bob`,
-- fournir un couple `s1 s2` pour en crypter le contenu stocké dans le _storage_ local de son browser.
+> L'utilisateur peut avoir plusieurs _credentials_ d'usage plus ou moins fréquent pour accéder à ses applications dans des circonstances diverses: l'utilisation de son _entrée de répertoire_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. Dans ce répertoire il est anonyme, inconnu des GAFAM, n'a fourni aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile. Son existence dans ce répertoire est inviolable (pour autant que les couples s1 s2 qu'il a chois soient respectueux de certaines règles de confidentialité.)
+
+#### Sauvegarde _locale_ de la fiche de l'utilisateur (A REVISER)
+L'utilisateur _peut_ sauvegarder localement cette fiche dans un stockage local à condition de fournir un code local de _profil_, par exemple `bob` (voir ci-après). Cette fiche est stockée localement cryptée par une clé construit depuis le couple `s1 s2` pour en crypter le contenu stocké dans le _storage_ local de son browser.
 
 > L'utilisateur peut aussi demander _l'impression_ en HTML de sa fiche en clair ... qui dans cet état est utilisable par tout hacker un peu débrouillé, mais permet aussi à l'utilisateur de la stocker en lieu sûr hors de l'application.
 
