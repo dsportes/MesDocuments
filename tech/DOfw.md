@@ -321,16 +321,23 @@ Il y a deux natures d'informations qui peuvent être stockées dans l'entrée de
 - des _préférences_.
 
 #### _Credentials_, droits d'accès
-Un _credential_ est enregistré par une application terminale pour son utilisateur: cette donnée (comme un login / mot de passe ...) est une donnée cryptée par une clé personnelle de l'utilisateur qui l'autorise à accéder à des _fils_ de documents (et fils de news) et à s'abonner à eux.
+Pour une application donnée et une organisation donnée, il y a plusieurs **types** de _credential_. Par exemple,
+- le **type `PL`** est le _credential_ d'un _point-de-livraison_:
+  - il est identifié par le code `gc` d'un point-de-livraison.
+  - il est unique, il n'y a qu'un credential par point.
+- **le type `CO`** est le _credential_ d'un _consommateur_:
+  - il est identifié par `gc co` identifiant un consommateur attaché à un point-de-livraison.
+  - il est **multiple**: pour un `gc co`, il est défini une valeur de  _credential_ associée aux initiales du membre de la famille du consommateur. Chacun a par commodité son propre mot de passe de manière à pouvoir le cas échéant en bloquer facilement un sans bloquer les autres, ou plus simplement avoir une valeur courante et une de secours en cas d'oubli de la première.
 
-Un _credential_ comporte deux parties:
-- une partie **cible** interprétable par les applications terminales comme les serveurs:
-  - à qui il est attribué (USERID),
-  - pour quelle application,
-  - dans le cadre de quelle organisation,
-  - pour quel _usage_, la codification étant spécifique de chaque application.
-  - un commentaire de l'utilisateur lui donne une interprétation plus personnelle lui permettant de savoir quand il peut faire appel à ce _credential_. 
-- une partie **jeton** d'authentification (login, mot de passe, _passphrase_ ...), voire jeton opaque retourné par un serveur pour authentifier les requêtes ultérieures.
+**Le _jeton_ associé à un _credential_** est un texte opaque, typiquement un SH d'un texte `s1 s2` ou d'un mot de passe `SH(mp, mp)`. Ce sont les serveurs qui sont en charge de vérifier la validité d'un _credential_, par exemple en comparant la valeur fournie par l'application terminale avec son SHA enregistré en base de données.
+
+> Sauf exception, toute opération d'un serveur exige un, voire plusieurs, _credentials_ qui sont vérifiés avant d'être traitée.
+
+> Dans certains cas pour un _credential_ fourni par l'application terminale depuis directement ou non une saisie d'un utilisateur, le serveur peut retourner _un jeton opaque_ crypté par sa propre clé publique et que l'application devra retourné lors des appels suivants: le serveur utilisera alors sa clé privée pour s'assurer a) que c'est bien lui qui a établi ce jeton, b) qu'il est toujours valide. 
+
+Enfin un _credential_ peut être enregistré dans la fiche de l'utilisateur avec un libellé court, crypté et connu seulement de l'utilisateur: `mon accès conso à JP`. Énigmatique dans l'absolu, ce texte est signifiant pour l'utilisateur lui donnant accès à ses documents de _consommateur_ dans le cadre d'un point-de-livraison qui lui est familier (plus que le code aléatoire correspondant).
+
+> L'enregistrement des _credentials_ d'un utilisateur dans son entrée personnelle du répertoire des utilisateurs permet à un utilisateur de simplement cliquer dans une liste pour le fournir plutôt que d'avoir à se rappeler et à saisir un mot de passe long: c'est l'accès à son entrée de répertoire qui est sécurisée pour un utilisateur, ceci protégeant tous ses _credentials_ enregistrés.
 
 #### Préférences
 Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné une ou des valeurs par défaut / préférées:
@@ -343,17 +350,33 @@ Quand une application demande l'une de ces informations, il est proposé à l'ut
 
 > Le défi est de garantir une stricte confidentialité de ces _credentials_ et préférences: a) seul l'utilisateur peut les obtenir et les changer, b) aucun serveur ne doit jamais être en mesure de les accéder, ni en lecture, ni en écriture.
 
+#### Sessions prédéfinies d'un utilisateur
+L'utilisateur peut enregistrer des _sessions prédéfinies_ pour ses usages fréquents des applications. Chaque session est déclaré avec:
+- un libellé qui permettra à l'utilisateur de la sélectionner par un clic dans une liste _parlante pour lui_ qu'une application terminale lui proposera.
+- une liste de _fils_ (ou un seul fil) qui seront ouverts par l'application terminale. Chaque fil correspond à une organisation et est associé à un _credential_.
+
+Un utilisateur peut ainsi déclarer une session A pour son contexte d'usage fréquent correspondant par exemple à:
+- a) un accès _consommateur_ dans le point-de-livraison où il est enregistré.
+- b) deux accès _point-de-livraison_ pour les deux organisations où il intervient pour l'organisation des livraisons.
+- c) un accès _groupement_ par ce'il est également l'assistant d'un groupement de producteur qui n'est pas autonome.
+
+Il peut aussi définir une session simple B correspondant au seul fil a) ci-dessus.
+
+Cet utilisateur pourra ainsi ouvrir une session de travail A ou B juste en cliquant dessus dans une liste au lieu d'ouvrir 4 fois l'application et de fournir 4 mots de passe (un pour chaque usage).
+
+> Au lieu d'une logique organisée autour d'une _personne_, la logique proposée est que utilisateur sélectionne un ou plusieurs rôles, ayant pour chacun le _credential_ correspondant. Ceci lui ouvre une combinatoire plus large, qu'il fixe lui-même.
+
 #### Auto-enregistrement d'un utilisateur
 **Après une authentification réussie depuis une application terminale,** celle-ci regarde,
-- si l'utilisateur a obtenu son _credential_ depuis son entrée de répertoire: il y est enregistré. 
-  - si l'appareil utilisé n'y est pas inscrit **ET** que cet appareil est considéré comme personnel par l'utilisateur, il lui est proposé de l'ajouter à la liste de ses appareils connus.
-  - sinon, l'appareil a été déclaré partagé / non sûr cet inscription n'est pas proposé.
-- si l'utilisateur n'a pas fourni son _credential_ depuis son entrée de répertoire, il lui est **proposé** de créer cette entrée.
+- **si l'utilisateur a obtenu son _credential_ depuis son entrée de répertoire.** Dans ce cas il y est donc déjà enregistré. 
+  - _si l'appareil utilisé n'y est pas inscrit_ **ET** que cet appareil est considéré comme personnel par l'utilisateur, il lui est proposé de l'ajouter à la liste de ses appareils de confiance.
+  - sinon, l'appareil ayant été déclaré partagé / non sûr, cette inscription n'est pas proposée.
+- **si l'utilisateur n'a pas fourni son _credential_ depuis son entrée de répertoire,** l'application lui **propose** de la créer.
 
-Quand il n'est pas déjà enregistrer dans le répertoire des utilisateurs, un utilisateur peut s'auto-enregistrer depuis n'importe quelle application terminale:
-- une clé AES de cryptage `Kp` est générée.
-- un **couple de clés publique / privée** est générée et crypté par la clé `Kp` ci-dessus.
-- en obtenant de l'utilisateur **deux alias d'accès** qui lui permettront de s'identifier dans ce répertoire:
+Quand il n'est pas déjà enregistré dans le répertoire des utilisateurs, un utilisateur peut donc s'auto-enregistrer sur proposition de n'importe quelle application terminale qui,
+- génère aléatoirement une clé AES de cryptage `Kp`.
+- génère un **couple de clés publique / privée** qui est crypté par la clé `Kp` ci-dessus.
+- demande à l'utilisateur **deux alias d'accès** qui lui permettront de s'identifier dans ce répertoire:
   - un seul fait courir le risque de le perdre,
   - un second de _secours_ limite ce risque. Avec un des deux alias l'utilisateur pourra réinitialiser l'autre s'il est définitivement oublié ou s'il souhaite en changer.
 
@@ -371,30 +394,35 @@ Un alias d'accès est constitué de:
 - l'unicité de `s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
 
 #### Accès par l'utilisateur à son enregistrement
-Désormais l'utilisateur est enregistré dans le répertoire des utilisateurs. Quand il veut s'authentifier auprès d'un serveur, l'application terminale propose à l'utilisateur de le faire en utilisant son entrée de répertoire. Si l'utilisateur accepte, l'application:
+Désormais l'utilisateur est enregistré dans le répertoire des utilisateurs. Quand il veut ouvrir une session de travail d'une application, celle-ci lui propose de le faire en utilisant une session prédéfinie enregistrée dans son entrée de répertoire. 
+
+Si l'utilisateur accepte, l'application:
 - lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
 - le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour cet `USERID`. Il peut retourner,
   - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître `s1` et `s2`).
   - le couple de clés privée / publique que l'application terminale peut décrypter puisqu'ayant décrypter `Kp`.
   - le set des _préférences_ de l'utilisateur cryptées par cette clé `Kp`.
-  - la liste des _credentials_ enregistrés: l'application peut faire choisir à l'utilisateur le _credential_ qu'il souhaite utiliser et le soumettre au serveur.
+  - la liste des _sessions prédéfinies_ et des _credentials_ enregistrés: l'application peut faire choisir à l'utilisateur le _credential_ qu'il souhaite utiliser et le soumettre au serveur.
+  - l'utilisateur peut aussi composer interactivement l'ouverture de la session de son choix (ce qu'il veut faire, quel credential utiliser) et l'enregistrer pour une ouverture en un clic la prochaine fois.
 
 L'application terminale dispose ainsi en mémoire d'une _fiche en clair_ représentant le décryptage de l'entrée cryptée de l'utilisateur dans le répertoire des utilisateurs.
 
 L'application terminale peut ainsi désormais:
 - mettre à jour les _préférences_ de l'utilisateur et les enregistrer cryptées par la clé `Kp` qu'il vient de récupérer.
-- pour chaque _credential_,
+- pour chaque _session prédéfinie_ et _credential_,
   - l'effacer le cas échéant,
   - le _commenter_ et le réenregistrer. Le commentaire permet à l'utilisateur de facilement faire un choix de l'authentification qu'il souhaite utiliser pour chaque situation.
 
-> L'utilisateur peut avoir plusieurs _credentials_ d'usage plus ou moins fréquent pour accéder à ses applications dans des circonstances diverses: l'utilisation de son _entrée de répertoire_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. Dans ce répertoire il est anonyme, inconnu des GAFAM, n'a fourni aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile. Son existence dans ce répertoire est inviolable (pour autant que les couples s1 s2 qu'il a chois soient respectueux de certaines règles de confidentialité.)
+> L'utilisateur peut avoir plusieurs usages plus ou moins fréquents pour accéder à ses applications dans des circonstances diverses: l'utilisation de son _entrée de répertoire_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. 
+
+> Dans ce répertoire un utilisateur est anonyme, inconnu des GAFAM, n'a fourni aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile. Son existence dans ce répertoire est inviolable, pour autant que les couples `s1 s2` qu'il a choisi soient respectueux d'un minimum de règles simples.
 
 ## Profils locaux sur des appareils _personnels_
-L'accès à sa _fiche personnelle_ cryptée dans le répertoire des utilisateurs est un service générique fourni par toute les applications et cette fiche va lui faciliter la vie de l'utilisateur au cours de ses accès aux applications.
+Pour un utilisateur le fait de disposer d'une _fiche personnelle_ cryptée dans le répertoire des utilisateurs va lui simplifier la vie pour accéder à ses applications.
 
-**MAIS pour y accéder à cette _fiche_ l'utilisateur aura dû fournir un couple `s1 s2` ce qui représente un texte long et le cas échéant fastidieux à saisir.**
+**MAIS pour accéder à sa _fiche_ l'utilisateur a dû fournir un couple `s1 s2` ce qui représente un texte long et le cas échéant fastidieux à saisir.**
 
-D'où l'idée que sur un appareil _personnel_ il serait souhaitable de pouvoir accéder à sa _fiche personnelle_ en s'identifiant de manière plus raccourcie sans (trop) compromettre la confidentialité qui était garantie par la longueur de `s1 s2`.
+D'où l'idée que sur un appareil _personnel_ il serait souhaitable de pouvoir accéder à sa _fiche personnelle_ en s'identifiant de manière raccourcie sans (trop) compromettre la confidentialité qui était garantie par la longueur de `s1 s2`.
 
 ### Sur un appareil donné: nom local de _profil_ et son code PIN
 **Une application sur un appareil** est identifiée par un _token_ technique qui permet aux serveurs de lui pousser des notifications.
@@ -803,95 +831,143 @@ Certains documents peuvent être _synchronisés_: pour cela il faut définir dan
 - chaque document peut être rattaché à au plus DEUX fils de synchronisation.
 
 #### Liste des documents
-- FGC: fiche d'un groupe. gc
-- FCO: fiche d'un consommateur: gc co
-- FGP: fiche d'un groupement: gp
-- FPR: fiche d'un producteur: gp pr
-- CALG: calendrier d'un groupement: gp
-- LIVRG: livraison d'un groupement: gp livr
-- BCC: bon de commande d'un consommateur: gc co gp livr
-- BCG: bon de commande d'un groupement: gc gp livr
-- CART: carton d'un producteur pour la livraison à un groupe: gp pr livr gc
-- CATG: catalogue des produits d'un groupement: gp
-- CATL: catalogue d'une livraison: gp livr
 - RG: répertoire général des groupes et groupements
 - RC: répertoire des consommateurs: gc
 - RP: répertoire des producteurs: gp
+
+- FGC: fiche d'un groupe. gc
+- FCO: fiche d'un consommateur: gc co
+  - index 1 : gc
+  - filter : co
+- FGP: fiche d'un groupement: gp
+- FPR: fiche d'un producteur: gp pr
+  - index 1 : gp
+  - filter : pr
+- CATG: catalogue des produits d'un groupement: gp
+- CATL: catalogue d'une livraison: gp livr
+
+- CALG: calendrier d'un groupement: gp
+- LIVRG: livraison d'un groupement: gp livr
+
+- BCC: bon de commande d'un consommateur: gc co gp livr
+  - index 1 : gc gp livr
+  - filter : co
+- BCG: bon de commande d'un groupement: gc gp livr
+  - index 1 : gc gp
+  - index 2 : gp livr
+- CART: carton d'un producteur pour la livraison à un groupe: gp pr livr gc
+  - index 1 : gc gp livr
+  - index 2 : gp pr
+  - index 3 : pr gc
+
 - CHL: chat d'une livraison: gp livr
+  - index 1 : gp
 - CHD: chat d'une distribution: gp livr gc
+  - index 1 : gp livr
+  - filter : gc
 - CHCO: chat d'un groupe de consommateurs: gc
 - CHPR: chat d'un groupement de producteur: gp
 
-Fil #CMDG : gc gp livr - commande d'un groupe à un groupement
-- BCG : 
-- CART : pr
-- BCC : co
+### Fil, abonnement à un fil, _filtre_
+Un fil est déclaré avec:
+- son code `#CMDGC`
+- les propriétés de son path : `gc gp livr`
+- une lite de types de documents et pour chacun:
+  - son code: `BCC`
+  - l'index qui détermine son appartenance au fil ou id: `id`
+  - quand il y a un filtre, le numéro du paramètre de filtre (en général 1).
 
-Fil #CMDC : gc gp livr - commandes des consommateurs
-- BCC : co
+Pour s'abonner à un fil il faut fixer:
+- son code et son path exact: `#CMDGC/gc1.gp1.livr1`
+- seuls les types de documents cités dans l'abonnement sont considérés : `[BCG, CART, BCC.1]`
+
+Éventuellement une ou deux valeurs de filtres `v1, ...` 
+- un filtre permet d'éviter de générer une notification si le document associé à ce filtre n'a pas cette valeur comme index `filter`.
+- le filtre ne se regarde seulement après que quand le _path_ a matché.
+- le fait d'avoir spécifié dans l'exemple ci-dessus `BCG.1` filtre les documents BCG dont l'index `filter` est égale à la valeur `v1`. 
+- le fait de spécifier `CART` sans extension de numéro de filtre, signifie de considérer tous les documents `CART` rattachés au fil.
+
+#### _credential_ requis pour s'abonner à un _fil_
+
+
+#### Liste des _fils_
+Fil #CMDGC : gc gp livr - commande d'un groupe à un groupement - Filtre de notification possible: {co}
+- BCG : id
+- CART : i1
+- BCC.1 : id
 
 Fil #CMDOV : gc gp - commandes ouvertes d'un groupe à un groupement
-- BCG : livr
+- BCG : i1
 
 Fil #CALGP : gp - calendrier des livraisons d'un groupement
-- CALG :
+- CALG : id
 - LIVRG : livr
 
 Fil #CMDGP : gp livr - commandes des groupes à un groupement
-- CHD :
-- BCG : gc
-- CART : pr gc
+- CHD : i1
+- BCG : i2
+- CART : i3
 
 Fil #CMDPR : gp pr : commandes ouvertes d'un producteur
-- CART : livr gc
+- CART : i2
 
-Fil #RGC
+Fil #RGC : gc - Filtre de notification possible: {co}
 - RG :
-- RC : gc
+- RC : id
+- CHCO: id
+- FGC : id
+- FCO.1 : i1
 
-Fil #RGP
+Fil #RGP : gp - Filtre de notification possible: {pr}
 - RG :
-- RP : gp
+- RP : id
+- CHPR : id
+- FGP : id
+- FPR.1 : i1
 
-Fil #CHL : gp
-- CHL : livr
-- CHD : gc livr
+Fil #CHL : gp - Filtre de notification possible: {gc}
+- CHL : i1
+- CHD.1 : i1
 
-Fil #CHCO : gc
-- CHCQ :
 
-Fil #CHPR : gp
-- CHPR :
 
-#### Abonnement
-Pour s'abonner à un il faut fixer:
-- son code et son path exact: #CMDGP/gc.gp.livr
-- un filtre s'appliquant seulement quand le path a matché: ne générer une notification que si le ou les documents modifiés ont une id compatibe avec la condition de filtre pour son type,
-  - aucun CHD ou tous CHD/* ou tous CHD  dont le gc de l'id est égal à la valeur indiquée: CHD/gc=gc
+### Périmètre: _de base_ et extensions dynamiques
+Un périmètre a un code `@GROUPE` et une liste de propriétés identifiantes:
+- par exemple `@GROUPE [gc]`
 
-#### Abonnements pour un groupe: `gc`
-Abonnement à `#RGP [RG, RP]` : donne une liste des groupements `gp` à qui il peut commander.
+Le _périmètre de base_ est constitué d'un ou plusieurs _fils_ dont le path est entièrement fixé depuis les propriétés identifiantes du périmètre. 
+- par exemple 1 fil `#RGC.gc [RG, RP, CHPR, FPR]` (path `gc`)
 
-Abonnements aux fils `#CALGP/gp [CALG, LIVRG]` pour tous les `gp` récupérés.
+**Quand dans une session un utilisateur veut _se connecter_ à un périmètre** il doit fournir,
+- a) l'identifiant du périmètre `@GROUPE/gc1` 
+- b) un _credential_ dont le serveur vérifiera qu'il lui donne le droit d'accéder à ce périmètre:
+  - par exemple _le_ ou _un des_ mots de passe enregistré pour le groupe `gc1`.
 
-Quand il fixe une livraison courante `gp.livr` il s'abonne au fil `#CMDG/gc.gp.livr [CMD, BCG, CART]`.
+Le _succès_ de la connexion est l'abonnement de l'application terminale au(x) fil(s) du groupe gc.
 
-Abonnements à tous les fils `#CHL/gp [CHL, CHD/gc=gc]`
+#### _Périmètre_ pour un groupe: `gc` - liste des abonnements
+Le _périmètre_ autour d'un groupe `gc` contient le fil suivant:
+- 1 fil `#RGC.gc [RG, RP, CHPR, FPR]` : donne une liste des groupements `gp` à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
 
-Abonnements à `#CHCO/gc`.
+Quand une exécution d'une application s'est _connectée_ au périmètre `@GROUPE [gc]` elle en lit la liste des codes `gp` des groupements pouvant livrer `gc`. Elle va alors s'abonner aux fils suivants (2 pour chacun des N `gp` de cette liste):
+- N fils `#CALGP/gp [CALG, LIVRG]`.
+- N fils `#CHL/gp [CHL, CHD {gc}]`.
 
-#### Abonnements pour un consommateur: `gc co`
-Abonnement à `#RGP [RG, RP]` : donne une liste des groupements `gp` à qui il peut commander.
+A chaque fois que le fil #RGC notifie une évolution, l'application terminale en obtient la mise à jour et recalcule la nouvelle liste des gc.
+- elle se désabonne de tous les fils `#CALGP #CHL` dont le gp n'est plus dans la nouvelle liste,
+- elle s'abonne à tous les fils `#CALGP #CHL` pour les gp de la nouvelle liste n'étant pas dans l'ancienne.
 
-Abonnements aux fils `#CALGP/gp [CALG, LIVRG]` pour tous les `gp` récupérés.
+Quand une exécution d'une application fixe une livraison courante `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr [BCG, CART, BCC]`.
 
-Quand il fixe une livraison courante `gp.livr`, abonnement au fil `#CMDC/gc.gp.livr, [BCC/co=co]`.
+#### Périmètre pour un consommateur: `gc co` - liste des abonnements
+Le _périmètre_ autour d'un groupe `gc co` contient les fils suivants:
+- 1 fil `#RGC.gc [RG, RP, CHPR, FPR {co}]` : donne une liste des groupements `gp` à qui il peut commander, les fiches du groupement et la sienne, le chat du groupement.
+- N fils `#CALGP/gp [CALG, LIVRG]`, 1 pour chaque `gp` récupéré du fil #`RGC`.
+- N fils `#CHL/gp [CHL, CHD {gc}]`
 
-Abonnements à tous les fils `#CHL/gp [CHL, CHD/gc=gc]`
+Quand une exécution d'une application fixe une livraison courante `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr, [BCG, BCC {co}]`.
 
-Abonnements à `#CHCO/gc`.
-
-#### Abonnements pour un groupement: `gp`
+#### Abonnements pour un groupement: `gp` (A REVISER)
 Abonnement à `#RGC [RG, RC]` : donne une liste des groupes `gc` qui peuvent commander.
 
 Abonnement au fil `#CALGP/gp [CALG, LIVRG]`
