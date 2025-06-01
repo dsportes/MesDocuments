@@ -313,31 +313,16 @@ Ce répertoire permet aux applications terminales:
 - d'obtenir l'URL d'appel du service gestionnaire en fonction de l'organisation et sa clé publique de cryptage,
 - de lire le statut du service et ses restrictions d'usage éventuelles fixées par l'administrateur du service à l'égard de leur organisation.
 
-## Répertoire des utilisateurs
-Chaque utilisateur **_PEUT_**, et non _DOIT_, s'enregistrer dans ce répertoire dans le seul but de raccourcir les saisies d'information, dont les _credentials_ à fournir pour accéder aux applications de son choix. Il y est identifié par un USERID généré aléatoirement et sans signification.
+## Répertoire des _fiches personnelles_ des utilisateurs
+Chaque utilisateur **_PEUT_**, et non _DOIT_, s'enregistrer dans ce répertoire et y disposer de sa _fiche personnelle_ afin de raccourcir les saisies d'information, dont les _credentials_ à fournir pour accéder aux applications de son choix. Il y est identifié par un USERID généré aléatoirement et sans signification.
 
-Il y a deux natures d'informations qui peuvent être stockées dans l'entrée de l'utilisateur:
+Une fiche personnelle est cryptée la base de données de sorte que seul l'utilisateur puisse la lire: les applications terminales sollicitées par l'utilisateur y ont accès en clair uniquement parce que l'utilisateur leur donne dans une session en exécution la clé de décryptage. Ces applications n'exportent jamais le texte en clair d'une fiche (ni sur le réseau, ni sur un fichier de l'appareil).
+
+Il y a trois rubriques dans la _fiche personnelle_ d'un utilisateur:
+- des _préférences_,
 - des _credentials_,
-- des _préférences_.
-
-#### _Credentials_, droits d'accès
-Pour une application donnée et une organisation donnée, il y a plusieurs **types** de _credential_. Par exemple,
-- le **type `PL`** est le _credential_ d'un _point-de-livraison_:
-  - il est identifié par le code `gc` d'un point-de-livraison.
-  - il est unique, il n'y a qu'un credential par point.
-- **le type `CO`** est le _credential_ d'un _consommateur_:
-  - il est identifié par `gc co` identifiant un consommateur attaché à un point-de-livraison.
-  - il est **multiple**: pour un `gc co`, il est défini une valeur de  _credential_ associée aux initiales du membre de la famille du consommateur. Chacun a par commodité son propre mot de passe de manière à pouvoir le cas échéant en bloquer facilement un sans bloquer les autres, ou plus simplement avoir une valeur courante et une de secours en cas d'oubli de la première.
-
-**Le _jeton_ associé à un _credential_** est un texte opaque, typiquement un SH d'un texte `s1 s2` ou d'un mot de passe `SH(mp, mp)`. Ce sont les serveurs qui sont en charge de vérifier la validité d'un _credential_, par exemple en comparant la valeur fournie par l'application terminale avec son SHA enregistré en base de données.
-
-> Sauf exception, toute opération d'un serveur exige un, voire plusieurs, _credentials_ qui sont vérifiés avant d'être traitée.
-
-> Dans certains cas pour un _credential_ fourni par l'application terminale depuis directement ou non une saisie d'un utilisateur, le serveur peut retourner _un jeton opaque_ crypté par sa propre clé publique et que l'application devra retourné lors des appels suivants: le serveur utilisera alors sa clé privée pour s'assurer a) que c'est bien lui qui a établi ce jeton, b) qu'il est toujours valide. 
-
-Enfin un _credential_ peut être enregistré dans la fiche de l'utilisateur avec un libellé court, crypté et connu seulement de l'utilisateur: `mon accès conso à JP`. Énigmatique dans l'absolu, ce texte est signifiant pour l'utilisateur lui donnant accès à ses documents de _consommateur_ dans le cadre d'un point-de-livraison qui lui est familier (plus que le code aléatoire correspondant).
-
-> L'enregistrement des _credentials_ d'un utilisateur dans son entrée personnelle du répertoire des utilisateurs permet à un utilisateur de simplement cliquer dans une liste pour le fournir plutôt que d'avoir à se rappeler et à saisir un mot de passe long: c'est l'accès à son entrée de répertoire qui est sécurisée pour un utilisateur, ceci protégeant tous ses _credentials_ enregistrés.
+- des _sessions favorites_,
+- des _appareils favoris_.
 
 #### Préférences
 Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné une ou des valeurs par défaut / préférées:
@@ -346,29 +331,64 @@ Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné 
 - nom, e-mail, adresses, numéros de téléphone ...
 - etc.
 
-Quand une application demande l'une de ces informations, il est proposé à l'utilisateur en pré-saisie la valeur ou l'une valeurs inscrites en _préférences_ si elle y figure. L'utilisateur n'est pas obligé de s'y conformer et peut toujours fixer sa propre valeur à cet instant, voire en enregistrer une nouvelle.
+Quand une application a besoin de l'une de ces informations, elle propose à l'utilisateur en pré-saisie la valeur ou l'une valeurs inscrites en _préférences_ si elle y en a une. L'utilisateur n'est pas obligé de s'y conformer et peut toujours fixer sa propre valeur à cet instant, voire en enregistrer une nouvelle.
 
-> Le défi est de garantir une stricte confidentialité de ces _credentials_ et préférences: a) seul l'utilisateur peut les obtenir et les changer, b) aucun serveur ne doit jamais être en mesure de les accéder, ni en lecture, ni en écriture.
+Deux préférences par défaut sont toujours conservées: les deux couples de phrases qui ont permis à l'utilisateur d'accéder à sa _fiche personnelle_.
 
-#### Sessions prédéfinies d'un utilisateur
-L'utilisateur peut enregistrer des _sessions prédéfinies_ pour ses usages fréquents des applications. Chaque session est déclaré avec:
-- un libellé qui permettra à l'utilisateur de la sélectionner par un clic dans une liste _parlante pour lui_ qu'une application terminale lui proposera.
-- une liste de _fils_ (ou un seul fil) qui seront ouverts par l'application terminale. Chaque fil correspond à une organisation et est associé à un _credential_.
+> A noter que pour lire ces phrases, il faut en avoir fourni une des deux.
 
-Un utilisateur peut ainsi déclarer une session A pour son contexte d'usage fréquent correspondant par exemple à:
+#### _Credentials_, droits d'accès
+Un _credential_ est un droit d'accès pour lire / agir sur des données d'une application: le type le plus standard de _credential_ est un couple login / mot de passe, mais des formes plus sophistiquées existent _passphrase_ ...
+
+Pour une application donnée, il existe plusieurs **types** de _credential_, conférant pour chaque type des natures d'autorisations différentes. Par exemple pour l'application "circuitscourts",
+- le **type `PL`** est le _credential_ d'un _point-de-livraison_:
+  - il est identifié par le code `gc` d'un point-de-livraison.
+  - il est unique, il n'y a qu'un credential par point.
+- **le type `CO`** est le _credential_ d'un _consommateur_:
+  - il est identifié par `gc co` identifiant un consommateur attaché à un point-de-livraison.
+  - il est **multiple**: pour un `gc co`. Il y est défini une valeur de  _credential_ associée aux initiales du membre de la famille du consommateur. Chacun a par commodité son propre mot de passe de manière à pouvoir le cas échéant en bloquer facilement un sans bloquer les autres, ou plus simplement avoir une valeur courante et une de secours en cas d'oubli de la première.
+
+**Le _jeton_ associé à un _credential_** est un texte généralement assez opaque, typiquement le SH d'un texte `s1 s2` ou d'un mot de passe `SH(mp, mp)`. Ce sont les serveurs qui sont en charge de vérifier la validité d'un _credential_, par exemple en comparant la valeur fournie par l'application terminale avec son SHA enregistré en base de données.
+
+> Sauf rares exceptions, une opération d'un serveur exige un, voire plusieurs, _credentials_ qui sont vérifiés avant traitement.
+
+Un _credential_ peut être enregistré dans la _fiche personnelle_ de l'utilisateur avec un libellé court, connu seulement de l'utilisateur: `mon accès conso à JP`. Énigmatique dans l'absolu, ce texte est signifiant pour l'utilisateur lui donnant accès à ses documents de _consommateur_ dans le cadre d'un point-de-livraison qui lui est familier (plus que le code aléatoire correspondant).
+
+> L'enregistrement des _credentials_ d'un utilisateur dans sa _fiche personnelle_lui permet de simplement cliquer dans une courte liste pour le fournir plutôt que d'avoir à se rappeler et à saisir un mot de passe long: c'est l'accès à sa _fiche personnelle_ qui est sécurisée pour un utilisateur, ceci protégeant **tous** ses _credentials_ enregistrés.
+
+#### _Sessions favorites_ d'un utilisateur
+Lorsqu'un utilisateur ouvre une application terminale il commence une _session_: en général il ne peut pas faire grand-chose avant d'avoir déclaré a minima, a) son intention, qu'est-ce qu'il veut y faire, b) un _credential_ démontrant son droit à accéder aux documents et aux actions associées.
+
+Mais un utilisateur peut ouvrir une session au cours de laquelle il aura:
 - a) un accès _consommateur_ dans le point-de-livraison où il est enregistré.
 - b) deux accès _point-de-livraison_ pour les deux organisations où il intervient pour l'organisation des livraisons.
 - c) un accès _groupement_ par ce'il est également l'assistant d'un groupement de producteur qui n'est pas autonome.
 
-Il peut aussi définir une session simple B correspondant au seul fil a) ci-dessus.
+> Exactement comme un utilisateur de Discord peut avoir accès à plusieurs _serveurs_ pour autant de sujets d'intérêt.
 
-Cet utilisateur pourra ainsi ouvrir une session de travail A ou B juste en cliquant dessus dans une liste au lieu d'ouvrir 4 fois l'application et de fournir 4 mots de passe (un pour chaque usage).
+Une _session favorite_ rassemble une petite liste de _fils de documents / credential associé_ donnant accès à l'utilisateur à tous les documents correspondants dès l'ouverture de la session par une application.
 
-> Au lieu d'une logique organisée autour d'une _personne_, la logique proposée est que utilisateur sélectionne un ou plusieurs rôles, ayant pour chacun le _credential_ correspondant. Ceci lui ouvre une combinatoire plus large, qu'il fixe lui-même.
+L'utilisateur peut enregistrer dans sa _fiche personnelle_ ses _sessions favorites_ pour ses usages habituels des applications. Chaque session est déclarée avec:
+- un **libellé parlant** pour l'utilisateur afin qu'il puisse la sélectionner d'un clic dans la liste qu'une application terminale lui proposera à l'ouverture.
+- une **liste de _fils_** (ou un seul fil) à ouvrir par l'application terminale, chacun relatif à une organisation et associé à un _credential_.
 
-#### Auto-enregistrement d'un utilisateur
-**Après une authentification réussie depuis une application terminale,** celle-ci regarde,
-- **si l'utilisateur a obtenu son _credential_ depuis son entrée de répertoire.** Dans ce cas il y est donc déjà enregistré. 
+> Au lieu d'une logique organisée autour de plusieurs _personne / login_, la logique proposée est que l'utilisateur sélectionne une _session_ où il a plusieurs rôles. 
+
+> C'est un retour à un paradigme pratiqué depuis fort longtemps: chaque _ensemble de  documents et actions associés_ est enfermé dans un coffre, tout utilisateur en connaissant la combinaison peut prétendre y accéder. Une différence toutefois: chaque coffre peut avoir plusieurs combinaisons qu'il est possible de changer / supprimer.
+
+### _Appareils favoris_ de l'utilisateur
+C'est un appareil _de confiance / personnel_: il peut y laisser des données permanentes dessus et il sait que le nombre de personnes pouvant s'y connecter est limité. Le PC ou téléphone d'un inconnu, un poste dans un cyber-café ne sont pas _personnels_.
+
+L'utilisateur peut lancer une application et sélectionner une _session favorite_. Il est bien enregistré par une _fiche personnelle_ dans le répertoire des utilisateurs, mais l'appareil qu'il utilise ne l'est peut-être pas pour cette application, ce que l'application va savoir d'après le _token_ qui identifie l'application sur un appareil donné.
+- l'application demande alors à l'utilisateur s'il considère cet appareil comme _personnel_ dans le cadre de cette application.
+
+### Auto-enregistrement d'un utilisateur
+Comment assurer à un utilisateur une stricte confidentialité de sa _fiche personnelle_ contenant ses préférences, credentials et sessions favorites en respectant deux principes:
+- seul l'utilisateur peut les obtenir et les changer, 
+- aucun serveur ne doit jamais être en mesure de les accéder, ni en lecture, ni en écriture.
+
+#### L'utilisateur a ouvert sa session depuis sa _ficher personnelle_
+Dans ce cas il y est déjà enregistré dans le répertoire des utilisateurs MAIS l'appareil d'où il opère n'est pas forcément  
   - _si l'appareil utilisé n'y est pas inscrit_ **ET** que cet appareil est considéré comme personnel par l'utilisateur, il lui est proposé de l'ajouter à la liste de ses appareils de confiance.
   - sinon, l'appareil ayant été déclaré partagé / non sûr, cette inscription n'est pas proposée.
 - **si l'utilisateur n'a pas fourni son _credential_ depuis son entrée de répertoire,** l'application lui **propose** de la créer.
