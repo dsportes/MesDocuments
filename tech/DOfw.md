@@ -357,55 +357,36 @@ Un _credential_ peut être enregistré dans la _fiche personnelle_ de l'utilisat
 > L'enregistrement des _credentials_ d'un utilisateur dans sa _fiche personnelle_lui permet de simplement cliquer dans une courte liste pour le fournir plutôt que d'avoir à se rappeler et à saisir un mot de passe long: c'est l'accès à sa _fiche personnelle_ qui est sécurisée pour un utilisateur, ceci protégeant **tous** ses _credentials_ enregistrés.
 
 #### _Sessions favorites_ d'un utilisateur
-Lorsqu'un utilisateur ouvre une application terminale il commence une _session_: en général il ne peut pas faire grand-chose avant d'avoir déclaré a minima, a) son intention, qu'est-ce qu'il veut y faire, b) un _credential_ démontrant son droit à accéder aux documents et aux actions associées.
+Lorsqu'un utilisateur ouvre une application terminale il commence une _session_: en général il ne peut pas faire grand-chose avant d'avoir déclaré a minima, 
+- a) son intention, qu'est-ce qu'il veut y faire, 
+- b) un _credential_ démontrant son droit à accéder aux documents et aux actions associées.
 
-Mais un utilisateur peut ouvrir une session au cours de laquelle il aura:
+Un utilisateur peut aussi ouvrir une session avec plus de droits et un périmètre d'actions plus large au cours de laquelle il aura:
 - a) un accès _consommateur_ dans le point-de-livraison où il est enregistré.
 - b) deux accès _point-de-livraison_ pour les deux organisations où il intervient pour l'organisation des livraisons.
 - c) un accès _groupement_ par ce'il est également l'assistant d'un groupement de producteur qui n'est pas autonome.
 
 > Exactement comme un utilisateur de Discord peut avoir accès à plusieurs _serveurs_ pour autant de sujets d'intérêt.
 
-Une _session favorite_ rassemble une petite liste de _fils de documents / credential associé_ donnant accès à l'utilisateur à tous les documents correspondants dès l'ouverture de la session par une application.
+#### Auto-enregistrement d'un utilisateur
+Lorsqu'un utilisateur a ouvert une session sans l'avoir sélectionné depuis sa _fiche personnelle_, typiquement parce qu'il n'en n'a pas encore, l'application lui propose de s'enregistrer. Si l'accepte il saisit:
+- les deux couples `s1 s2` de clés d'accès (un habituel et un de secours).
+- il donne un libellé à sa session actuelle.
 
-L'utilisateur peut enregistrer dans sa _fiche personnelle_ ses _sessions favorites_ pour ses usages habituels des applications. Chaque session est déclarée avec:
-- un **libellé parlant** pour l'utilisateur afin qu'il puisse la sélectionner d'un clic dans la liste qu'une application terminale lui proposera à l'ouverture.
-- une **liste de _fils_** (ou un seul fil) à ouvrir par l'application terminale, chacun relatif à une organisation et associé à un _credential_.
+Sa _fiche personnelle_ est créée, elle est cryptée, ses préférences sont initialisées avec ses clés d'accès, le ou les credentials de sa session sont enregistrés, sa session est enregistrée en tant que première session favorite.
 
-> Au lieu d'une logique organisée autour de plusieurs _personne / login_, la logique proposée est que l'utilisateur sélectionne une _session_ où il a plusieurs rôles. 
+En cours d'une session, l'utilisateur peut ouvrir de nouveaux accès pour de nouveaux rôles après avoir fourni le cas échéant de nouveaux _credentials_. L'état courant de la session peut être enregistré comme _session favorite_, une nouvelle ou en remplaçant une antérieure.
 
-> C'est un retour à un paradigme pratiqué depuis fort longtemps: chaque _ensemble de  documents et actions associés_ est enfermé dans un coffre, tout utilisateur en connaissant la combinaison peut prétendre y accéder. Une différence toutefois: chaque coffre peut avoir plusieurs combinaisons qu'il est possible de changer / supprimer.
+Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donné sa clé d'accès à sa fiche personnelle, n'a plus qu'à cliquer sur l'une de ses sessions favorites pour avoir à disposition tous les documents correspondants sans avoir eu à en citer d'identifiants ni à fournir de credentials.
+
+> Au lieu d'une logique organisée autour de l'identification de _personnes_ (plus ou moins virtuelles), c'est l'utilisateur qui sélectionne une _session_ où il a plusieurs rôles. Chaque _ensemble de  documents et actions associés_ est comme enfermé dans un coffre, tout utilisateur en connaissant la combinaison peut prétendre y accéder avec la possibilité de gérer plusieurs combinaisons par coffres.
 
 ### _Appareils favoris_ de l'utilisateur
-C'est un appareil _de confiance / personnel_: il peut y laisser des données permanentes dessus et il sait que le nombre de personnes pouvant s'y connecter est limité. Le PC ou téléphone d'un inconnu, un poste dans un cyber-café ne sont pas _personnels_.
+C'est un appareil _de confiance / personnel_ où il peut stocker quelques données permanentes: sur le PC ou téléphone prêté par un inconnu, dans un cyber-café ... il n'est pas correct d'occuper ainsi de l'espace.
 
-L'utilisateur peut lancer une application et sélectionner une _session favorite_. Il est bien enregistré par une _fiche personnelle_ dans le répertoire des utilisateurs, mais l'appareil qu'il utilise ne l'est peut-être pas pour cette application, ce que l'application va savoir d'après le _token_ qui identifie l'application sur un appareil donné.
-- l'application demande alors à l'utilisateur s'il considère cet appareil comme _personnel_ dans le cadre de cette application.
+> Ces données locales sont _cryptées_: elles ne sont lisibles que par une application auprès de laquelle l'utilisateur à donné l'une de ses phrases d'accès à sa _fiche personnelle_.
 
-### Auto-enregistrement d'un utilisateur
-Comment assurer à un utilisateur une stricte confidentialité de sa _fiche personnelle_ contenant ses préférences, credentials et sessions favorites en respectant deux principes:
-- seul l'utilisateur peut les obtenir et les changer, 
-- aucun serveur ne doit jamais être en mesure de les accéder, ni en lecture, ni en écriture.
 
-#### L'utilisateur a ouvert sa session depuis sa _ficher personnelle_
-Dans ce cas il y est déjà enregistré dans le répertoire des utilisateurs MAIS l'appareil d'où il opère n'est pas forcément  
-  - _si l'appareil utilisé n'y est pas inscrit_ **ET** que cet appareil est considéré comme personnel par l'utilisateur, il lui est proposé de l'ajouter à la liste de ses appareils de confiance.
-  - sinon, l'appareil ayant été déclaré partagé / non sûr, cette inscription n'est pas proposée.
-- **si l'utilisateur n'a pas fourni son _credential_ depuis son entrée de répertoire,** l'application lui **propose** de la créer.
-
-Quand il n'est pas déjà enregistré dans le répertoire des utilisateurs, un utilisateur peut donc s'auto-enregistrer sur proposition de n'importe quelle application terminale qui,
-- génère aléatoirement une clé AES de cryptage `Kp`.
-- génère un **couple de clés publique / privée** qui est crypté par la clé `Kp` ci-dessus.
-- demande à l'utilisateur **deux alias d'accès** qui lui permettront de s'identifier dans ce répertoire:
-  - un seul fait courir le risque de le perdre,
-  - un second de _secours_ limite ce risque. Avec un des deux alias l'utilisateur pourra réinitialiser l'autre s'il est définitivement oublié ou s'il souhaite en changer.
-
-Un alias d'accès est constitué de:
-- `s1` : un texte identifiant (d'une longueur minimale) choisi par l'utilisateur.
-- `s2` : un texte d'authentification (d'une longueur minimale) choisi aussi par l'utilisateur.
-- la clé `Kp` cryptée par `s1 + s2`.
-
-> L'utilisateur est le seul à connaître, dans sa tête, le couple `s1 s2`, jamais mémorisé nulle part et transmis seulement ultérieurement dans des SH.
 
 #### Remarques techniques
 - l'application terminale d'enregistrement allonge `s1` en `s1+` par un texte de remplissage quand sa longueur est inférieure au maximum mais supérieure au minimum (refus si inférieur à la longueur minimale). L'unicité du `SH(s1+, s1+)` est vérifiée.
