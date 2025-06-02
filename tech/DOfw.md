@@ -282,7 +282,7 @@ Soit `PP-S` le couple de clés généré par un serveur:
 Soit `PP-ti` un couple de clés généré par une application terminale `ti` pour une conversation donnée avec le serveur `S`:
 - `Pub-ti` est transmise dans les requêtes au serveur.
 - Le serveur peut génèrer une clé `K-S-ti` à parir du couple `Pub-ti / Priv-S`: il s'en sert pour crypter ses réponses à l'application terminale ou toute donnée dont il veut que seule `ti` puisse les lire.
-- L'application terminale peut générer une clé `K-ti-S` à partir du couple `Pub-S / Priv-ti`. Comme `K-ti-S` et `K-S-ti` sont égales, l'application terminale peut s'en serir pour décrypter les réponses / données cryptées pour elle par l'application serveur (et nul autre ne peut le faire).
+- L'application terminale peut générer une clé `K-ti-S` à partir du couple `Pub-S / Priv-ti`. Comme `K-ti-S` et `K-S-ti` sont égales, l'application terminale peut s'en servir pour décrypter les réponses / données cryptées pour elle par l'application serveur (et nul autre ne peut le faire).
 
 Les applications terminales connaissent la clé publique du serveur Pub-S. Quand l'une d'elle veut échanger des données confidentielles avec le serveur:
 - elle génère un couple PP-t,
@@ -381,30 +381,23 @@ Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donn
 
 > Au lieu d'une logique organisée autour de l'identification de _personnes_ (plus ou moins virtuelles), c'est l'utilisateur qui sélectionne une _session_ où il a plusieurs rôles. Chaque _ensemble de  documents et actions associés_ est comme enfermé dans un coffre, tout utilisateur en connaissant la combinaison peut prétendre y accéder avec la possibilité de gérer plusieurs combinaisons par coffres.
 
-### _Appareils favoris_ de l'utilisateur
-C'est un appareil _de confiance / personnel_ où il peut stocker quelques données permanentes: sur le PC ou téléphone prêté par un inconnu, dans un cyber-café ... il n'est pas correct d'occuper ainsi de l'espace.
-
-> Ces données locales sont _cryptées_: elles ne sont lisibles que par une application auprès de laquelle l'utilisateur à donné l'une de ses phrases d'accès à sa _fiche personnelle_.
-
-
-
-#### Remarques techniques
-- l'application terminale d'enregistrement allonge `s1` en `s1+` par un texte de remplissage quand sa longueur est inférieure au maximum mais supérieure au minimum (refus si inférieur à la longueur minimale). L'unicité du `SH(s1+, s1+)` est vérifiée.
+##### Remarques techniques
+- l'application terminale lors de l'enregistrement d'un utilisateur allonge `s1` en `s1+` par un texte de remplissage quand sa longueur est inférieure au maximum mais supérieure au minimum (refus si inférieur à la longueur minimale). L'unicité du `SH(s1+, s1+)` est vérifiée.
 - l'application terminale d'enregistrement allonge `s2` en `s2+` de même, mais le texte de remplissage est généré en fonction de `s1`.
 - l'unicité de `s1` est vérifiée par l'enregistrement du `SHA(SH(s1+, s1+))`.
-- l'unicité de `s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
+- l'unicité de `s1 s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
 
-#### Accès par l'utilisateur à son enregistrement
-Désormais l'utilisateur est enregistré dans le répertoire des utilisateurs. Quand il veut ouvrir une session de travail d'une application, celle-ci lui propose de le faire en utilisant une session prédéfinie enregistrée dans son entrée de répertoire. 
-
-Si l'utilisateur accepte, l'application:
+##### Accès par l'utilisateur à sa _fiche personnelle_
+L'utilisateur étant enregistré dans le répertoire des utilisateurs à l'ouverture d'une application, celle-ci lui propose de le faire en utilisant une session prédéfinie de sa fiche personnelle et pour y accéder: 
 - lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
 - le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour cet `USERID`. Il peut retourner,
   - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître `s1` et `s2`).
   - le couple de clés privée / publique que l'application terminale peut décrypter puisqu'ayant décrypter `Kp`.
   - le set des _préférences_ de l'utilisateur cryptées par cette clé `Kp`.
-  - la liste des _sessions prédéfinies_ et des _credentials_ enregistrés: l'application peut faire choisir à l'utilisateur le _credential_ qu'il souhaite utiliser et le soumettre au serveur.
-  - l'utilisateur peut aussi composer interactivement l'ouverture de la session de son choix (ce qu'il veut faire, quel credential utiliser) et l'enregistrer pour une ouverture en un clic la prochaine fois.
+  - la liste des _sessions prédéfinies_ et des _credentials_ enregistrés.
+  - la liste des appareils favoris d'où il a ouvert une application et l'alias employé. Il peut aussi changer de code PIN.
+
+S'il n'a pas utiliser de session favorite enregistrée, l'utilisateur peut aussi l'ouvrir en sélectionnant un type de fil de documents et indiquer quel credential utilise de sa liste il veut utiliser, ou le saisir. Cette session peut être enregistrée pour une ouverture en un clic la prochaine fois.
 
 L'application terminale dispose ainsi en mémoire d'une _fiche en clair_ représentant le décryptage de l'entrée cryptée de l'utilisateur dans le répertoire des utilisateurs.
 
@@ -412,29 +405,49 @@ L'application terminale peut ainsi désormais:
 - mettre à jour les _préférences_ de l'utilisateur et les enregistrer cryptées par la clé `Kp` qu'il vient de récupérer.
 - pour chaque _session prédéfinie_ et _credential_,
   - l'effacer le cas échéant,
-  - le _commenter_ et le réenregistrer. Le commentaire permet à l'utilisateur de facilement faire un choix de l'authentification qu'il souhaite utiliser pour chaque situation.
+  - adapter son _libellé_ facilitant le choix de l'utilisateur.
+- modifier son code PIN d'accès rapide.
 
 > L'utilisateur peut avoir plusieurs usages plus ou moins fréquents pour accéder à ses applications dans des circonstances diverses: l'utilisation de son _entrée de répertoire_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. 
 
 > Dans ce répertoire un utilisateur est anonyme, inconnu des GAFAM, n'a fourni aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile. Son existence dans ce répertoire est inviolable, pour autant que les couples `s1 s2` qu'il a choisi soient respectueux d'un minimum de règles simples.
 
-## Profils locaux sur des appareils _personnels_
-Pour un utilisateur le fait de disposer d'une _fiche personnelle_ cryptée dans le répertoire des utilisateurs va lui simplifier la vie pour accéder à ses applications.
+### _Appareils favoris_ de l'utilisateur
+C'est un appareil _de confiance / personnel_ où il peut stocker des données locales permanentes:
+- celles-ci sont _cryptées_ et ne sont lisibles que par une application à qui l'utilisateur a saisi l'une de ses phrases d'accès à sa _fiche personnelle_.
+- ces données _peuvent être détruites_ par n'importe quel utilisateur de l'appareil. Sur le PC ou téléphone prêté par un inconnu, dans un cyber-café, il n'est ni correct d'occuper ainsi de l'espace, ni raisonnable d'espérer le retrouver plus tard.
 
-**MAIS pour accéder à sa _fiche_ l'utilisateur a dû fournir un couple `s1 s2` ce qui représente un texte long et le cas échéant fastidieux à saisir.**
+Exécuter une application sur un _appareil favori_ de l'utilisateur présente des avantages significatifs:
+- **forte réduction de l'usage du réseau comme du nombre d'accès à la base de données:** de nombreux documents peuvent être déjà présents dans la base de données locales de l'application. La mise à niveau de ceux-ci est _incrémentale_ ne chargeant que ceux ayant changé ou nouveaux.
+- **possibilité d'avoir des sessions en mode _avion_**, sans aucun accès au réseau (voir plus loin les restrictions associées).
+- **authentification rapide depuis un code PIN court** au lieu de la clé longue s1 s2 pour accéder à sa `fiche personnelle`.
 
-D'où l'idée que sur un appareil _personnel_ il serait souhaitable de pouvoir accéder à sa _fiche personnelle_ en s'identifiant de manière raccourcie sans (trop) compromettre la confidentialité qui était garantie par la longueur de `s1 s2`.
-
-### Sur un appareil donné: nom local de _profil_ et son code PIN
+#### Nom local de _profil_ de l'utilisateur et son code PIN
 **Une application sur un appareil** est identifiée par un _token_ technique qui permet aux serveurs de lui pousser des notifications.
 
-Pour qu'une application s'exécute sur un appareil, il faut qu'une session de l'OS y ait été ouverte et par l'utilisateur qui a dû fournir a minima un mot de passe ou une empreinte digitale, bref avoir réussi une première authentification _personnelle_. 
+**Un utilisateur A peut se choisir un alias court**, par exemple `bob` qu'il emploiera sur tous les appareils personnels où il ouvrira une application. 
+- toutefois il pourrait utiliser un nouvel appareil personnel d'un proche B qui, pas de chance, déjà choisi aussi le nom bob. A devra opter pour un second alias court `robert`.
+- il choisit aussi **un code PIN** d'une taille minimale de 8 signes (voire plus avant l'importance de ce code).
 
-> Si le login correspond à un compte _invité_ le dispositif ci-dessous **NE DOIT PAS** être employé: le _login_ de l'OS n'offre aucune garantie.
+Quand l'utilisateur A ouvre une application sur un _appareil personnel_ il lui est affiché une liste d'alias:
+- a) ceux ayant déjà ouvert cette application sur cet appareil: il peut cliquer sur le sien s'il y est et saisir son code PIN.
+- b) ceux existants sur l'appareil mais qu'l n'a pas encore utilisé pour cette application: 
+  - il peut cliquer sur le sien s'il y est ou donner son alias habituel.
+  - il peut alors enregistrer cet appareil comme _appareil favori_.
 
-Un utilisateur peut sur un poste personnel, déclarer pour une application un _profil_ qui lui est propre en lui donnant un nom local, par exemple `bob`.
-- ce nom N'EST PAS confidentiel.
-- ultérieurement pour cette application un utilisateur peut même choisir son profil dans la liste de ceux enregistrés sur le poste.
+**Pour déclarer l'appareil comme favori**, l'utilisateur A doit fournir son couple `s1 s2` qui permet à l'application de retrouver sa fiche personnelle:
+- s'il a déjà un (exceptionnellement plus d'un) alias enregistré, il le choisit, sinon en saisit un.
+- s'il y a déjà un code PIN enregistré, il le donne et ça sera contrôlé, si c'est le premier appareil favori il donne un code PIN.
+
+> Désormais l'appareil étant déclaré _favori_ il pourra ultérieurement ouvrir une application en cliquant sur son alias et en saisissant son code PIN. Sa _fiche personnelle_ étant accessible par l'application, il peut alors cliquer sur l'une de ses _sessions favorites_.
+
+## Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
+En ouvrant une application sur un appareil personnel, un utilisateur se contente:
+- cliquer sur son _alias_,
+- donner son code PIN.
+
+Ce protocole très simplifié est-il sûr ?
+
 
 Lors de l'enregistrement de son profil `bob` pour une application sur un appareil l'utilisateur va déclarer:
 - un `code PIN`, d'une taille minimale de 8 signes (voire plus avant l'importance de ce code).
