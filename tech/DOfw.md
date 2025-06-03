@@ -442,56 +442,40 @@ Quand l'utilisateur A ouvre une application sur un _appareil personnel_ il lui e
 > Désormais l'appareil étant déclaré _favori_ il pourra ultérieurement ouvrir une application en cliquant sur son alias et en saisissant son code PIN. Sa _fiche personnelle_ étant accessible par l'application, il peut alors cliquer sur l'une de ses _sessions favorites_.
 
 ## Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
-En ouvrant une application sur un appareil personnel, un utilisateur se contente:
+En ouvrant une application sur un appareil personnel, un utilisateur se limite à,
 - cliquer sur son _alias_,
-- donner son code PIN.
+- donner son code PIN qui sera transmit au serveur par son SH `shcp`.
 
 Ce protocole très simplifié est-il sûr ?
 
+Depuis le _token_ de l'application, le serveur peut retrouver toutes les _fiches personnelles_ le référençant, c'est à dire les utilisateurs ayant déclaré cet appareil comme _favori_, ce qui en pratique va en faire peu.
+- de ceux-là, un seul va mentionner le nom `bob`: le sha(SH(code PIN de cet utilisateur)) est comparé avec le sha(`shcp`). 
+- s'ils concordent shcp est la clé qui crypte la clé `Kp` de l'utilisateur. La _fiche personnelle_ est retournée avec la clé `Kp`.
+- s'il y a discordance, le compteur d'erreur est incrémenté. **A la seconde erreur, l'appareil n'est plus favori, le cryptage de `Kp` par code PIN dans la fiche est effacé**.  
 
-Lors de l'enregistrement de son profil `bob` pour une application sur un appareil l'utilisateur va déclarer:
-- un `code PIN`, d'une taille minimale de 8 signes (voire plus avant l'importance de ce code).
-- un des couples `s1 s2` d'accès à sa fiche dans le répertoire des utilisateurs.
-
-Si le couple d'accès `s1 s2` est correct, la _fiche de l'utilisateur_ est en mémoire, sa clé `Kp` est connue. L'application va enregistrer un nouveau _profil_ dans l'entrée de répertoire de l'utilisateur:
-- l'application sur l'appareil est identifiée par son _token_.
-- cette entrée est identifiée par le `SH(token, bob)`.
-- un compteur d'échec de code PIN est initialisé à 0.
-- la clé `Kp` cryptée le `SH(code PIN _bruité_)`.
-
-### Accès ultérieur par l'application sur cet appareil de la _fiche_ de l'utilisateur
-En fournissant son code de profil `bob` et son `code PIN`, l'application:
-- retrouve l'entrée de l'utilisateur dans le répertoire de l'utilisateur en fournissant le `SH(_token_, bob)`.
-- elle tente de décrypter la clé `Kp` depuis le `code PIN`: en cas de succès, la clé `Kp` est retourné ce qui permet à l'application de décrypter la fiche de l'utilisateur, le compteur d'échec est mis à 0 s'il ne l'était pas déjà.
-
-En cas d'échec le nombre d'échec dans la fiche est incrémenté: **au second échec, l'entrée pour ce token et ce profil est détruite.**
-
-### Principes de sécurité
 Le code PIN **N'EST PAS** stocké localement sur l'appareil: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
 - en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
 - sous forme Strong Hash dans le serveur.
 
 Toutefois même si le hash est `fort`, le code PIN pouvant être court, le retrouver par _force brute_ (en essayant toutes les combinaisons possibles) reste potentiellement faisable.
 
-> A noter que pour accéder à ce code PIN crypté dans le répertoire des utilisateurs il faut disposer du _token_ de l'application sur l'appareil ce qui a obligé à, a) dérober l'appareil, b) y lancer l'application, c) accéder à ce token en _debug_.
+> A noter que pour accéder à la clé `Kp` cryptée par le SH(du code PIN) dans le répertoire des utilisateurs il faut disposer du _token_ de l'application sur l'appareil ce qui a obligé à, a) dérober l'appareil, b) y lancer l'application, c) accéder à ce token en _debug_.
 
-**Mais le serveur détruit l'entrée de `bob` au second essai infructueux** d'un code PIN.
-
-La découverte par _force brute_ est donc impossible sans _complicité_.
+**Le serveur détruisant l'entrée de `bob` pour le token de l'application au second essai infructueux** d'un code PIN, la découverte par _force brute_ est donc impossible du fait de l'impossibilité d'itérer sur des valeurs d'aessai.
 
 ### Découverte par complicité
 L'administrateur du serveur protège l'accès à la base de données. Les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
 - a) avoir accès à la base,
 - b) avoir la clé de l'administrateur.
 
-En supposant avoir les deux par complicité ou contrainte, un hacker peut obtenir le Strong Hash des codes PIN, en particulier celui de `bob`. Avec beaucoup de temps calcul, le code étant (relativement) court, sur un appareil quelconque, il arrivera à trouver ce code après un nombre d'essais plus ou moins important mais que plus rien ne l'empêche de faire.
+En supposant avoir les deux par complicité ou contrainte, un hacker peut tester par force brute des Strong Hash de code PIN, jusqu'à avoir un _match_ avec le SHA enregistré. Avec beaucoup de temps calcul, le code PIN étant (relativement) court, il arrivera à trouver ce code PIN après un nombre d'essais plus ou moins important mais que plus rien ne l'empêche de faire.
 
 En conséquence pour casser le code PIN de `bob` sur son appareil pour une application, un hacker doit:
 - dérober l'appareil pour en obtenir le _token_ de l'application,
 - avoir la complicité de l'administration technique du serveur,
 - avoir de gros moyens informatiques.
 
-Cette triple condition est déjà un handicap sérieux ... et demande beaucoup d'argent et / ou l'usage de la force physique sur les humains. Si ce dernier cas est envisageable, le moins coûteux est de _persuader_ `bob` de donner son code PIN.
+Cette triple condition est déjà un handicap sérieux ... et demande beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si ce dernier cas est envisageable, le moins coûteux est de _persuader_ `bob` de donner son code PIN.
 
 ### _Dureté_ du code PIN
 Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
