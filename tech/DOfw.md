@@ -139,15 +139,193 @@ Les applications **_sourdes_** classiques ne peuvent afficher des écrans que su
 
 Les applications **_écoutantes_** peuvent remettre à jour leurs écrans et données détenues localement même sans action d'un utilisateur simplement en fonction des _notifications_ poussées vers elles par les serveurs.
 
-# Le paradigme _documents / fils de documents / news_
-**Un _document_ contient un ensemble structuré de données:** la structure peut être complexe et un document peut être volumineux. Par exemple un _bon de commande_ d'un consommateur pour une livraison d'un jour donné.
+# Documents, fichiers et _fils_ traçant leurs évolutions
 
-**Chaque document _peut_ être attaché à un ou plusieurs _fils de document_**: en tirant sur le _fil_ de la livraison de samedi on tire tous les documents attachés: par exemple le détail de la livraison et tous les bons de commande attachés à cette livraison.
+## Document
+Un document est composé de:
+- un agrégat de données structurées selon le standard JSON:
+  - les données primitives sont des _string, number, boolean_.
+  - deux structures sont utilisables:
+    - les listes ordonnées,
+    - les maps _clé (string) / valeur.
+- un ensemble de _fichiers_ attachés au document (mais pas stockés physiquement dans le document).
 
-**Un _fil_ fait aussi office de _news_, d'alerte:** quand un document change (un bon de commande), le ou les fils auxquels il est attaché (la livraison de samedi)sont informés et le fil a noté qu'un bon de commande a changé. Si des applications s'étaient abonné à ce fil, leurs utilisateurs vont voir apparaître sur leurs écrans une _notification_ indiquant _qu'un bon de commande a changé pour la livraison de samedi_. Si l'application d'un utilisateur était lancée et que la page courante montrait cette livraison, l'application est allé chercher les bons de commande attachés au fil de la livraison de samedi ayant une version pplus récente que celle que l'application a en mémoire: la page est mise à jour à l'écran sans intervention de l'utilisateur.
+> Un document peut en conséquence être volumineux.
+
+**Il y a plusieurs _types_ de document**, chacun correspondant à une structure dont la racine est une map de _propriétés_, chacune pouvant aussi avoir elle-même une valeur primitive ou liste ou map.
+
+**Parmi ces propriétés une liste ordonnée de propriétés _string_ immuables constitue l'identifiant fonctionnel du document** (clé primaire en SQL, path en NOSQL). 
+
+Exemple du document `CART` du _use-case circuit court_:
+- un _carton_ est un ensemble de produits emballés ensemble par un producteur `pr` d'un groupement `gp` gérant un camion à destination de points de livraison `gc` pour une livraison donnée `livr`.
+- 4 propriétés sont identifiantes: `gp pr livr gc`, ce quadruplet identifiant exactement un carton (mais aussi comment les accéder).
+
+On peut définir des **regroupements** d'identifiants:
+- le regroupement #1 `gp.livr`: en fixant cette valeur un point de livraison peut obtenir la liste des cartons à décharger du camion expédié par le groupement pour cette livraison, tous producteurs confondus.
+- le regroupement #2 `gp.pr`: en fixant cette valeur un producteur peut obtenir la liste de tous les cartons qu'il doit composer pour toutes les livraisons en cours et tous les points de livraison.
+
+**Parmi les propriétés certaines (de type _string_ ou _number_) sont _indexables_**.
+- soit pour être utilisées comme identifiants secondaires, mais pas immuables, du document,
+- soit pour filtrer la collection de ces documents par des quantités de seuil.
+
+La propriété `version` du document est un numéro d'ordre de mise à jour: la numérotation est _chronologique_ mais pas _continue_.
+
+La propriété `del` contient le jour de suppression quand la document est supprimé logiquement mais pas purgé physiquement (il est _zombi_).
+
+### Stockage d'un document d'un type donné
+Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifique du type de document.
+
+**L'ensemble des propriétés** est sérialisé dans un champ dénommé `_data_`: ce contenu est désérialisable dans les applications terminales et les serveurs.
+
+En base de données, les propriétés **visibles de la base de données** sont:
+- `id` : clé primaire ou path.
+- `version`.
+- `del`.
+- `_data_`.
+- `z1 z2 ...` : les _regroupements_ de propriétés identifiantes (s'il y en a).
+- `p1 p2 ...` : les _propriétés_ indexables.
+
+Le contenu structuré complexe du document `_data_` est crypté et en conséquence _opaque_ pour la base de données (et crypté pour la plupart des types de documents).
+- les propriétés identifiantes _peuvent_ être remplacées par leur _hash_ si on ne veut pas que leurs valeurs soient lisibles dans la base. C'est aussi le cas des propriétés pi quand elles sont utilisées par test d'égalité, mais par quand elles interviennent dans des filtres _d'ordre_ (les algorithmes de _has_ ne présevent pas les relations d'ordres de leurs sources).
+
+### Fichiers attachés à un document
+Un fichier est stocké en deux parties:
+- son **descriptif** figurant dans le document (dans _files_).
+- son **contenu effectif** stocké dans un **Storage** (de type AWS/S3, Google Storage, etc.).
+
+Un fichier est identifié par `fid` un code aléatoire universel:
+- un fichier **ne change pas** de contenu, un autre est créé avec un nouveau contenu.
+
+Le descriptif d'un fichier a les propriétés suivantes: 
+- `nom` : texte dont la seule contrainte est d'être un nom acceptable dans un système de fichiers (ne pas contenir de `/` ...).
+- `time` : date-heure de la transaction qui l'a validé.
+- `type` : type _mime_ du fichier comme 'image/jpg'.
+- `size` : taille en bytes (son _original non crypté_).
+- `sha` : digest SHA256 de l'original non crypté.
+
+La propriété `_files_` (dans `_data_`) du document est une _map_ avec une entrée `fid` par fichier et pour valeur le descriptif du fichier.
+
+> Selon la logique de l'application, la propriété `nom` **est ou non unique dans son document**. Si elle est unique, le stockage d'un fichier d'un nom donné supprime d'office le fichier portant antérieurement ce nom. Si la propriété nom n'est contrainte à être unique, plusieurs fichiers porteront le même nom dans un document (avec des propriétés `time` différentes) vus comme autant de _révisions_ pour un nom donné.
+
+Le contenu du fichier est stocké sous un _path_ dans l'espace de stockage `folderId/fid`:
+- `fid` est suffisant pour garantir l'unicité du contenu.
+- `folderId` définit un _folder_ de rangement et a une structure `a/b/c ...` dont le seul intérêt est de pouvoir purger en une seule commande tous les fichiers sous une partie de ce path, par exemple les fichiers dont le path commence par `a/b`.
+- les termes qui définissent le `folderId` sont parmi ceux apparaissant dans l'id du document:
+  - `gp pr livr gc` dans l'exemple ci-avant, l'id du document,
+  - `gp livr` le groupement d'id #2 défini pour le rattachement au fil CMDGP.
+
+### Protocole de stockage / suppression d'un ou plusieurs fichiers
+Une ou plusieurs opérations de **preload** chargent le contenu du fichier dans le storage sous le path `folderId/fid`, `fid` étant généré à cet instant.
+
+Avant le stockage physique la ou les opérations de _preload_ notent dans la table `todelete` le couple (`folderId/id`, `date du jour`).
+
+Une opération de validation enregistre ensuite dans le ou les documents concernés les nouveaux fichiers `fid` et leurs descriptifs. Cette opération s'accompagne éventuellement d'une liste de `fid` à détruire dans ces mêmes documents.
+- pour chaque document la propriété _files_ est mise à jour.
+- s'il y a des fichiers à détruire,
+  - leurs entrées sont enlevés des propriétés _files_ de leurs documents.
+  - leur couple (`folderId/id`, `date du jour`) est inséré dans la table `todelete`.
+- la transaction est _validée par un commit_ de la base de données, les fichiers nouveaux _existent_ les fichiers supprimés n'existent plus (logiquement).
+
+Après cette étape transactionnelle, une étape terminale prend place:
+- les fichiers à supprimer sont effectivement purgés de leur répertoire de storage.
+- les références des fichiers créés et de ceux supprimés sont purgées de la table `todelete`, cette seconde phase de transaction est validée par commit.
+
+Les mises à jour comme les suppressions sont donc en deux phases et il se peut que suite à un incident une phase s'exécute et pas la seconde.
+
+Un traitement périodique de nettoyage liste les fichiers inscrits dans `todelete` depuis plus d'un jour:
+- ils sont purgés de l'espace de storage,
+- ils sont purgés de la table `todelete`.
+
+> Moyennant le respect de ce protocole simple, la gestion des fichiers dans un document bénéficie de la même sécurité transactionnelle que les autres propriétés du document.
+
+## _Fils_ de documents
+Un _fil de document_ est défini pour que des documents puissent s'y rattacher, sachant qu'un document peut,
+- n'être rattaché à aucun fil,
+- être rattaché à plusieurs fils.
+
+Créer et maintenir un _fil_ est le moyen retenu pour **tracer** les évolutions des documents qui lui sont attachés: une application terminale (voir un traitement d'un serveur) peut ainsi être informé / notifié qu'au moins un des documents d'un fil a changé ou a été ajouté ou supprimé.
+
+### Type de  _fil_
+Le _type_ d'un fil définit son objectif: tracer les évolutions d'un certain nombre de documents et pour chaque selon quel filtrage sur son id. 
+- l'identifiant d'un fil est une suite de propriétés telle que les documents qui y seront rattachés les auront toutes dans leur propre suite de propriétés identifiantes.
+
+Dans le _use-case circuit court_ par exemple `CMDGP` sert à rattacher tous les documents utiles à une livraison `livr` gérée par un groupement `gp`.
+- l'identifiant d'un fil de type `CMDGP` est `gp.livr`.
+- les types de documents rattachés à ce fil sont listés `CHD, BCG, CART`.
+  - `CHD` (le chat ouvert pour une livraison donnée) a pour identifiant `gp livr`: il n'y aura au plus qu'un seul document `CHD` rattaché au fil.
+  - `BCG` (un bon de commande d'un point de livraison) a pour identifiant `gp livr gc`: il y aura donc une collection de documents `BCG` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr` (soit au plus un par point-de-livraison `gc`).
+  - `CART` à pour identifiant `gp pr livr gc`: il y aura donc une collection de documents `CART` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr`. Un carton est créé par un producteur qui y met tous les produits d'une livraison destiné à un même point-de-livraison.
+
+> Connaissant le type et l'identifiant d'un fil, par exemple `CMDGP/gp.livr` on peut _tirer_ toute une collection de documents, le cas échéant nombreuse, `CHD`,  `BCG`, `CART` rattachés au même fil, en l'occurrence celui concernant la livraison d'un camion organisé par un groupement de producteur pour une livraison donnée à plusieurs point-de-livraison (une _tournée_).
+
+Un _type de fil_ définit de facto un critère de sélection s'appliquant à un ensemble de documents ayant pour identifiant ou regroupement d'identifiant une valeur donnée.
+
+**Un fil donné, une instance de son type pour un identifiant donné, est _stocké_ en base de données** dans une table / collection portant le nom du type de fil, par exemple `CMDGP`. Ces tables / collections ont toutes le même schéma.
+
+**Propriétés indexées:**
+- `id` : concaténation des ids de sa clé primaire / path: `gp.livr`. Les valeurs individuelles des éléments de la clé ne sont pas citées.
+- `version` : numéro séquentiel d'ordre de mise à jour du document le plus récent attaché au fil (ou détruit).
+
+**Propriété opaque _data_ d'un fil:**
+- `versions` est une map avec une entrée pour chaque type de document donnant le dernier numéro de version, soit _du_ document si c'est un singleton, soit du document de la collection _le plus récemment mis à jour_.
+- `cleandate` : c'est la date du dernier nettoyages des suppressions (voir plus avant).
+
+### Utilisation des _fils_
+Chaque fil est une **trace** de l'évolution la plus récente des documents qui lui sont attachés: 
+- le fait que la version d'un fil s'incrémente à chaque mise à jour d'un de ses documents fait du fil un événement _notifiable_.
+- dans cette _notification_, une application terminale peut retrouver pour chaque type de document (UN document si c'est un singleton dans le fil, sinon une collection des documents) si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
+
+Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui lui a été transmise, peut à réception du nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
+- _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé. De plus le filtrage s'effectuant sur la propriété indexée version, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents non modifiés.
+- _incrémentale_: seuls les documents ayant changé depuis la version connue de l'application terminale sont lus et transmis.
+
+### Fils et _credentials_
+Chaque _type de fil_ est associé à un _type de credential_:
+- les propriétés identifiantes du credential sont mentionnées comme propriétés identifiantes du type de fil.
+- par exemple le fil `CMDGP` est identifié par `gp.livr`.
+- son _credential_ associé sera par exemple `CREDGP` identifié par `gp`.
+- très simplement pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
+
+> Des documents de ce fil, par exemple les _cartons_, apparaissent aussi dans un autre fil relatif au point-de-livraison (`CMDGC` identifié par `gc.gp.livr`). Ce second fil sera associé à un _credential_ `CREDGC` identifié par `gc`. Les _cartons_ seront donc accessibles soit en ayant un _credential_ `CMDGP`, soit un _credential_ `CMDGC`, avec en conséquence des notifications de deux ordres avec des autorisations différentes.
+
+> Un _credential_ attaché à un fil gouverne son droit à le lire et à s'y abonner. Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
+
+### Traitements dans un serveur: attachement / mise à jour d'un document dans un fil
+- récupération des `version` `vi` de tous les fils dans lequel le document est à insérer / mettre à jour.
+- la version du document `v` est le maximum des `vi` + 1.
+- dans chacun de ces fils:
+  - la `version` est mise à `v`.
+  - dans `_data_` la `version` pour le type du document est mise à `v`.
+
+### Traitement des _suppressions_
+Pour que la mise à jour soit incrémentale dans une sous-collection d'un type de documents, un document ne peut pas être simplement _supprimé_: en demandant la liste des documents ayant changé il n'apparaîtrait pas, serait considéré comme inchangé et sa suppression non détectée.
+
+Le document supprimé va être traité comme une mise jour particulière:
+- sa `version` est mise jour (comme pour une mise jour normale).
+- ses propriétés indexables sont mises à null.
+- sa propriété `del` donne le jour de suppression.
+- son _data_ est mis à null.
+
+Le document est devenu _zombi_.
+
+> _Remarque_: rien ne l'empêche de renaître plus tard.
+
+La possibilité d'obtention d'une mise à jour incrémentale depuis un état détenu à la date `d` est bornée par la possibilité de disposer des suppressions.
+- si elles sont gardées, même _zombi_ avec une taille minimale, sans limite de temps, la base peut être encombrée de zombis.
+- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants. C'est à l'application terminale de déterminer les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet.
+
+Le serveur va à l'occasion d'une suppression d'un document regarder les `cleandate` du ou des fils auxquels est rattaché le document: si ces dates ont plus de 18 mois, il va purger effectivement les documents zombis depuis plus d'an de ces fils (en testant leur propriété `del`). Il mettra à jour la ou les `cleandate` du ou de ces fils.
+
+De cette façon les documents supprimés sont purgés au fil du temps mais avec des opérations distantes de six mois au moins.
+
+# Abonnements d'une application à des _fils_
+
+**Un _fil_ fait aussi office de _news_, d'alerte:** quand un document change (un bon de commande), le ou les fils auxquels il est attaché (la livraison de samedi)sont informés et le fil a noté qu'un bon de commande a changé. 
+
+**Si des applications s'étaient abonné à ce fil**, leurs utilisateurs vont voir apparaître sur leurs écrans une _notification_ indiquant _qu'un bon de commande a changé pour la livraison de samedi_. Si l'application d'un utilisateur était lancée et que la page courante montrait cette livraison, l'application est allé chercher les bons de commande attachés au fil de la livraison de samedi ayant une version plus récente que celle que l'application a en mémoire: la page est mise à jour à l'écran sans intervention de l'utilisateur.
 
 Suivant ce paradigme, une application présente à son utilisateur trois concepts:
-- des **_fils d'information_** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), uné évolution tarifaire (un tarif vu comme une collection de documents). Ces fils **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
+- des **_fils d'information_** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution tarifaire (un tarif vu comme une collection de documents). Ces fils **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
 - des **fils de documents synchronisables**: les documents attachés à un fil synchronisé sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur.
 - des **_rapports_**: ce sont vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
 
@@ -169,8 +347,6 @@ Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, certa
 Pour assurer la synchronisation d'une collection de documents, le _fil_ correspondant est riche: il peut y avoir beaucoup de documents modifiés. Les **_fils de synchronisation_** ne donnent lieu à des _popups_ que sur des critères très restrictifs gérés par l'application afin de ne pas submerger l'utilisateur.
 
 Les **_fils de news_** sont a contrario beaucoup plus sobres: ils correspondent à quelques documents / collections bien ciblés et pas à tous ceux qui seraient nécessaires à une synchronisation complète de ces documents.
-
-> Ce paradigme ne peut pas être mis en œuvre dans toute sa généralité: comment sont définis les _fils de news_ et les _documents synchronisés_ peut aboutir à une impossibilité technique de mise en œuvre, ou à un coût de développement prohibitif, ou à un coût calcul insupportable. La solution générique décrite ci-après correspond à une restriction de ces concepts permettant de faire fonctionner des applications avec un minimum d'effort, tant de développement que de calcul.
 
 # Un utilisateur, ses appareils et ses applications
 
@@ -390,14 +566,14 @@ Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donn
 ##### Accès par l'utilisateur à sa _fiche personnelle_
 L'utilisateur étant enregistré dans le répertoire des utilisateurs à l'ouverture d'une application, celle-ci lui propose de le faire en utilisant une session prédéfinie de sa fiche personnelle et pour y accéder: 
 - lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
-- le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour cet `USERID`. Il peut retourner,
+- le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour ce `USERID`. Il peut retourner,
   - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître `s1` et `s2`).
-  - le couple de clés privée / publique que l'application terminale peut décrypter puisqu'ayant décrypter `Kp`.
-  - le set des _préférences_ de l'utilisateur cryptées par cette clé `Kp`.
-  - la liste des _sessions prédéfinies_ et des _credentials_ enregistrés.
-  - la liste des appareils favoris d'où il a ouvert une application et l'alias employé. Il peut aussi changer de code PIN.
+  - la clé `Kl` cryptée par Kp: _clé locale_ requise sur les appareils favoris.
+  - le set des _préférences_ de l'utilisateur crypté par `Kp`.
+  - la liste des _sessions prédéfinies_ et des _credentials_ enregistrés cryptée par `Kp`.
+  - le `code PIN crypté par Kl` pour un accès depuis un appareil favori (voir ci-après).
 
-S'il n'a pas utiliser de session favorite enregistrée, l'utilisateur peut aussi l'ouvrir en sélectionnant un type de fil de documents et indiquer quel credential utilise de sa liste il veut utiliser, ou le saisir. Cette session peut être enregistrée pour une ouverture en un clic la prochaine fois.
+S'il n'a pas utilisé de session favorite enregistrée, l'utilisateur peut aussi l'ouvrir en sélectionnant un _type de fil de documents_ et indiquer quel credential de sa liste il veut utiliser, ou le saisir. Cette session peut être enregistrée pour une ouverture en un clic la prochaine fois.
 
 L'application terminale dispose ainsi en mémoire d'une _fiche en clair_ représentant le décryptage de l'entrée cryptée de l'utilisateur dans le répertoire des utilisateurs.
 
@@ -413,280 +589,127 @@ L'application terminale peut ainsi désormais:
 > Dans ce répertoire un utilisateur est anonyme, inconnu des GAFAM, n'a fourni aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile. Son existence dans ce répertoire est inviolable, pour autant que les couples `s1 s2` qu'il a choisi soient respectueux d'un minimum de règles simples.
 
 ### _Appareils favoris_ de l'utilisateur
-C'est un appareil _de confiance / personnel_ où il peut stocker des données locales permanentes:
-- celles-ci sont _cryptées_ et ne sont lisibles que par une application à qui l'utilisateur a saisi l'une de ses phrases d'accès à sa _fiche personnelle_.
-- ces données _peuvent être détruites_ par n'importe quel utilisateur de l'appareil. Sur le PC ou téléphone prêté par un inconnu, dans un cyber-café, il n'est ni correct d'occuper ainsi de l'espace, ni raisonnable d'espérer le retrouver plus tard.
+C'est un appareil _de confiance / personnel_ où il peut stocker des données locales permanentes et où il s'est choisi un alias, par exemple `bob` qui préfixe le nom des données stockées localement.
+- `$bob$kp` : couple de 2 cryptages de la clé `Kp` par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
+- `$bob$pf` : _fiche personnelle_ cryptée par la clé `Kp`.
+- `$bob$kl` : _clé locale_ : cette clé aléatoire est générée la premier fois que bob déclare cet appareil comme favori. De facto elle identifie l'utilisateur sur ce poste.
+- `$bob$orgX$myappX`: pour chaque application `myappX`, une base de données locale mémoire _cache_ des fils de documents de l'organisation `orgX` chargés lors des sessions antérieures. Les contenus des documents sont cryptés par la clé `Kp`.
+
+> Ces données _peuvent être détruites_ à n'importe quel moment par n'importe quel utilisateur de l'appareil. Elles ne sont donc disponibles que du fait de la bonne entente présumée entre les utilisateurs du poste. Sur le PC ou téléphone prêté par un inconnu, dans un cyber-café, outre qu'il n'est ni correct d'occuper ainsi de l'espace, il est surtout déraisonnable d'espérer le retrouver plus tard.
 
 Exécuter une application sur un _appareil favori_ de l'utilisateur présente des avantages significatifs:
 - **forte réduction de l'usage du réseau comme du nombre d'accès à la base de données:** de nombreux documents peuvent être déjà présents dans la base de données locales de l'application. La mise à niveau de ceux-ci est _incrémentale_ ne chargeant que ceux ayant changé ou nouveaux.
 - **possibilité d'avoir des sessions en mode _avion_**, sans aucun accès au réseau (voir plus loin les restrictions associées).
-- **authentification rapide depuis un code PIN court** au lieu de la clé longue s1 s2 pour accéder à sa `fiche personnelle`.
+- **authentification rapide depuis un code PIN court** au lieu de devoir fournir une de ses deux clés longues `s1 s2` pour accéder à sa `fiche personnelle`.
 
-#### Nom local de _profil_ de l'utilisateur et son code PIN
-**Une application sur un appareil** est identifiée par un _token_ technique qui permet aux serveurs de lui pousser des notifications.
+#### Déclarer un appareil comme favori
+La liste des _alias_ ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit (re)déclarer cet appareilm comme favori ou si c'était déjà fait.
 
-**Un utilisateur A peut se choisir un alias court**, par exemple `bob` qu'il emploiera sur tous les appareils personnels où il ouvrira une application. 
-- toutefois il pourrait utiliser un nouvel appareil personnel d'un proche B qui, pas de chance, déjà choisi aussi le nom bob. A devra opter pour un second alias court `robert`.
-- il choisit aussi **un code PIN** d'une taille minimale de 8 signes (voire plus avant l'importance de ce code).
+Pour effectuer cette déclaration, l'utilisateur doit fournir une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver sa fiche personnelle:
+- s'il y a déjà un code PIN enregistré, l'utilisateur le donne pour contrôle, 
+- sinon, c'est le premier appareil qu'il déclare favori, il donne **un code PIN d'au moins 8 signes** et l'alias `bob` sous lequel il sera identifié localement sur l'appareil.
 
-Quand l'utilisateur A ouvre une application sur un _appareil personnel_ il lui est affiché une liste d'alias:
-- a) ceux ayant déjà ouvert cette application sur cet appareil: il peut cliquer sur le sien s'il y est et saisir son code PIN.
-- b) ceux existants sur l'appareil mais qu'l n'a pas encore utilisé pour cette application: 
-  - il peut cliquer sur le sien s'il y est ou donner son alias habituel.
-  - il peut alors enregistrer cet appareil comme _appareil favori_.
+Pour une première déclaration sur cet appareil, l'application terminale:
+- récupère la clé locale `Kl` dans la fiche personnelle s'il y en a une, ou en génère aléatoirement une qui sera cryptée par la clé `Kp` et stockée dans le répertoire des utilisateurs. 
+- stocke la clé `Kl`en clair dans la variable locale `$bob$kl`.
+- stocke le clé `Kp` (cryptée par les deux clés d'accès `s1, s2`) dans la variable locale `$bob$kp`.
+- stocke la _fiche personnelle_ cryptée par `Kp` dans la variable locale `$bob$pf`.
+- calcule `pinkl` comme cryptage du `code PIN` par la clé `Kl`.
+- calcule `kppin` comme cryptage de `Kp` par `pinkl`.
+- récupère `token`, le jeton qui identifie l'application sur cet appareil.
+- fait stocker dans la fiche USERID un quadruplet correspondant à la déclartion de l'appareil comme favori: `{ sha(SH(token, Kl)), sha(pinkl), kppin, err: 0 }`. .
 
-**Pour déclarer l'appareil comme favori**, l'utilisateur A doit fournir son couple `s1 s2` qui permet à l'application de retrouver sa fiche personnelle:
-- s'il a déjà un (exceptionnellement plus d'un) alias enregistré, il le choisit, sinon en saisit un.
-- s'il y a déjà un code PIN enregistré, il le donne et ça sera contrôlé, si c'est le premier appareil favori il donne un code PIN.
+#### Ouverture d'une application sur un appareil déclaré _favori_
+L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des utilisateurs habituels de l'appareil.
 
-> Désormais l'appareil étant déclaré _favori_ il pourra ultérieurement ouvrir une application en cliquant sur son alias et en saisissant son code PIN. Sa _fiche personnelle_ étant accessible par l'application, il peut alors cliquer sur l'une de ses _sessions favorites_.
+L'application terminale:
+- récupère la clé Kl dans la variable $bob$kl et le token de l'application sur l'appareil. Elle soumet au serveur une requête d'authentification par code PIN avec:
+  - `SH(token, Kl)` : ceci retrouve `sha(pinkl) kppin USERID`.
+  - `pinkl` : SI pinkl ne correspond pas au sha(pinkl) récupéré, le compteur d'erreur `err` est mis à 1. **Si ce compteur était déjà à 1, l'entrée est détruite**.
+  - retourne à l'application terminale,
+    - la _fiche personnelle_ identifiée par USERID,
+    - `kppin`.
+- l'application terminale disposant de la clé locale `Kl`, décrypte `kppin` avec `Kl` et récupère ainsi `Kp` ce qui lui permet,
+  - de décrypter **la fiche personnelle en mémoire**,
+  - de la stocker localement pour usage en mode avion dans `$bob$pf`.
 
-## Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
-En ouvrant une application sur un appareil personnel, un utilisateur se limite à,
-- cliquer sur son _alias_,
-- donner son code PIN qui sera transmit au serveur par son SH `shcp`.
+L'utilisateur et l'application terminale se retrouve dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longue s1, s2 avec une fiche personnelle en clair et ce en ayant seument donné un code PIN et désigné un alias local.
 
-Ce protocole très simplifié est-il sûr ?
+> Le code PIN n'est jamais décodable sur le serveur ni depuis la base de données.
 
-Depuis le _token_ de l'application, le serveur peut retrouver toutes les _fiches personnelles_ le référençant, c'est à dire les utilisateurs ayant déclaré cet appareil comme _favori_, ce qui en pratique va en faire peu.
-- de ceux-là, un seul va mentionner le nom `bob`: le sha(SH(code PIN de cet utilisateur)) est comparé avec le sha(`shcp`). 
-- s'ils concordent shcp est la clé qui crypte la clé `Kp` de l'utilisateur. La _fiche personnelle_ est retournée avec la clé `Kp`.
-- s'il y a discordance, le compteur d'erreur est incrémenté. **A la seconde erreur, l'appareil n'est plus favori, le cryptage de `Kp` par code PIN dans la fiche est effacé**.  
+> L'alias local reste local: il sert seulement à l'utilisateur à désigner le groupe de variables locales `$kp $Kl $pf` et les bases de données des couples `application, organisation`. A la limite en renommant en debug ces données, ou par une fonction locale de l'application, le nom local peut être changé sans aucun impact sur le serveur ni le répertore central des utilisateurs.
 
+#### Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
+L'entrée dans la _fiche personnelle_ dans le répertoire des utilisateurs étant détruite par le serveur au second échec, aucune attaque par force brute n'est possible à distance.
+
+Les attaques possibles ne sont que celles, sur le poste, par le serveur ou par les deux.
+
+##### Par attaque depuis l'appareil
 Le code PIN **N'EST PAS** stocké localement sur l'appareil: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
 - en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
-- sous forme Strong Hash dans le serveur.
+- sous forme crypté par une clé locale dans le serveur.
 
-Toutefois même si le hash est `fort`, le code PIN pouvant être court, le retrouver par _force brute_ (en essayant toutes les combinaisons possibles) reste potentiellement faisable.
+> Le seul moyen est de casser un des deux couples de codes (s1 s2), ce qui reste impossible si s1 et s2 sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque sur un appareil.
 
-> A noter que pour accéder à la clé `Kp` cryptée par le SH(du code PIN) dans le répertoire des utilisateurs il faut disposer du _token_ de l'application sur l'appareil ce qui a obligé à, a) dérober l'appareil, b) y lancer l'application, c) accéder à ce token en _debug_.
-
-**Le serveur détruisant l'entrée de `bob` pour le token de l'application au second essai infructueux** d'un code PIN, la découverte par _force brute_ est donc impossible du fait de l'impossibilité d'itérer sur des valeurs d'aessai.
-
-### Découverte par complicité
+##### Par attaque depuis le serveur
 L'administrateur du serveur protège l'accès à la base de données. Les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
 - a) avoir accès à la base,
 - b) avoir la clé de l'administrateur.
 
-En supposant avoir les deux par complicité ou contrainte, un hacker peut tester par force brute des Strong Hash de code PIN, jusqu'à avoir un _match_ avec le SHA enregistré. Avec beaucoup de temps calcul, le code PIN étant (relativement) court, il arrivera à trouver ce code PIN après un nombre d'essais plus ou moins important mais que plus rien ne l'empêche de faire.
+En supposant que l'administrateur de la base de données dispose aussi de la clé de cryptage des données dans la base, la clé `Kp` s'obtient depuis `kppin` comme cryptage de `Kp` par `pinkl`, cryptage du `code PIN` par la clé `Kl`: la clé Kl est tirée aléatoirement sur 32 bytes, c'est impossible.
 
-En conséquence pour casser le code PIN de `bob` sur son appareil pour une application, un hacker doit:
-- dérober l'appareil pour en obtenir le _token_ de l'application,
-- avoir la complicité de l'administration technique du serveur,
-- avoir de gros moyens informatiques.
+##### Par attaque conjointe: vol de l'appareil + complicité de l'administrateur
+Cette fois la clé `Kl` est accessible, en clair sur le poste. 
 
-Cette triple condition est déjà un handicap sérieux ... et demande beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si ce dernier cas est envisageable, le moins coûteux est de _persuader_ `bob` de donner son code PIN.
+Le _token_ de l'application est lisible en lançant l'application en _debug_: il est possible d'accéder au quaduplet protégeant kppin par recherche dans la base de la ligne identifiée par le `sha(SH(token, Kl))`: il _suffit_ de casse par force brute le code PIN jusqu'à ce que, `pinkl` le cryptage du code PIN testé crypté par `Kl`, ait un `sha` dont la valeur est stockée dans le quadruplet. Le décryptage du kppin de ce quaduplet par ce pinkl, donne la clé `Kp`.
 
-### _Dureté_ du code PIN
+##### _Dureté_ du code PIN
 Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
 
 Toutefois UN SEUL essai d'un code demande un temps calcul important, le Strong Hash n'est _strong_ que parce qu'il exige du temps calcul non parallélisable et inapte à bénéficier de processeurs dits _graphiques_.
 
 Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique certes il va s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevables de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
 
-## Base de données locale _cache_ sur un poste personnel
-Pour une application donnée, sur un poste _personnel_, le profil `bob` détient une petite base de données locale dédiée à cette application . Elle contient:
-- des copies (forcément retardées par principe) de documents de l'application, toutes organisations confondues.
-- des copies également retardées de _fils de documents_, toutes organisations confondue - le code de l'organisation préfixant l'ID des fils.
-- un ou deux ou trois index définissent à quels fils, un document est attaché.
-- les contenus des documents et des fils sont cryptés par la clé Kp du profil de l'utilisateur.
+En conséquence pour casser le code PIN de `bob` sur un de ses appareils favoris, un hacker doit:
+- connaître le login / mot de passe de l'appareil,
+- le dérober, au moins un moment, et lancer l'application pour en obtenir le _token_ et la clé locale `Kl` de `bob`,
+- avoir la complicité de l'administration technique du serveur,
+- avoir de gros moyens informatiques.
+
+Ces conditions constituent déjà un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ `bob` de donner son code PIN.
+
+Depuis n'importe quel poste l'utilisateur peut s'identifier et détruire instantannément les données associées à ses appareils favoris, mais si hacker détient l'appareil et qu'il finit par obtenir la clé Kp, les bases de données locales de `bob` sont décryptables.
+
+> SI l'hypothèse d'une collusion possible entre les administrateurs ET des voleurs capables de dérober un appareil est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et allourdir ses sessions sur l'appareil, **soit** choisir un code PIN très dur à 18 signes (ce qui reste vivable)qui sera incassable.
+
+## Bases de données locale _cache_ sur un poste personnel
+Pour une **application** donnée, sur un poste _personnel_, le profil `bob` détient une petite base de données locale **par organisation**. Elle contient:
+- des copies (forcément retardées par principe) de documents de l'application.
+- des copies également retardées de _fils de documents_.
+- un ou deux ou trois index définissent à quels fils, chaque document est attaché.
+- les contenus des documents et des fils sont cryptés par la clé `Kp` de l'utilisateur.
 
 Quand une application est lancée elle va déterminer en fonction du souhait de l'utilisateur, quels _fils de documents_ contiennent les documents à charger en mémoire:
 - pour chacun l'application lit le contenu du fil détenu dans la base locale et demande au serveur de lui retourner le dernier état s'il est plus récent que celui obtenu de la base locale.
 - l'application peut ainsi,
   - a) charger depuis la base locale les documents actuellement déclarés attachés au fil,
-  - b) si nécessaire au vu des versions respectives, demander au serveur tous les documents attachés à ce fil de version supérieure.
+  - b) si nécessaire au vu des versions respectives, demander au serveur tous les documents attachés à ce fil de version postérieure.
   - c) mette à jour dans la base locale, les documents et le fil.
 
 En effectuant ette opération pour tous les fils constituannt le contexte de travail de la session, l'application,
 - a) dispose en mémoire des fils nécessaires et des documents attachés,
 - b) a mis à jour la base de données locales, qui pour ce contexte demandé par l'utilisateur, est à jour.
 
-> Le premier avantage de cette base locale est que pour une application fréquemment utilisée par un utilisateur dans un de ses contextes de travail favoris, la très grande majorité des documents sont déjà connus localement: la mise à jour _incrémentale_ est rapide, économe de réseau et économe d'accès à la base de données distante.
-
-> Le second avantage est l'ouverture d'une possibilité de travail en mode _avion_.
-
 ## Le mode _avion_
-Il est possible sur un poste _personnel_ où l'utilisateur a ouvert récemment l'application et accédé à un de ses contextes favoris. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
+Il est possible sur un poste _personnel_ où l'utilisateur a ouvert récemment l'application et accédé à une de ses sessions favorites. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
 
-En effet la base de données locales contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: certes ils ne sont pas du tout dernier état mais a minima dans l'état où il a été accédé la dernière fois sur ce poste.
+La base de données locale d'une application pour une organisation contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: certes ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
 
-SAUF QUE la base de données est cryptée par la clé Xp et que l'application ne l'a pas.
+La base de données est cryptée par la clé `Kp` et l'application doit se la procurer:
+- l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé Kp cryptée par la clé Kl lisible localement.
+- l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir Kp depuis la variable locale `$bob$kp`.
 
-En conséquence quand, hors mode avion, l'utilisateur a accédé à l'application depuis son profil, il faut que l'application ait sauvegardé cette clé `Xp` (que l'application détient à ce moment) dans un _storage local_ au nom du profil, mais cryptée.
-- cryptée par le code PIN: c'est trop risqué, il est court et en cas de vol de l'appareil un hacker a du temps devant lui pour la découvrir par force brute.
-- cryptée donc par un couple `s1 s2` fourni par l'utilisateur. Assez simplement il fournira probablement l'une de ses clés d'accès à son profil, mais c'est son choix.
 
-L'application en mode `avion`,
-- demande à l'utilisateur son couple `s1 s2` de protection de son profil,
-- décrypte le stockage local de son profil et en obtient la cle `Kp`,
-- peut ouvrir la base locale et en décrypter les données avec cette clé `Kp`.
-
-# Documents, fichiers et _fils_ traçant leurs évolutions
-## Document
-Un document est composé de:
-- un agrégat de données structurées selon le concept JSON:
-  - données primitives: _string, number, boolean_.
-  - deux structures:
-    - liste ordonnée,
-    - map _clé (string) / valeur.
-- un ensemble de _fichiers_.
-
-> Un document peut en conséquence être volumineux.
-
-Il y a plusieurs _types_ de document, chacun correspondant à une structure dont la racine est une map de _propriétés_, chacune pouvant aussi avoir elle-même une valeur primitive ou une liste ou une map.
-
-Parmi ces propriétés une liste ordonnée de propriétés _string_ immuables constitue l'identifiant du document (clé primaire en SQL, path en NOSQL). 
-
-Exemple du document `CART` du _use-case circuit court_:
-- un _carton_ est un ensemble de produits emballés ensemble par un producteur `pr` d'un groupement `gp` gérant un camion à destination de points de livraison `gc` pour une livraison donnée `livr`.
-- 4 propriétés sont identifiantes: `gp pr livr gc`.
-
-On peut définir des **regroupements** d'identifiants:
-- le regroupement #1 `gp.livr`: en fixant cette valeur un point de livraison peut obtenir la liste des cartons à décharger du camion expédié par le groupement pour cette livraison, tous producteurs confondus.
-- le regroupement #2 `gp.pr`: en fixant cette valeur un producteur peut obtenir la liste de tous les cartons qu'il doit composer pour toutes les livraisons en cours et tous les points de livraison.
-
-**Parmi les propriétés certaines (de type _string_ ou _number_) sont _indexables_**.
-- soit pour être utilisées comme identifiants secondaires du document,
-- soit pour filtrer la collection du document par des quantités de seuil.
-
-La propriété `version` du document est un numéro d'ordre de mise à jour: la numérotation est _chronologique_ mais pas _continue_.
-
-La propriété `del` contient le jour de suppression quand la document est supprimé logiquement mais pas purgé physiquement (il est _zombi_).
-
-### Stockage d'un document d'un type donné
-Le document stocké dans une table (SQL) ou une collection (NOSQL) spécifique du type de document.
-
-**L'ensemble des propriétés** est sérialisé dans un champ dénommé `_data_`: ce contenu est désérialisable dans les applications terminales et les serveurs.
-
-En base de données, les propriétés **visibles de la base de données** sont:
-- `id` : clé primaire ou path.
-- `version`.
-- `del`.
-- `_data_`.
-- `_files_` : structure descriptive des fichiers attachés aux document.
-- `z1 z2 ...` : les _regroupements_ de propriétés identifiantes (s'il y en a).
-- `p1 p2 ...` : les _propriétés_ indexables.
-
-Le contenu structuré complexe du document est en conséquence _opaque_ pour la base de données (et crypté pour la plupart des types de documents).
-
-### Fichiers attachés à un document
-Un fichier est stocké en deux parties:
-- son **descriptif** figurant dans le document (dans _files_).
-- son **contenu effectif** stocké dans un **Storage** (de type AWS/S3, Google Storage, etc.).
-
-Un fichier est identifié par `fid` un id aléatoire universel:
-- un fichier **ne change pas** de contenu, un autre est créé avec un nouveau contenu.
-
-Le descriptif d'un fichier a les propriétés suivantes: 
-- `nom` : c'est un texte dont la seule contrainte est d'être un nom acceptable dans un système de fichiers (ne pas contenir de `/` ...).
-- `time` : la date-heure de la transaction qui l'a validé.
-- `type` : type mime du fichier comme 'image/jpg'.
-- `size` : sa taille en bytes (son _original non crypté_).
-- `sha` : le digest SH256 de l'original non crypté.
-
-La propriété `_files_` du document est une map avec une entrée fid par fichier et pour valeur le descriptif du fichier.
-
-> Selon la logique de l'application, la propriété `nom` **est ou non unique dans son document**. Si elle est unique, le stockage d'un fichier d'un nom donné supprime d'office le fichier portant antérieurement ce nom. Si la propriété nom n'est contrainte à être unique, plusieurs fichiers porteront le même nom dans un document (avec des propriétés `time` différentes) vus comme autant de _révisions_ pour un nom donné.
-
-Le contenu du fichier est stocké sous un _path_ dans l'espace de stockage `folderId/fid`:
-- `fid` est suffisant pour garantir l'unicité du contenu.
-- `folderId` définit un _folder_ de rangement et a une structure `a/b/c ...` dont le seul intérêt est de pouvoir purger en une seule commande tous les fichiers sous une partie de ce path, par exemple les fichiers dont le path commence par `a/b`.
-- les termes qui définissent le folderId sont ceux apparaissant dans l'id du document:
-  - `gp pr livr gc` dans l'exemple ci-avant, l'id du document,
-  - `gp livr` le groupement d'id #2 défini pour le rattachement au fil CMDGP.
-
-### Protocole de stockage / suppression d'un ou plusieurs fichiers
-Une ou plusieurs opérations de **preload** charge le contenu du fichier dans le storage sous le path `folderId/fid`, `fid` étant généré à cet instant.
-
-Avant le stockage physique la ou les opérations de _preload_ note dans la table `todelete` le couple (`folderId/id`, `date du jour`).
-
-Une opération de validation enregistre ensuite dans le ou les documents concernés les nouveaux fichiers fid et leurs descriptifs. Cette opération s'accompagne éventuellement d'une liste de fid à détruire dans ces mêmes documents.
-- pour chaque document sa propriété _files_ est mise à jour.
-- s'il y a des fichiers à détruire,
-  - leurs entrées sont enlevés des propriétés _files_ de leurs documents.
-  - leur couple (`folderId/id`, `date du jour`) est inséré dans la table todelete.
-- la transaction est _validée par un commit_ de la base de données, les fichiers nouveaux _existent_ les fichiers supprimés n'existent plus.
-
-Après cette étape transactionnelle, une étape terminale prend place:
-- les fichiers à supprimer sont effectivement purgés de leur répertoire de storage.
-- les références des fichiers créés et de ceux supprimés sont purgées de la table `todelete`, cette seconde phase de transaction est validée par commit.
-
-Les mises à jour comme les suppressions sont donc en deux phases et il se peut que suite à un incident une phase s'exécute et pas la seconde.
-
-Un traitement périodique de nettoyage liste les fichiers inscrits dans `todelete` depuis plus d'un jour:
-- ils sont purgés de l'espace de storage,
-- ils sont purgés de la table `todelete`.
-
-> Moyennant le respect de ce protocole simple, la gestion des fichiers dans un document bénéficie de la même sécurité transactionnelle que les autres propriétés du document.
-
-## _Fils_ de documents
-Un _fil de document_ est défini pour que des documents puissent s'y rattacher, sachant qu'un document peut,
-- n'être rattaché à aucun fil,
-- être rattaché à plusieurs fils.
-
-Créer et maintenir un _fil_ est le moyen retenu pour **tracer** les évolutions des documents qui lui sont attachés: une application terminale (voir un traitement d'un serveur) peut ainsi être informé / notifié qu'au moins un des documents d'un fil a changé ou a été ajouté ou supprimé.
-
-### Type de  _fil_
-Le _type_ d'un fil définit son objectif: tracer les évolutions d'un certain nombre de documents et pour chaque selon quel filtrage sur son id. 
-
-Dans le _use-case circuit court_ par exemple `CMDGP` sert à rattacher tous les documents utiles à une livraison `livr` gérée par un groupement `gp`.
-- l'identifiant d'un fil de type `CMDGP` est `gp.livr`.
-- les types de documents rattachés à ce fil sont listés `CHD, BCG, CART`.
-  - `CHD` (le chat ouvert pour une livraison donnée) a pour identifiant `gp livr`: il n'y aura au plus qu'un seul document `CHD` rattaché au fil.
-  - `BCG` (un bon de commande d'un point de livraison) a pour identifiant `gp livr gc`: il y aura donc une collection de documents `BCG` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr` (soit au plus un par point-de-livraison `gc`).
-  - `CART` à pour identifiant `gp pr livr gc`: il y aura donc une collection de documents `CART` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr`. Un carton est créé par un producteur qui y met tous les produits d'une livraison destiné à un même point-de-livraison.
-
-> Connaissant le type et l'identifiant d'un fil, par exemple `CMDGP/gp.livr` on peut _tirer_ toute une collection, le cas échéant nombreuse, de documents `CHD`,  `BCG`, `CART` rattachés au même fil, en l'occurrence celui concernant la livraison d'un camion organisé par un groupement de producteur pour une livraison donnée à plusieurs point-de-livraison (une _tournée_).
-
-Un _type de fil_ définit de facto un critère de sélection s'appliquant à un ensemble de documents ayant pour identifiant ou regroupement d'identifiant une valeur donnée.
-
-**Un fil donné, une instance de son type pour un identifiant donné, est _stocké_ en base de données** dans une table / collection portant le nom du type, par exemple `CMDGP`. Ces tables / collections ont toutes le même schéma.
-
-**Propriétés indexées:**
-- `id` : concaténation des ids de sa clé primaire / path: `gp.livr`. Les valeurs individuelles des éléments de la clé ne sont pas citées (mais extractibles depuis l'ID).
-- `version` : numéro séquentiel d'ordre de mise à jour du document le plus récent attaché au fil (ou détruit).
-
-**Propriété opaque _data_:**
-- `versions` est une map avec une entrée pour chaque type de document donnant le dernier numéro de version, soit _du_ document si c'est un singleton, soit du document de la collection _le plus récemment mis à jour_.
-- `cleandate` : c'est la date du dernier nettoyages des suppressions (voir plus avant).
-
-### Utilisation des _fils_
-Chaque fil est une **trace** de l'évolution la plus récente des documents qui lui sont attachés: 
-- le fait que la version d'un fil s'incrémente à chaque mise à jour d'un de ses documents fait du fil un événement _notifiable_.
-- dans cette _notification_, une application terminale peut retrouver pour chaque type de document (UN document si c'est un singleton dans le fil, sinon une collection des documents) si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
-
-Une application terminale qui a gardé en mémoire le dernier fil qui lui lui a été transmis, peut à réception du nouvel état du fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
-- optimale: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé.
-- incrémentale: seuls les documents ayant changé depuis la version connue de l'application terminale sont transmis.
-
-### Traitements dans un serveur: attachement / mise à jour d'un document dans un fil
-- récupération des `version` `vi` de tous les fils dans lequel le document est à insérer / mettre à jour.
-- la version du document `v` est le maximum des `vi` + 1.
-- dans chacun de ces fils:
-  - la `version` est mise à `v`.
-  - dans `_data_` la `version` pour le type du document est mise à `v`.
-
-### Traitement des _suppressions_
-Pour que la mise à jour soit incrémentale dans une sous-collection d'un type de documents, un document ne peut pas être simplement _supprimé_: en demandant la liste des documents ayant changé il n'apparaîtrait pas, serait considéré comme inchangé et sa suppression non détectée.
-
-Le document supprimé va être traité comme une mise jour particulière:
-- sa `version` est mise jour (comme pour une mise jour normale).
-- ses propriétés indexables sont mises à null.
-- sa propriété `del` donne le jour de suppression.
-- son _data_ est mis à null.
-
-Le document est devenu _zombi_.
-
-> _Remarque_: rien ne l'empêche de renaître plus tard.
-
-La possibilité d'obtention d'une mise à jour incrémentale depuis un état détenu à la date `d` est bornée par la possibilité de disposer des suppressions.
-- si elles sont gardées, même _zombi_ avec une taille minimale, sans limite de temps, la base peut être encombrée de zombis.
-- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants. C'est à l'application terminale de déterminer les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet.
-
-Le serveur va à l'occasion d'une suppression d'un document regarder les `cleandate` du ou des fils auxquels est rattaché le document: si ces dates ont plus de 18 mois, il va purger effectivement les documents zombis depuis plus d'an de ces fils (en testant leur propriété `del`). Il mettra à jour la ou les `clean dates` du ou de ces fils.
-
-De cette façon les documents supprimés seront purgés au fil de l'eau mais avec des opérations distantes de six mois au moins.
 
 # Annexe: le Use Case _circuit court_
 
@@ -811,8 +834,8 @@ Un consommateur souhaite voir:
   - pour -le répertoire d'un groupement_ la fiche contact (réduite) du groupement et les _cartes de visite_ des producteurs.
 
 ### Fils de news notifiés quand l'application n'est pas ouverte
-- chat de son groupe
-- chats des livraisons ouvertes de son groupe
+- chat de son groupe.
+- chats des livraisons ouvertes de son groupe.
 - ses commandes sur les livraisons ouvertes. Ce dernier fil peut être utile pour un _consommateur_ pour lequel il y a plusieurs utilisateurs susceptibles de commander: famille, proches, voisins... Il permet de voir apparaître des notifications quand un de ces utilisateurs a modifié une commande.
 
 > Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupement qui en fera les informations de synthèses sur le chat du groupe.
@@ -828,7 +851,7 @@ Certains documents peuvent être _synchronisés_: pour cela il faut définir dan
 - chaque application terminale déclare à quels _fils_ elle est abonnée de manière à recevoir une notification circonstanciée quand un document rattaché à ce fil a changé.
 - chaque document peut être rattaché à au plus DEUX fils de synchronisation.
 
-#### Liste des documents
+#### Liste des documents, définition de leurs index
 - RG: répertoire général des groupes et groupements
 - RC: répertoire des consommateurs: gc
 - RP: répertoire des producteurs: gp
@@ -836,7 +859,7 @@ Certains documents peuvent être _synchronisés_: pour cela il faut définir dan
 - FGC: fiche d'un groupe. gc
 - FCO: fiche d'un consommateur: gc co
   - index 1 : gc
-  - filter : co
+  - index 2 : co
 - FGP: fiche d'un groupement: gp
 - FPR: fiche d'un producteur: gp pr
   - index 1 : gp
@@ -846,124 +869,120 @@ Certains documents peuvent être _synchronisés_: pour cela il faut définir dan
 
 - CALG: calendrier d'un groupement: gp
 - LIVRG: livraison d'un groupement: gp livr
+  - index 1 : gp
 
 - BCC: bon de commande d'un consommateur: gc co gp livr
   - index 1 : gc gp livr
-  - filter : co
+  - index 2 : gc co
 - BCG: bon de commande d'un groupement: gc gp livr
   - index 1 : gc gp
   - index 2 : gp livr
 - CART: carton d'un producteur pour la livraison à un groupe: gp pr livr gc
   - index 1 : gc gp livr
   - index 2 : gp pr
-  - index 3 : pr gc
+  - index 3 : gp livr
 
 - CHL: chat d'une livraison: gp livr
   - index 1 : gp
 - CHD: chat d'une distribution: gp livr gc
   - index 1 : gp livr
-  - filter : gc
+  - index 2 : gp gc
 - CHCO: chat d'un groupe de consommateurs: gc
 - CHPR: chat d'un groupement de producteur: gp
 
-### Fil, abonnement à un fil, _filtre_
-Un fil est déclaré avec:
-- son code `#CMDGC`
-- les propriétés de son path : `gc gp livr`
-- une lite de types de documents et pour chacun:
-  - son code: `BCC`
-  - l'index qui détermine son appartenance au fil ou id: `id`
-  - quand il y a un filtre, le numéro du paramètre de filtre (en général 1).
+#### Liste des _fils_
+La description d'un type de fil donne:
+- la liste de ses propriétés identifiantes.
+- pour chaque document pouvant faire partie du fil:
+  - son type,
+  - le numéro de l'index définissant ses propriétés d'appartenance. Par convention 0 pour l'id complète.
+  - s'il peut y avoir un filtre pour éviter les notifications non pertinentes:
+    - le numéro du paramètre de filtre (en général 1),
+    - le numéro de l'index dans le document pour retrouver la propriété filtrée.
 
+Fil `#CMDGC` : `gc.gp.livr` - commande d'un groupe à un groupement - Filtre de notification possible: `co`
+- `BCG` : 0 - C'est un singleton dans le fil
+- `CART` : 1
+- `BCC` : 1 , 1/2 - Filtrage de notification possible avc l'index 2 (`co`) donnant la valeur du paramètre de filtre 1 (`co`)
+
+Fil `#CMDOV` : `gc.gp` - commandes ouvertes d'un groupe à un groupement
+- `BCG` : 1
+
+Fil `#CALGP` : `gp` - calendrier des livraisons d'un groupement
+- `CALG` : 0 - un singleton pour le fil
+- `LIVRG` : 1
+
+Fil `#CMDGP` : `gp.livr` - commandes des groupes à un groupement
+- `CHD` : 1
+- `BCG` : 2
+- `CART` : 3
+
+Fil `#CMDPR` : `gp.pr` : commandes ouvertes d'un producteur
+- `CART` : 2
+
+Fil `#RGC` : `gc` - Filtre de notification possible: `co`
+- `RG` : - rien, RG est un singleton pour l'organisation
+- `RC` : 0 - c'est un singleton pour le fil
+- `CHCO`: 0 - c'est un singleton pour le fil
+- `FGC` : 0 - c'est un singleton pour le fil
+- `FCO` : 1 , 1/2
+
+Fil `#RGP` : `gp` - Filtre de notification possible: `pr`
+- `RG` : - rien, RG est un singleton pour l'organisation
+- `RP` : 0 - c'est un singleton pour le fil
+- `CHPR` : 0 - c'est un singleton pour le fil
+- `FGP` : 0 - c'est un singleton pour le fil
+- `FPR` : 1 , 1/1
+
+Fil `#CHL` : `gp` - Filtre de notification possible: `gc`
+- `CHL` : 1
+- `CHD` : 1 , 1/2
+
+### Abonnement à un fil, _filtre_
 Pour s'abonner à un fil il faut fixer:
 - son code et son path exact: `#CMDGC/gc1.gp1.livr1`
-- seuls les types de documents cités dans l'abonnement sont considérés : `[BCG, CART, BCC.1]`
-
-Éventuellement une ou deux valeurs de filtres `v1, ...` 
-- un filtre permet d'éviter de générer une notification si le document associé à ce filtre n'a pas cette valeur comme index `filter`.
-- le filtre ne se regarde seulement après que quand le _path_ a matché.
-- le fait d'avoir spécifié dans l'exemple ci-dessus `BCG.1` filtre les documents BCG dont l'index `filter` est égale à la valeur `v1`. 
-- le fait de spécifier `CART` sans extension de numéro de filtre, signifie de considérer tous les documents `CART` rattachés au fil.
-
-#### _credential_ requis pour s'abonner à un _fil_
-
-
-#### Liste des _fils_
-Fil #CMDGC : gc gp livr - commande d'un groupe à un groupement - Filtre de notification possible: {co}
-- BCG : id
-- CART : i1
-- BCC.1 : id
-
-Fil #CMDOV : gc gp - commandes ouvertes d'un groupe à un groupement
-- BCG : i1
-
-Fil #CALGP : gp - calendrier des livraisons d'un groupement
-- CALG : id
-- LIVRG : livr
-
-Fil #CMDGP : gp livr - commandes des groupes à un groupement
-- CHD : i1
-- BCG : i2
-- CART : i3
-
-Fil #CMDPR : gp pr : commandes ouvertes d'un producteur
-- CART : i2
-
-Fil #RGC : gc - Filtre de notification possible: {co}
-- RG :
-- RC : id
-- CHCO: id
-- FGC : id
-- FCO.1 : i1
-
-Fil #RGP : gp - Filtre de notification possible: {pr}
-- RG :
-- RP : id
-- CHPR : id
-- FGP : id
-- FPR.1 : i1
-
-Fil #CHL : gp - Filtre de notification possible: {gc}
-- CHL : i1
-- CHD.1 : i1
-
-
+- les types de documents cités dans l'abonnement sont seuls considérés : `[BCG, CART, BCC]`
+- la ou les valeurs de filtres à appliquer pour éviter une notification non pertinente: `co1` (qui s'appliquera aux documents BCC dont l'index 2 est égal à `co1`).
 
 ### Périmètre: _de base_ et extensions dynamiques
 Un périmètre a un code `@GROUPE` et une liste de propriétés identifiantes:
 - par exemple `@GROUPE [gc]`
+- un ou plusieurs types de _credential_. Pour chacun toutes ses propriétés identifiantes sont citées dans l'identifiant du périmètre. Le type de _credential_ `CREDGC` a pour identifiant `gc`.
 
-Le _périmètre de base_ est constitué d'un ou plusieurs _fils_ dont le path est entièrement fixé depuis les propriétés identifiantes du périmètre. 
-- par exemple 1 fil `#RGC.gc [RG, RP, CHPR, FPR]` (path `gc`)
+Le _périmètre de base_ est constitué d'un ou plusieurs _fils_ dont le path est entièrement fixé depuis les propriétés identifiantes du périmètre, pour chaque fil, quel est le type de credential à appliquer: 
+- par exemple le fil `#RGC.gc [RG, RP, CHPR, FPR]` (path `gc`) -type de _credential_ `CREDGC`.
+
+> L'exemple précédent est celui d'un périmètre d'ouverture avec un seul fil. Dans la réalité il y a en général plusieurs fils à ouvrir, sous contrôle d'un (a minima en général), voire plusieurs (plus rarement) _credentials_.
 
 **Quand dans une session un utilisateur veut _se connecter_ à un périmètre** il doit fournir,
-- a) l'identifiant du périmètre `@GROUPE/gc1` 
-- b) un _credential_ dont le serveur vérifiera qu'il lui donne le droit d'accéder à ce périmètre:
+- a) l'identifiant du périmètre `@GROUPE/gc1` d'ouverture.
+- b) le (ou les) _credential_ dont le serveur vérifiera qu'il lui donne le droit d'accéder aux fils de ce périmètre. 
   - par exemple _le_ ou _un des_ mots de passe enregistré pour le groupe `gc1`.
 
-Le _succès_ de la connexion est l'abonnement de l'application terminale au(x) fil(s) du groupe gc.
+Le _succès_ de la connexion est l'abonnement de l'application terminale au(x) fil(s) du groupe `gc`.
 
 #### _Périmètre_ pour un groupe: `gc` - liste des abonnements
 Le _périmètre_ autour d'un groupe `gc` contient le fil suivant:
-- 1 fil `#RGC.gc [RG, RP, CHPR, FPR]` : donne une liste des groupements `gp` à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
+- `#RGC.gc [RG, RP, CHPR, FPR]` : le document `RG` donne une liste des groupements `gp` à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
 
 Quand une exécution d'une application s'est _connectée_ au périmètre `@GROUPE [gc]` elle en lit la liste des codes `gp` des groupements pouvant livrer `gc`. Elle va alors s'abonner aux fils suivants (2 pour chacun des N `gp` de cette liste):
 - N fils `#CALGP/gp [CALG, LIVRG]`.
 - N fils `#CHL/gp [CHL, CHD {gc}]`.
 
-A chaque fois que le fil #RGC notifie une évolution, l'application terminale en obtient la mise à jour et recalcule la nouvelle liste des gc.
-- elle se désabonne de tous les fils `#CALGP #CHL` dont le gp n'est plus dans la nouvelle liste,
-- elle s'abonne à tous les fils `#CALGP #CHL` pour les gp de la nouvelle liste n'étant pas dans l'ancienne.
+A chaque fois que le fil `#RGC` notifie une évolution (ce qui est rare), l'application terminale en obtient la mise à jour et recalcule la nouvelle liste des `gp`.
+- elle se désabonne de tous les fils `#CALGP #CHL` dont le `gp` n'est plus dans la nouvelle liste: ce sont des groupements qui n'existent plus ou ne livrent plus ce point-de-livraison,
+- elle s'abonne à tous les fils `#CALGP #CHL` pour les `gp` de la nouvelle liste n'étant pas dans l'ancienne: nouveaux groupements ou groupements nouvellement disposés à livrer le point-de-livraison.
 
 Quand une exécution d'une application fixe une livraison courante `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr [BCG, CART, BCC]`.
 
 #### Périmètre pour un consommateur: `gc co` - liste des abonnements
-Le _périmètre_ autour d'un groupe `gc co` contient les fils suivants:
-- 1 fil `#RGC.gc [RG, RP, CHPR, FPR {co}]` : donne une liste des groupements `gp` à qui il peut commander, les fiches du groupement et la sienne, le chat du groupement.
-- N fils `#CALGP/gp [CALG, LIVRG]`, 1 pour chaque `gp` récupéré du fil #`RGC`.
-- N fils `#CHL/gp [CHL, CHD {gc}]`
+Le _périmètre_ autour d'un groupe `gc co` contient le fil fil `#RGC.gc [RG, RP, CHPR, FPR]`
 
-Quand une exécution d'une application fixe une livraison courante `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr, [BCG, BCC {co}]`.
+Dynamiquement il y aura des abonnements pour chaque `gp` à qui il peut commander: 
+- N fils `#CALGP/gp [CALG, LIVRG]`, 1 pour chaque `gp` récupéré du document `RG`.
+- N fils `#CHL/gp filtre:gp.gc [CHL, CHD]`
+
+Quand une exécution d'une application fixe une livraison courante `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr filtre:gc.co, [BCG, BCC]`, (`BCC` est filtré par son index 2 sur `gc.co`)
 
 #### Abonnements pour un groupement: `gp` (A REVISER)
 Abonnement à `#RGC [RG, RC]` : donne une liste des groupes `gc` qui peuvent commander.
@@ -979,135 +998,33 @@ Abonnements à `#CHPR/gp`.
 #### Abonnements pour un producteur: `gp pr`
 (TODO)
 
-### Index sur les documents
-Exemple de `CART`
-- ID: `gp pr livr gc`
-- Fait partie des fils:
-  - `#CMDGP gp.livr` - Index requis I1: `gp.livr`
-  - `#CMDPR gp.pr` - Index requis I2: `gp.pr`
-
-CART doit être stocké accessible par son ID:
-- en SQL avec une PK `gp pr livr gc`
-- NOSQL avec un path `gp.pr.livr.gc`
-
-Récupérer tous les `CART` d'un fil `#CMDGP` d'une version `v > vx` est une condition d'égalité sur `gpx.livrx` (index I1) et `> à sur vx`.
-
-
 -----------------------------------------------------------------------
 
-# Contributions antérieures
-
-# Mémoire _cache_ locale de données sur un appareil / mode "avion"
-Au lancement d'une application sur un appareil, l'utilisateur se trouve devant plusieurs possibilités:
-- il y a du réseau et l'utilisateur le considère comme fiable (non écouté malicieusement):
-  - si une session est _ouverte_, il peut saisir son code PIN et la reprendre.
-- sinon s'identifier 
-
-Au lancement d'une application sur un appareil, l'utilisateur va déclarer si cet appareil est _personnel_, soit qu'il lui appartient, soit qu'il le partage avec une ou quelques personnes de confiance.
-
-
-### Lecture d'un arbre
-La lecture d'un arbre retourne les documents de l'arbre:
-- une lecture **partielle** ne retourne que les documents dont les types sont listés dans la demande.
-- une lecture **incrémentale** ne retourne que les documents dont la version est supérieure à celle passée en argument dans la demande.
-
-Ces lectures sont _consistantes_, correspondent à un état cohérent des données dans la base de données.
-
-### Lecture D'UN document
-La demande spécifie l'identifiant du document.
+# Contributions diverses en attente
 
 ### Désérialisation de la propriété `data` du document
 Elle consiste à retourner une _map_ nom, valeur des propriétés du document, dont celles d'identification et la version.
 
-La couche applicative est en charge de créer une instance de la classe appropriée depuis cette _map_ en utilisant le type de l'arbre, le type du document et si nécessaire d'autres propriétés de _data_.
+La couche applicative est en charge de créer une instance de la classe appropriée depuis cette _map_ en utilisant le type du document et si nécessaire d'autres propriétés de _data_ pour des sous-classes héritant d'une classe racine correspondant au type de document.
 
 ### Lecture d'un fichier
 Elle peut s'effectuer de deux manières:
 - en retournant le contenu binaire du fichier dans la couche applicative,
 - en retournant une URL d'accès sécurisé valable un certain temps, typiquement à transmettre à une application externe.
 
-### L'écriture d'un fichier
-En deux phases (deux transactions):
-- préchargement du contenu du fichier en Storage:
-  - directement en fournissant le contenu,
-  - indirectement par retour d'une URL sécurisé permettant à une application externe d'effectuer _l'upload_ direct dans le Storage sans faire transiter le contenu du fichier dans la Cloud Function.
+### Fin d'une transaction
+A la fin d'une transaction le framework connaît la liste des documents créés / modifiés / supprimés et donc des fils associés.
 
-### Contrôle d'habilitation
-Tous les appels de l'API se font dans le cadre d'une requête contrôlée par une transaction du SGBD.
+En consultant les abonnements des sessions pour chaque fil, il en résulte pour chaque application terminale (identifiée par son _token_) intéressée, une _liste de notifications_ formée des _fils changés_.
+- celles qui ne correspondent pas au _token_ de l'application terminale ayant émis la requête, sont notifiées par des messages _webpush_.
+- celle initiatrice de la requête reçoit cette liste de notifications en retour de la requête, donc très vite et par un canal raccourci ce qui lui permettra de mettre à jour son affichage au plus tôt.
 
-Cette requête a systématiquement un contexte avec un objet `Account` géré par l'application:
-- soit un document `Account` d'un arbre,
-- soit un `Account` _anonyme_ donnant peu d'autorisations.
+#### Cohérence _forte_ dans un fil, _faible_ entre fils
+L'état d'un fil retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
 
-Cet objet est systématiquement consulté à chaque appel de l'API (lecture comme écriture) et peut lever une exception applicative pour refus de l'accès demandé.
+Mais deux demandes faites pour deux fils, forcément à des moments différents, retourne deux états de fils qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre fils, un état qui globalement peut être fonctionnellement incohérent temporairement.
 
-### _Périmètre_ d'un `Account`
-Un Account représente un utilisateur, humain ou non, identifiable et authentifiable.
+> On peut certes grouper dans la même requête des demandes concernant plusieurs fils: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
 
-L'objet Account est responsable de la gestion et détention du _périmètre_ d'intérêt de son utilisateur. C'est une liste d'identifiants d'arbres `treetype itd` donnant pour chacun la liste des types de documents qui l'intéresse.
-
-A la fin d'une transaction le framework connaît:
-- le périmètre retourné par l'objet Account sous le contrôle duquel la transaction s'est exécuté.
-- la liste des documents créés / modifiés / supprimés. Chacun concerne un arbre et a un type de document.
-
-Une liste est construite indiquant pour chaque arbre du périmètre dont un des objets a été mis à jour, les couples (type de document, version) contenant un des objets mis à jour.
-
-Cette liste est retourné comme résultat de la requête: l'application distante ayant sollicité une opération reçoit donc en retour tous les **avis de changement** ayant affecté son _périmètre_. C'est ensuite à l'application de solliciter par des transactions ultérieures les mises à jour effectives des arbres concernés.
-
-#### Cohérence _forte_ dans un arbre, _faible_ entre arbres
-L'état d'un arbre retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
-
-Mais deux demandes faites pour deux arbres à des instants différents retourne deux états d'arbres qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre arbres, un éta qui globalement peut être fonctionnellement incohérent temporairement.
-
-> On peut certes grouper dans la même requête des demandes concernant plusieurs arbres: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
-
-## Gestion de la synchronisation de copies distantes des arbres
-
-Des applications distantes et multiples peuvent détenir des _copies partielles_ des arbres stockés en central:
-- seulement certains arbres cités par leurs identifiants;
-- dans ces arbres, seulement des types de documents souhaités.
-
-Le framework met à disposition une couche logicielle aidant à maintenir à jour des copies locales d'arbres:
-- en interprétant les notifications de changement des arbres qui proviennent,
-  - soit d'un retour d'une opération de mise à jour sollicitée par l'application,
-  - soit d'une notification de changement _poussée_ par une Cloud Function suite à des mises effectuées sur demande d'autres applications (typiquement des sessions Web d'autres utilisateurs).
-- en sollicitant une Cloud Function pour obtenir les mises à jour des arbres qui ont été annoncés modifiés par ces notifications. En retour, les documents correspondants sont désérialisés et transformés en objets de classes applicatives puis transmis à l'application qui peut:
-  - les ranger dans des mémoires applicatives, le cas échéant des mémoires réactives pouvant mettre à jour un état UI.
-  - les stocker dans une base de données locales, typiquement une base IDB pour une application Web, une base SQLite pour une application mobile.
-
-Le contenu des arbres ainsi stockés localement peut être consulté _offline_, quand l'application n'est pas connectée au réseau et ne fait pas appel aux Cloud Functions.
-
-## Notifications _poussées_ par un _serveur_ aux applications clientes
-Le troisième objectif est de conférer au _serveur_ la possibilité de _pousser des notifications_ vers des applications clientes:
-- chaque application cliente peut recevoir des avis de modification du périmètre qui l'intéresse,
-- elle peut ainsi,
-  - avertir l'utilisateur par un message,
-  - faire rafraîchir une copie plus ou moins partielle de son périmètre et afficher automatiquement l'état le plus récent de certaines données, même quand ces changements ont été issus d'autres sessions de travail d'autres utilisateurs.
-
-### Restrictions de périmètre
-Le périmètre par défaut d'un `Account` est son périmètre le plus large, celui pour lequel l'utilisateur a le droit de consultation du maximum de documents.
-
-Plusieurs applications peuvent se référer à un même `Account` mais avec des restrictions de périmètre:
-- une application de mise à jour peut avoir le périmètre sans restriction,
-- une application de monitoring peut avoir un périmètre réduit à certains types de documents, voire à des arbres ayant un certain profil.
-
-Après authentification l'application peut si nécessaire:
-- avoir un dialogue avec l'utilisateur afin de fixer un objet `options`.
-- calculer un périmètre réduit depuis `Account` et `options`.
-
-L'application va faire soumettre une _souscription_ auprès du serveur avec les données suivantes:
-- son `token`: il sera utiliser par le serveur pour pousser des messages d'avis d'évolution de documents.
-- **lURL de l'application** pour une application PWA.
-- **son ou ses périmètres** avec pour chacun:
-  - l'id de son `Account`,
-  - le périmètre à notifier: pour chaque arbre `typetree tid` la liste des _types de documents_ à notifier.
-
-La souscription est enregistré en base de données:
-- sa clé primaire / path est son token,
-- une date-heure est enregistrée afin de pouvoir purger les tokens inutilisés / non rafraîchis.
-
-### Utilisation par le serveur
-A la fin de chaque opération, le framework dispose de la liste des documents mis à jour avec leur arbre.
-- pour chaque arbre mis à jour il obtient les souscriptions l'ayant dans leur périmètre et leurs types de documents surveillés,
-- il peut établir pour chaque token un message signalant les mises à jour du ou des périmètres surveillés.
-
+## Décompte des consommations 
+(En réflexion)
