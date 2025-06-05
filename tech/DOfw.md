@@ -358,7 +358,7 @@ Un utilisateur qui veut utiliser une application (Web-PWA ou non) est placé dev
   - il ne doit pas y laisser quelques informations que ce soit, aucune trace de son utilisation de l'application,
   - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour raccourcir ses saisies.
 
-### Appareil _personnel_: ses profils
+### _Profil_ sur un appareil _favori_
 C'est un appareil qui _peut_ être utilisé par d'autres que soi-même. Typiquement dans un cadre familial ou un couple, l'appareil n'est pas strictement _personnel_.
 
 Le _login_ à un tel appareil est _protégé_ par un mot de passe ou tout autre dispositif que seuls des proches connaissent, à moins que l'appareil leur soit prêté déverrouillé. 
@@ -367,50 +367,55 @@ _Plusieurs personnes peuvent plus ou moins occasionnellement s'en servir_: d'où
 - un browser comme Firefox a une notion d'utilisateur: on peut basculer d'un utilisateur à un autre (sans pour autant avoir changé de connexion au niveau de l'OS). Chacun a ses sites favoris, son historique de navigation et ses mots de passe enregistrés.
 - Thunderbird, le gestionnaire de mails locaux, supporte de gérer plusieurs _profils_, chacun avec ses comptes mails.
 
-### Des _profils_ plus ou moins bien défendus
+#### Des _profils_ plus ou moins bien défendus
 Ce n'est pas parce qu'on partage un appareil avec un proche qu'on a envie de partager avec lui ses informations confidentielles.
 
 Or dans les cas cités ci-dessus, la confidentialité est plutôt _lâche_:
 - Thunderbird ne demande rien: on choisit son profil, sans mot de passe ou quoi que ce soit. Les boîtes mail sont de toutes les façons en clair dans le file-system, confidentialité _intra-familiale_ zéro.
 - Chrome s'ouvre sur le compte _courant_: si vous ne vous déconnectez pas **explicitement** avant de fermer le browser, il s'ouvre la fois suivante sur votre compte, ses mots de passe, ses historiques et ses favoris. Si vous vous déconnectez Chrome est strict sur la connexion et demandera même à votre téléphone si c'est vraiment vous qui essayez de vous connecter: il suffit d'y répondre OUI et c'est bon (même si vous vous êtes fait voler votre téléphone en état déverrouillé, Google est content).
 
-### Profil personnel local à un appareil
-Chaque profil dispose d'un stockage local de données destiné à:
-- faciliter et accélérer le démarrage des applications qui vont y trouver des données d'autorisation, le cas échéant multiples et potentiellement fastidieuses à fournir.
-- pouvoir utiliser, avec des restrictions, une application en _mode avion_, sans aucun accès à Internet, à partir des documents synchronisés lors d'une utilisation antérieure.
+#### Déclarer sont _profil_ sur un appareil
+Il est possible de déclarer un appareil comme _favori_ en fixant un _alias_ (par exemple `bob`) et un code PIN. Voir le détail plus avant.
 
-Ce stockage est **crypté**: même l'accès par le _file-system_ ne permet pas à un _pirate_ d'accéder à son contenu.
+Quelques informations _lacales_ sont alors mémorisés sur l'apparel,
+- dont le nom est préfixé par l'alias: `$bob$...`
+- dont le contenu est crypté. Même l'accès (malaisé) par le _file-system_ de l'OS ne permet pas à un _hacker_ d'accéder à son contenu.
 
-La clé de cryptage est dérivée d'une **phrase complexe** que seul le détenteur du profil connaît: après deux échecs sur la donnée de celle-ci, le _profil_ s'efface (pas les données sur les serveurs des applications).
+Pour un utilisateur lancer une application depuis un appareil _favori_ a plusieurs avantages:
+- démarrage plus rapide, moins de réseau et moins d'accès dans le serveur en utilisant de petites bases de données locales spécifiques du profil comme _cache_ de documents.
+- possibilité d'accéder en mode _avion_ sans accès au réseau.
+- identification plus rapide mais sûr par usage du code PIN.
 
-### Lancement d'une application sur un appareil _personnel_
-La liste des quelques profils enregistrés est présentée:
-- l'utilisateur choisit le sien et donne sa phrase de protection.
-- si c'est la bonne phrase, l'application s'ouvre en ayant une série d'autorisations préremplies, ses groupes de dossiers synchronisés, ses fils de news ... Il peut:
-  - en désactiver certains, temporairement ou non,
-  - en activer de nouveaux qui compléteront son profil.
+### Lancement d'une application sur un appareil _favori_
+La liste des quelques profils enregistrés est présentée: l'utilisateur choisit le sien et donne son code PIN.
+
+L'application ouvre sa page d'accueil où l'utilisateur peut choisir une de ses sessions _favorites_ ouvrant directement accès à ses documents grâce aux _credentials_ pré-enregistrés.
 
 En fermant l'application, l'utilisateur peut choisir:
 - de laisser ses _fils de news_ activés: des notifications apparaîtront, même quand l'application sera fermée et même si ce n'est plus le même utilisateur qui dispose de l'appareil. Les _notifications_ ne font qu'annoncer des changements sans en donner les détails et jamais d'informations confidentielles. 
 - de fermer ses _fils de news_: aucune notification ne parviendra plus sur l'appareil relativement à cette application. L'utilisateur peut le prêter à quelqu'un d'autre sans risque ... mais lui-même ne recevra plus de notifications (il faut choisir).
 
-### Lancement d'une application EN MODE AVION sur un appareil _personnel_
-La liste des quelques profils enregistrés est présentée:
-- l'utilisateur choisit le sien et donne sa phrase de protection.
-- si c'est la bonne phrase, l'application va s'ouvrir en disposant des _dossiers synchronisés_ qui l'ont été lors de la dernière utilisation connectée.
-- en mode avion, il n'y a pas de réseau, pas de _fils de news_: les dossiers peuvent être consultés mais pas mis à jour. L'utilisateur peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations sont cryptées dans le stockage local et pourront être utilisées pour mettre à jour des documents quand le réseau sera à nouveau disponible en sécurité.
+### Lancement d'une application EN MODE AVION sur un appareil _favori_
+La liste des quelques profils enregistrés est présentée: l'utilisateur choisit le sien et donne l'une de ses deux phrases longues d'accès (et non pas son code PIN).
+
+L'application ouvre sa page d'accueil où l'utilisateur peut choisir une de ses sessions _favorites_ ouvrant directement accès à ses documents enregistrés au cours d'une session antérieure pas en mode _avion_.
+
+En mode avion, il n'y a pas de réseau, pas de _fils de news_: les dossiers peuvent être consultés mais pas mis à jour. L'utilisateur peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations sont cryptées dans le stockage local et pourront être utilisées pour mettre à jour des documents quand le réseau sera à nouveau disponible en sécurité.
 
 ### Lancement d'une application sur un appareil _anonyme_
-L'application se lance sans aucune autorisation activée: elle ne va guère afficher que des informations d'une grande banalité et proposer de saisir les autorisations nécessaires pour,
-- accéder à des fils de documents synchronisés, les consulter et mettre à jour selon les droits ouverts par l'autorisation fournie.
-- ouvrir des _fils de news_ également en citant les autorisations nécessaires.
+Si l'utilisateur s'est enregistré, il donne l'une de ses deux phrases longues d'accès. L'application ouvre sa page d'accueil où l'utilisateur peut choisir une de ses sessions _favorites_ ouvrant directement accès à ses documents grâce aux _credentials_ pré-enregistrés.
 
-> Pour l'application, les possibilités sur un appareil _anonyme_ sont les mêmes que sur un appareil _personnel_: l'utilisateur a seulement fourni plus d'effort pour faire valoir ses droits d'accès (alors que son _profil_ les a préremplis pour un appareil _personnel_).
+Si l'utilisateur n'est pas enregistré, l'application propose un dialogue d'accueil où il devra indiquer:
+- son intention, avec quel rôle il souhaite accéder aux documents,
+- quels documents il souhaite accéder et fournit le ou les _creddentials_ associés.
+- le cas échéant il choisira les _fils de news_ qui l'intéresse et donnera le cas échant les _credentials_ associés.
+
+> Pour l'application, un utilisateur _non enregistré_ a les mêmes possibilités qu'un utilisateur enregistré. S'il n'est pas enregistré il doit fournir plus d'informations pour faire valoir ses droits d'accès, bref les données qui justement sont pré-remplies pour une session déclarée _favorite_ pour l'utilisateur.
 
 La fermeture de l'application ne laisse pas le choix sur un appareil _anonyme_: les abonnements aux _fils de news_ sont tous supprimés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
 
 ### Mode _veille_
-Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'application se met en veille en cas de non utilisation pendant quelques minutes (fixés selon le degré de paranoïa de l'utilisateur). Pour sortir de la veille un code PIN est nécessaire et au second échec l'application se ferme.
+Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'application se met en veille en cas de non utilisation pendant quelques minutes (fixés selon le degré de paranoïa de l'utilisateur). Pour sortir de la veille un code est nécessaire et au second échec l'application se ferme.
 
 # Données d'un service
 Un _service donné pour un prestataire donné_ dispose de deux entités de stockage dédiées:
@@ -431,7 +436,7 @@ Quand un document évolue, le répertoire retrouve toutes les applications abonn
 > Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plus d'un prestataire si toutes les organisations de son domaine d'intérêt ne sont pas toutes gérées par le même prestataire.
 
 # Base de données partagée par tous les prestataires
-Cette base unique n'est concerne toutes les applications et tous les prestataires.
+Cette base unique concerne toutes les applications et tous les prestataires.
 
 Tous les services des prestataires peuvent y accéder pour les opérations qui leur sont ouvertes.
 
@@ -440,11 +445,13 @@ Toutes les applications terminales peuvent solliciter un quelconque des prestata
 Les données de cette base sont:
 - Le **répertoire des services**.
   - il liste pour toutes les applications le prestataire (son URL) gérant chaque organisation.
-- Le **répertoire des utilisateurs**. Tout utilisateur qui s'y est inscrit (c'est une facilité pas une obligation) dispose d'une entrée personnelle confidentielle et sécurisée. Il y trouve:
-  - un enregistrement de _ses préférences_ personnelles.
-  - une liste de _credentials_, de _droits d'accès_ déposés par une application terminale au nom de l'utilisateur.
+- Le **répertoire des utilisateurs**. Tout utilisateur qui s'y enregistre (c'est une facilité pas une obligation) y dispose d'une _fiche personnelle_ confidentielle et sécurisée. Il y a plusieurs rubriques dans la _fiche personnelle_ d'un utilisateur (voir plus avant):
+  - des _préférences_,
+  - des _credentials_,
+  - des _sessions favorites_,
+  - des _appareils favoris_.
 
-> Un _credential_ est une petite donnée structurée qui renferme des données d'authentification comme un couple login / mot de passe (ou tout autre dispositif). Parfois en retour d'une demande d'authentification, un serveur peut retourner un _jeton crypté_ à joindre aux requêtes suivantes: Ce type de jeton peut être enregistré dans un _credential_.
+> Un _credential_ est une petite donnée structurée qui renferme des données d'authentification comme un couple login / mot de passe (ou tout autre dispositif).
 
 #### Glossaire technique
 - **SH(s1, s2)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une logueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquement utilisés.
@@ -471,19 +478,19 @@ Ce répertoire est en deux parties.
 #### Liste des _application / prestataire_
 Cette liste donne pour chaque _service_ identifié par le couple **application / prestataire**  
 - son **URL** d'accès qui permet de lui adresser des requêtes.
-- sa **clé publique** PUB-S de cryptage qui permet à qui le souhaite de crypter des données de manière à ce que seul les serveurs de ce service puissent les décrypter en sachant qui les a crypté.
-- son **statut** à propos de l'état du service (ouvert / restreint / suspendu / fermé) et un _texte d'explication_ de cet état.
-- un court texte d'information à propos du service.
+- sa **clé publique** PUB-S de cryptage qui permet à qui le souhaite de crypter des données de manière à ce que seuls les serveurs de ce service puissent les décrypter en sachant qui les a crypté.
+- son **statut** à propos de l'état du service (ouvert / restreint / suspendu / fermé) et une URL donnant le texte d'explication de cet état.
+- l'URL de la page décrivant le service.
 
 #### Liste des _organisations par application_
 Pour chaque couple **application / organisation**, cette liste donne:
 - le code du **prestataire** qui la sert.
-- un **statut** à propos de l'état du service vis à vis de l'organisation (ouvert / restreint / suspendu / fermé) et un texte éventuel d'explication de cet état.
-- un court texte d'information à propos de l'organisation.
+- un **statut** à propos de l'état du service vis à vis de l'organisation (ouvert / restreint / suspendu / fermé) et une URL donnant le texte d'explication de cet état.
+- l'URL de la page décrivant l'organisation.
 
 Quelques opérations de gestion sont proposées aux prestataires pour:
-- s'enregistrer, donner leur URL et leur clé publique, maintenir à jour leur statut et leur texte d'information.
-- enregistrer une nouvelle organisation en s'assurant de son unicité, lui attribuer / modifier son label, fixer son statut et son texte d'information.
+- s'enregistrer, donner leur URL et leur clé publique, maintenir à jour leur statut ...
+- enregistrer une nouvelle organisation en s'assurant de son unicité, lui attribuer / modifier son URL, fixer son statut ...
 
 Ce répertoire permet aux applications terminales:
 - d'obtenir l'URL d'appel du service gestionnaire en fonction de l'organisation et sa clé publique de cryptage,
@@ -492,9 +499,11 @@ Ce répertoire permet aux applications terminales:
 ## Répertoire des _fiches personnelles_ des utilisateurs
 Chaque utilisateur **_PEUT_**, et non _DOIT_, s'enregistrer dans ce répertoire et y disposer de sa _fiche personnelle_ afin de raccourcir les saisies d'information, dont les _credentials_ à fournir pour accéder aux applications de son choix. Il y est identifié par un USERID généré aléatoirement et sans signification.
 
-Une fiche personnelle est cryptée la base de données de sorte que seul l'utilisateur puisse la lire: les applications terminales sollicitées par l'utilisateur y ont accès en clair uniquement parce que l'utilisateur leur donne dans une session en exécution la clé de décryptage. Ces applications n'exportent jamais le texte en clair d'une fiche (ni sur le réseau, ni sur un fichier de l'appareil).
+Une fiche personnelle est cryptée dans la base de données de sorte que seul l'utilisateur puisse la lire: les applications terminales sollicitées par l'utilisateur y ont accès en clair uniquement parce que l'utilisateur leur donne dans une session en exécution la clé de décryptage. Ces applications n'exportent jamais le texte en clair d'une fiche sur le réseau.
 
-Il y a trois rubriques dans la _fiche personnelle_ d'un utilisateur:
+> _L'impression_ de cette fiche peut être toutefois explicitement demandée par l'utilisateur.
+
+Il y a plusieurs rubriques dans la _fiche personnelle_ d'un utilisateur:
 - des _préférences_,
 - des _credentials_,
 - des _sessions favorites_,
