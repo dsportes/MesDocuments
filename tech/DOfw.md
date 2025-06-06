@@ -911,7 +911,7 @@ Fil `#CMDGC` : `gc.gp.livr` - commande d'un groupe à un groupement - Filtre de 
 Fil `#CMDOV` : `gc.gp` - commandes ouvertes d'un groupe à un groupement
 - `BCG` : 1
 
-Fil `#CALGP` : - calendrier des livraisons d'un groupement
+Fil `#CALGP` : `gp` - calendrier des livraisons d'un groupement
 - `CALG` : 0 - un singleton pour le fil
 - `LIVRG` : 1
 
@@ -953,7 +953,7 @@ Un _template de session_ a un code `@GROUPE` et une liste de propriétés identi
 - un ou plusieurs types de _credential_. Pour chacun, toutes ses propriétés identifiantes doivent être citées dans l'identifiant du template. Le type de _credential_ `CREDGC` a pour identifiant `gc`.
 
 Un _template de session_ est constitué d'un ou plusieurs _fils_ dont le path est entièrement fixé depuis les propriétés identifiantes du template, pour chaque fil, quel est le type de credential à appliquer: 
-- par exemple le fil `#RGC.gc [RG, RP, CHPR, FPR]` (path `gc`) -type de _credential_ `CREDGC`.
+- par exemple le fil `#RGC.gc [RG, RP, CHCO, FGC, FCO]` - type de _credential_ `CREDGC`.
 
 > L'exemple précédent est celui d'un _template de session_ avec un seul fil. Dans la réalité il y a en général plusieurs fils à ouvrir, sous contrôle d'un (a minima en général), voire plusieurs (plus rarement) _credentials_.
 
@@ -966,7 +966,7 @@ Le _succès_ de la connexion est l'abonnement de l'application terminale au(x) f
 
 #### _Template de session_ pour un groupe: `gc` - liste des abonnements
 Un _template de session_ autour d'un groupe `gc` contient:
-- un fil _principal_, `#RGC.gc [RG, RP, CHPR, FPR]` : le document `RG` donne une liste calculable des groupements `gp`, à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
+- un fil _principal_, `#RGC.gc [RG, RP, CHCO, FGC, FCO]` : le document `RG` donne une liste calculable des groupements `gp`, à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
 - N fils _secondaires_ `#CALGP/gp [CALG, LIVRG]`, un par `gp` de la liste calculée ci-dessus.
 - N fils _secondaires_ `#CHL/gp [CHL, CHD {gc}]`, un par `gp` de la liste calculée ci-dessus.
 
