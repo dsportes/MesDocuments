@@ -435,25 +435,8 @@ Quand un document évolue, le répertoire retrouve toutes les applications abonn
 
 > Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plus d'un prestataire si toutes les organisations de son domaine d'intérêt ne sont pas toutes gérées par le même prestataire.
 
-# Base de données partagée par tous les prestataires
-Cette base unique concerne toutes les applications et tous les prestataires.
+# Glossaire technique
 
-Tous les services des prestataires peuvent y accéder pour les opérations qui leur sont ouvertes.
-
-Toutes les applications terminales peuvent solliciter un quelconque des prestataires afin d'accéder concernant un de leurs utilisateurs.
-
-Les données de cette base sont:
-- Le **répertoire des services**.
-  - il liste pour toutes les applications le prestataire (son URL) gérant chaque organisation.
-- Le **répertoire des utilisateurs**. Tout utilisateur qui s'y enregistre (c'est une facilité pas une obligation) y dispose d'une _fiche personnelle_ confidentielle et sécurisée. Il y a plusieurs rubriques dans la _fiche personnelle_ d'un utilisateur (voir plus avant):
-  - des _préférences_,
-  - des _credentials_,
-  - des _sessions favorites_,
-  - des _appareils favoris_.
-
-> Un _credential_ est une petite donnée structurée qui renferme des données d'authentification comme un couple login / mot de passe (ou tout autre dispositif).
-
-#### Glossaire technique
 - **SH(s1, s2)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une logueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquement utilisés.
 - **PP-x** : couples de clés publique / privée (Pub / Priv).
 - **K-x** : clés AES de 32 bytes.
@@ -472,36 +455,47 @@ Les applications terminales connaissent la clé publique du serveur Pub-S. Quand
 - elle envoie ses requêtes au serveur en fournissant Pub-t.
 - elle décryptera les réponses / données cryptées par le serveur par la clé Pub-S.
 
-## Répertoire des services
-Ce répertoire est en deux parties.
+# Base de données partagée par tous les prestataires
 
-#### Liste des _application / prestataire_
-Cette liste donne pour chaque _service_ identifié par le couple **application / prestataire**  
-- son **URL** d'accès qui permet de lui adresser des requêtes.
-- sa **clé publique** PUB-S de cryptage qui permet à qui le souhaite de crypter des données de manière à ce que seuls les serveurs de ce service puissent les décrypter en sachant qui les a crypté.
-- son **statut** à propos de l'état du service (ouvert / restreint / suspendu / fermé) et une URL donnant le texte d'explication de cet état.
-- l'URL de la page décrivant le service.
+**Cette base unique concerne toutes les applications et tous les prestataires.**
+- Tous les prestataires peuvent y enregistrer les organisations dont ils traitent les données.
+- Toutes les applications terminales peuvent solliciter un quelconque des prestataires afin d'accéder concernant un de leurs utilisateurs.
 
-#### Liste des _organisations par application_
-Pour chaque couple **application / organisation**, cette liste donne:
-- le code du **prestataire** qui la sert.
-- un **statut** à propos de l'état du service vis à vis de l'organisation (ouvert / restreint / suspendu / fermé) et une URL donnant le texte d'explication de cet état.
-- l'URL de la page décrivant l'organisation.
+Les données de cette base sont:
+- Le **répertoire des organisations par application**.
+  - il liste pour toutes les applications le prestataire (son URL) gérant chaque organisation.
+  - tous les prestataires y enregistrent les organisations dont ils traitent les données.
+- Le **répertoire des utilisateurs**. Tout utilisateur qui s'y enregistre (c'est une facilité pas une obligation) y dispose d'une _fiche personnelle_ confidentielle et sécurisée gérée par les applications terminales. Il y a plusieurs rubriques dans la _fiche personnelle_ d'un utilisateur (voir plus avant):
+  - des _préférences_,
+  - des _credentials_,
+  - des _sessions favorites_,
+  - des _appareils favoris_.
 
-Quelques opérations de gestion sont proposées aux prestataires pour:
-- s'enregistrer, donner leur URL et leur clé publique, maintenir à jour leur statut ...
-- enregistrer une nouvelle organisation en s'assurant de son unicité, lui attribuer / modifier son URL, fixer son statut ...
+> Un _credential_ est une petite donnée structurée qui renferme des données d'authentification comme un couple login / mot de passe (ou tout autre dispositif).
 
-Ce répertoire permet aux applications terminales:
-- d'obtenir l'URL d'appel du service gestionnaire en fonction de l'organisation et sa clé publique de cryptage,
-- de lire le statut du service et ses restrictions d'usage éventuelles fixées par l'administrateur du service à l'égard de leur organisation.
+## Répertoire des _organisations par application_
+Une application terminale détient la liste des _prestataires_ fournissant les services centraux, leur _code_ et leur _URL d'accès_. 
+- L'ajout ou le retrait d'un prestataire provoque une nouvelle version de l'application dont l'installation est automatique.
+
+Une session d'une application terminale peut concerner plusieurs organisations, à l'instar du randonneur faisant partie de plusieurs associations selon l'endroit où il randonne.
+
+L'application terminale a en conséquence besoin de savoir pour chaque organisation concernée à quel prestataire (URL) il doit faire appel.
+
+Ce répertoire contient la liste des triplets `{ application, prestataire, organisation }` déclarés par les prestataires:
+- ils peuvent en exporter des listes sélectives, en particulier pour une application / prestataire, la liste des organisations gérées. 
+- une application terminale peut faire appel à n'importe quel prestatire afin de récupérer le prestataire traitant une organisation donnée
+
+**Remarque** : chaque prestataire peut ensuite gérer **dans _sa_ base de données**, un document relatif à l'organisation comportant:
+- un **statut** : est-elle ouverte, restreinte en lecture seule (archive), fermée jusqu'à nouvel ordre.
+- une **courte liste de _news_** données par l'administrateur.
+- les applications terminales peuvent s'abonner aux modifications de ce document.
 
 ## Répertoire des _fiches personnelles_ des utilisateurs
 Chaque utilisateur **_PEUT_**, et non _DOIT_, s'enregistrer dans ce répertoire et y disposer de sa _fiche personnelle_ afin de raccourcir les saisies d'information, dont les _credentials_ à fournir pour accéder aux applications de son choix. Il y est identifié par un USERID généré aléatoirement et sans signification.
 
-Une fiche personnelle est cryptée dans la base de données de sorte que seul l'utilisateur puisse la lire: les applications terminales sollicitées par l'utilisateur y ont accès en clair uniquement parce que l'utilisateur leur donne dans une session en exécution la clé de décryptage. Ces applications n'exportent jamais le texte en clair d'une fiche sur le réseau.
-
-> _L'impression_ de cette fiche peut être toutefois explicitement demandée par l'utilisateur.
+Une fiche personnelle est cryptée dans la base de données de sorte que seul l'utilisateur puisse la lire par l'intermédiaire des applications terminales qu'il sollicite en leur donnant (indirectement) la clé de décryptage. 
+- Ces applications n'exportent jamais le texte en clair d'une fiche sur le réseau.
+- _L'impression_ de cette fiche (en clair) peut être toutefois explicitement demandée par l'utilisateur qui est alors responsable de ce qu'il en fait.
 
 Il y a plusieurs rubriques dans la _fiche personnelle_ d'un utilisateur:
 - des _préférences_,
@@ -509,102 +503,106 @@ Il y a plusieurs rubriques dans la _fiche personnelle_ d'un utilisateur:
 - des _sessions favorites_,
 - des _appareils favoris_.
 
-#### Préférences
+### Préférences
 Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné une ou des valeurs par défaut / préférées:
 - langue préférée,
 - mode sombre / clair,
 - nom, e-mail, adresses, numéros de téléphone ...
 - etc.
 
-Quand une application a besoin de l'une de ces informations, elle propose à l'utilisateur en pré-saisie la valeur ou l'une valeurs inscrites en _préférences_ si elle y en a une. L'utilisateur n'est pas obligé de s'y conformer et peut toujours fixer sa propre valeur à cet instant, voire en enregistrer une nouvelle.
+Quand une application a besoin de l'une de ces informations, elle propose à l'utilisateur en pré-saisie la ou l'une des valeurs inscrites en _préférences_ si elle y en a. L'utilisateur peut en sélectionner une ou en saisir une autre (à enregistrer ou non en préférence).
 
-Deux préférences par défaut sont toujours conservées: les deux couples de phrases qui ont permis à l'utilisateur d'accéder à sa _fiche personnelle_.
+Deux préférences par défaut sont toujours conservées: les deux couples de phrases `(s1, s2)`, habituelle et de secours, qui ouvrent à l'utilisateur l'accès à sa _fiche personnelle_.
 
-> A noter que pour lire ces phrases, il faut en avoir fourni une des deux.
+> A noter que pour _lire_ ces phrases (voire les modifier), il faut en avoir fourni une des deux.
 
-#### _Credentials_, droits d'accès
-Un _credential_ est un droit d'accès pour lire / agir sur des données d'une application: le type le plus standard de _credential_ est un couple login / mot de passe, mais des formes plus sophistiquées existent _passphrase_ ...
+### _Credentials_: droits d'accès
+Un _credential_ est un droit d'accès pour lire / agir sur des données d'une application. Le type le plus standard de _credential_ est un couple _login / mot de passe_, mais des formes plus sophistiquées existent _passphrase_ ... (voir le chapitre sur l'authentification _double_).
 
-Pour une application donnée, il existe plusieurs **types** de _credential_, conférant pour chaque type des natures d'autorisations différentes. Par exemple pour l'application "circuitscourts",
+Pour une application donnée, il existe plusieurs **types** de _credential_, conférant chacun des natures d'autorisations différentes. Par exemple pour l'application "circuitscourts",
 - le **type `PL`** est le _credential_ d'un _point-de-livraison_:
   - il est identifié par le code `gc` d'un point-de-livraison.
-  - il est unique, il n'y a qu'un credential par point.
+  - il est unique, il n'y a qu'un credential reconnu par point.
 - **le type `CO`** est le _credential_ d'un _consommateur_:
   - il est identifié par `gc co` identifiant un consommateur attaché à un point-de-livraison.
   - il est **multiple**: pour un `gc co`. Il y est défini une valeur de  _credential_ associée aux initiales du membre de la famille du consommateur. Chacun a par commodité son propre mot de passe de manière à pouvoir le cas échéant en bloquer facilement un sans bloquer les autres, ou plus simplement avoir une valeur courante et une de secours en cas d'oubli de la première.
 
-**Le _jeton_ associé à un _credential_** est un texte généralement assez opaque, typiquement le SH d'un texte `s1 s2` ou d'un mot de passe `SH(mp, mp)`. Ce sont les serveurs qui sont en charge de vérifier la validité d'un _credential_, par exemple en comparant la valeur fournie par l'application terminale avec son SHA enregistré en base de données.
+**Le _jeton_ associé à un _credential_** est un texte généralement assez opaque, typiquement d'un texte `SH(s1, s2)` ou d'un mot de passe `SH(mp, mp)`. Ce sont les serveurs qui sont en charge de vérifier la validité d'un _credential_, par exemple en comparant la valeur fournie par l'application terminale avec son SHA enregistré en base de données.
 
-> Sauf rares exceptions, une opération d'un serveur exige un, voire plusieurs, _credentials_ qui sont vérifiés avant traitement.
+> Sauf rares exceptions, une opération d'un serveur exige un, voire plusieurs, _credentials_ qui sont vérifiés avant de traiter effectivement l'opération.
 
-Un _credential_ peut être enregistré dans la _fiche personnelle_ de l'utilisateur avec un libellé court, connu seulement de l'utilisateur: `mon accès conso à JP`. Énigmatique dans l'absolu, ce texte est signifiant pour l'utilisateur lui donnant accès à ses documents de _consommateur_ dans le cadre d'un point-de-livraison qui lui est familier (plus que le code aléatoire correspondant).
+Un _credential_ peut être enregistré dans la _fiche personnelle_ de l'utilisateur avec un libellé court, connu seulement de l'utilisateur: `mon accès conso à JP`. Énigmatique dans l'absolu, ce texte est signifiant pour l'utilisateur lui donnant accès à ses documents de _consommateur_ dans le cadre d'un point-de-livraison qui lui est familier (plus que le code aléatoire correspondant): il a saisi, son code de point de livraison, son code de consommateur, ses initiales (ou rien) et le mot de passe.
 
 > L'enregistrement des _credentials_ d'un utilisateur dans sa _fiche personnelle_lui permet de simplement cliquer dans une courte liste pour le fournir plutôt que d'avoir à se rappeler et à saisir un mot de passe long: c'est l'accès à sa _fiche personnelle_ qui est sécurisée pour un utilisateur, ceci protégeant **tous** ses _credentials_ enregistrés.
 
-#### _Sessions favorites_ d'un utilisateur
+### _Sessions favorites_ d'un utilisateur
 Lorsqu'un utilisateur ouvre une application terminale il commence une _session_: en général il ne peut pas faire grand-chose avant d'avoir déclaré a minima, 
 - a) son intention, qu'est-ce qu'il veut y faire, 
 - b) un _credential_ démontrant son droit à accéder aux documents et aux actions associées.
 
-Un utilisateur peut aussi ouvrir une session avec plus de droits et un périmètre d'actions plus large au cours de laquelle il aura:
+Un utilisateur peut aussi débuter une session avec plus de droits et un périmètre d'action plus large au cours de laquelle il aura:
 - a) un accès _consommateur_ dans le point-de-livraison où il est enregistré.
-- b) deux accès _point-de-livraison_ pour les deux organisations où il intervient pour l'organisation des livraisons.
-- c) un accès _groupement_ par ce'il est également l'assistant d'un groupement de producteur qui n'est pas autonome.
+- b) deux accès _point-de-livraison_ pour les deux organisations où il intervient pour aider à gérer des livraisons.
+- c) un accès _groupement_ parce qu'il est également l'assistant d'un groupement de producteur qui n'est pas autonome.
 
 > Exactement comme un utilisateur de Discord peut avoir accès à plusieurs _serveurs_ pour autant de sujets d'intérêt.
 
 #### Auto-enregistrement d'un utilisateur
-Lorsqu'un utilisateur a ouvert une session sans l'avoir sélectionné depuis sa _fiche personnelle_, typiquement parce qu'il n'en n'a pas encore, l'application lui propose de s'enregistrer. Si l'accepte il saisit:
+Lorsqu'un utilisateur a ouvert une session sans l'avoir sélectionnée depuis sa _fiche personnelle_, typiquement parce qu'il n'en n'a pas encore, l'application lui propose de s'enregistrer. Si l'accepte il saisit:
 - les deux couples `s1 s2` de clés d'accès (un habituel et un de secours).
 - il donne un libellé à sa session actuelle.
 
-Sa _fiche personnelle_ est créée, elle est cryptée, ses préférences sont initialisées avec ses clés d'accès, le ou les credentials de sa session sont enregistrés, sa session est enregistrée en tant que première session favorite.
+Sa _fiche personnelle_ est créée, 
+- elle est cryptée, 
+- ses préférences sont initialisées avec ses clés d'accès, 
+- le ou les credentials de sa session sont enregistrés, 
+- les paramètres de sa session sont enregistrée en tant que première session favorite.
 
-En cours d'une session, l'utilisateur peut ouvrir de nouveaux accès pour de nouveaux rôles après avoir fourni le cas échéant de nouveaux _credentials_. L'état courant de la session peut être enregistré comme _session favorite_, une nouvelle ou en remplaçant une antérieure.
+En cours d'une session, l'utilisateur peut ouvrir de nouveaux accès pour de nouveaux rôles après avoir fourni le cas échéant de nouveaux _credentials_. Les paramètres de l'état courant de la session peuventt être enregistrés comme _session favorite_, une nouvelle ou en remplaçant une antérieure.
 
-Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donné sa clé d'accès à sa fiche personnelle, n'a plus qu'à cliquer sur l'une de ses sessions favorites pour avoir à disposition tous les documents correspondants sans avoir eu à en citer d'identifiants ni à fournir de credentials.
+Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donné une de ses clés d'accès à sa fiche personnelle, n'a plus qu'à cliquer sur l'une de ses sessions favorites pour avoir à disposition tous les documents correspondants sans avoir eu à en citer d'identifiants ni à fournir de credentials.
 
 > Au lieu d'une logique organisée autour de l'identification de _personnes_ (plus ou moins virtuelles), c'est l'utilisateur qui sélectionne une _session_ où il a plusieurs rôles. Chaque _ensemble de  documents et actions associés_ est comme enfermé dans un coffre, tout utilisateur en connaissant la combinaison peut prétendre y accéder avec la possibilité de gérer plusieurs combinaisons par coffres.
 
-##### Remarques techniques
+#### Remarques techniques
 - l'application terminale lors de l'enregistrement d'un utilisateur allonge `s1` en `s1+` par un texte de remplissage quand sa longueur est inférieure au maximum mais supérieure au minimum (refus si inférieur à la longueur minimale). L'unicité du `SH(s1+, s1+)` est vérifiée.
 - l'application terminale d'enregistrement allonge `s2` en `s2+` de même, mais le texte de remplissage est généré en fonction de `s1`.
 - l'unicité de `s1` est vérifiée par l'enregistrement du `SHA(SH(s1+, s1+))`.
 - l'unicité de `s1 s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
 
 ##### Accès par l'utilisateur à sa _fiche personnelle_
-L'utilisateur étant enregistré dans le répertoire des utilisateurs à l'ouverture d'une application, celle-ci lui propose de le faire en utilisant une session prédéfinie de sa fiche personnelle et pour y accéder: 
+Quand un utilisateur s'est enregistré, à l'ouverture d'une application, celle-ci lui propose de démarrer une des sessions favorites listées dans sa fiche personnelle: 
 - lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
 - le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour ce `USERID`. Il peut retourner,
   - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître `s1` et `s2`).
   - la clé `Kl` cryptée par Kp: _clé locale_ requise sur les appareils favoris.
   - le set des _préférences_ de l'utilisateur crypté par `Kp`.
-  - la liste des _sessions prédéfinies_ et des _credentials_ enregistrés cryptée par `Kp`.
+  - la liste des _sessions favorites_ et des _credentials_ enregistrés cryptée par `Kp`.
   - le `code PIN crypté par Kl` pour un accès depuis un appareil favori (voir ci-après).
 
-S'il n'a pas utilisé de session favorite enregistrée, l'utilisateur peut aussi l'ouvrir en sélectionnant un _type de fil de documents_ et indiquer quel credential de sa liste il veut utiliser, ou le saisir. Cette session peut être enregistrée pour une ouverture en un clic la prochaine fois.
+> Quand il n'a pas utilisé de session favorite enregistrée, l'utilisateur peut créer sa session depuis une des _sessions template_ codée de l'application, en fournir les paramètres (le code de son point-de-livraison, son code consommateur) et indiquer quel credential de sa liste il veut utiliser (ou saisir ses intiales et mots de passe). La session peut être enregistrée pour une ouverture en un clic la prochaine fois.
 
-L'application terminale dispose ainsi en mémoire d'une _fiche en clair_ représentant le décryptage de l'entrée cryptée de l'utilisateur dans le répertoire des utilisateurs.
+L'application terminale dispose ainsi en mémoire de la fiche de l'utilisateur _clair_.
 
 L'application terminale peut ainsi désormais:
 - mettre à jour les _préférences_ de l'utilisateur et les enregistrer cryptées par la clé `Kp` qu'il vient de récupérer.
-- pour chaque _session prédéfinie_ et _credential_,
-  - l'effacer le cas échéant,
+- pour chaque _session favorite_ et _credential_,
+  - proposer de l'effacer le cas échéant,
   - adapter son _libellé_ facilitant le choix de l'utilisateur.
 - modifier son code PIN d'accès rapide.
 
-> L'utilisateur peut avoir plusieurs usages plus ou moins fréquents pour accéder à ses applications dans des circonstances diverses: l'utilisation de son _entrée de répertoire_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. 
+> L'utilisateur peut avoir plusieurs usages plus ou moins fréquents pour accéder à ses applications dans des circonstances diverses: l'utilisation de sa _fiche personnelle_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. 
 
-> Dans ce répertoire un utilisateur est anonyme, inconnu des GAFAM, n'a fourni aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile. Son existence dans ce répertoire est inviolable, pour autant que les couples `s1 s2` qu'il a choisi soient respectueux d'un minimum de règles simples.
+> Dans ce répertoire la fiche d'un utilisateur est anonyme, inconnu des GAFAM, ne contient aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile (sauf à les avoir volontairement sasis en _préférences_ mais elles sont cryptées). Son enregistrement dans ce répertoire est inviolable, pour autant que les couples `s1 s2` en clés principales et de secours, qu'il a choisi soient respectueux d'un minimum de règles simples.
 
 ### _Appareils favoris_ de l'utilisateur
-C'est un appareil _de confiance / personnel_ où il peut stocker des données locales permanentes et où il s'est choisi un alias, par exemple `bob` qui préfixe le nom des données stockées localement.
+Un appareil _de confiance / personnel_ est un appareil où il considère qu'il peut stocker des données locales permanentes et où il s'est choisi un _alias_, par exemple `bob` qui préfixe le nom des données stockées localement.
 - `$bob$kp` : couple de 2 cryptages de la clé `Kp` par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
 - `$bob$pf` : _fiche personnelle_ cryptée par la clé `Kp`.
-- `$bob$kl` : _clé locale_ : cette clé aléatoire est générée la premier fois que bob déclare cet appareil comme favori. De facto elle identifie l'utilisateur sur ce poste.
+- `$bob$kl` : _clé locale_ : cette clé aléatoire est générée la première fois que `bob` déclare cet appareil comme favori. De facto elle identifie l'utilisateur sur cet appareil.
 - `$bob$orgX$myappX`: pour chaque application `myappX`, une base de données locale mémoire _cache_ des fils de documents de l'organisation `orgX` chargés lors des sessions antérieures. Les contenus des documents sont cryptés par la clé `Kp`.
 
-> Ces données _peuvent être détruites_ à n'importe quel moment par n'importe quel utilisateur de l'appareil. Elles ne sont donc disponibles que du fait de la bonne entente présumée entre les utilisateurs du poste. Sur le PC ou téléphone prêté par un inconnu, dans un cyber-café, outre qu'il n'est ni correct d'occuper ainsi de l'espace, il est surtout déraisonnable d'espérer le retrouver plus tard.
+> Ces données _peuvent être détruites_ à n'importe quel moment par n'importe quel utilisateur de l'appareil: elles ne sont disponibles que **du fait de la bonne entente présumée entre les utilisateurs de l'appareil**. Sur le PC ou téléphone prêté par un inconnu, dans un cyber-café, outre qu'il n'est pas correct d'occuper ainsi de l'espace, il est surtout déraisonnable d'espérer le retrouver plus tard.
 
 Exécuter une application sur un _appareil favori_ de l'utilisateur présente des avantages significatifs:
 - **forte réduction de l'usage du réseau comme du nombre d'accès à la base de données:** de nombreux documents peuvent être déjà présents dans la base de données locales de l'application. La mise à niveau de ceux-ci est _incrémentale_ ne chargeant que ceux ayant changé ou nouveaux.
@@ -615,26 +613,26 @@ Exécuter une application sur un _appareil favori_ de l'utilisateur présente de
 La liste des _alias_ ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit (re)déclarer cet appareilm comme favori ou si c'était déjà fait.
 
 Pour effectuer cette déclaration, l'utilisateur doit fournir une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver sa fiche personnelle:
-- s'il y a déjà un code PIN enregistré, l'utilisateur le donne pour contrôle, 
+- s'il y a déjà un code PIN enregistré, l'utilisateur le donne pour vérification, 
 - sinon, c'est le premier appareil qu'il déclare favori, il donne **un code PIN d'au moins 8 signes** et l'alias `bob` sous lequel il sera identifié localement sur l'appareil.
 
 Pour une première déclaration sur cet appareil, l'application terminale:
-- récupère la clé locale `Kl` dans la fiche personnelle s'il y en a une, ou en génère aléatoirement une qui sera cryptée par la clé `Kp` et stockée dans le répertoire des utilisateurs. 
+- récupère la clé locale `Kl` dans la fiche personnelle s'il y en a une, ou en génère aléatoirement une qui sera cryptée par la clé `Kp` et stockée dans la fiche personnelle. 
 - stocke la clé `Kl`en clair dans la variable locale `$bob$kl`.
 - stocke le clé `Kp` (cryptée par les deux clés d'accès `s1, s2`) dans la variable locale `$bob$kp`.
 - stocke la _fiche personnelle_ cryptée par `Kp` dans la variable locale `$bob$pf`.
 - calcule `pinkl` comme cryptage du `code PIN` par la clé `Kl`.
 - calcule `kppin` comme cryptage de `Kp` par `pinkl`.
 - récupère `token`, le jeton qui identifie l'application sur cet appareil.
-- fait stocker dans la fiche USERID un quadruplet correspondant à la déclartion de l'appareil comme favori: `{ sha(SH(token, Kl)), sha(pinkl), kppin, err: 0 }`. .
+- fait stocker dans la fiche USERID un quadruplet correspondant à la déclartion de l'appareil comme favori: `{ sha(SH(token, Kl)), sha(pinkl), kppin, err: 0 }`.
 
 #### Ouverture d'une application sur un appareil déclaré _favori_
 L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des utilisateurs habituels de l'appareil.
 
 L'application terminale:
-- récupère la clé Kl dans la variable $bob$kl et le token de l'application sur l'appareil. Elle soumet au serveur une requête d'authentification par code PIN avec:
+- récupère la clé `Kl` dans la variable `$bob$kl` et le `token` de l'application sur l'appareil. Elle soumet _au serveur une requête d'authentification_ par code PIN avec:
   - `SH(token, Kl)` : ceci retrouve `sha(pinkl) kppin USERID`.
-  - `pinkl` : SI pinkl ne correspond pas au sha(pinkl) récupéré, le compteur d'erreur `err` est mis à 1. **Si ce compteur était déjà à 1, l'entrée est détruite**.
+  - `pinkl` : SI pinkl ne correspond pas au `sha(pinkl)` récupéré, le compteur d'erreur `err` est mis à 1. **Si ce compteur était déjà à 1, le code PIN et l'entrée de l'appareil sont détruites**.
   - retourne à l'application terminale,
     - la _fiche personnelle_ identifiée par USERID,
     - `kppin`.
@@ -642,42 +640,42 @@ L'application terminale:
   - de décrypter **la fiche personnelle en mémoire**,
   - de la stocker localement pour usage en mode avion dans `$bob$pf`.
 
-L'utilisateur et l'application terminale se retrouve dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longue s1, s2 avec une fiche personnelle en clair et ce en ayant seument donné un code PIN et désigné un alias local.
+L'utilisateur et l'application terminale se retrouve dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longues `s1, s2` avec une fiche personnelle en clair et ce en ayant seument donné un code PIN et désigné un alias local.
 
 > Le code PIN n'est jamais décodable sur le serveur ni depuis la base de données.
 
-> L'alias local reste local: il sert seulement à l'utilisateur à désigner le groupe de variables locales `$kp $Kl $pf` et les bases de données des couples `application, organisation`. A la limite en renommant en debug ces données, ou par une fonction locale de l'application, le nom local peut être changé sans aucun impact sur le serveur ni le répertore central des utilisateurs.
+> L'alias local reste local: il sert seulement à l'utilisateur à désigner le groupe de variables locales `$kp $Kl $pf` et les bases de données des couples `application, organisation`. En renommant en debug ces données, ou par une fonction locale de l'application, le nom local peut être changé sans aucun impact sur la fiche personnelle stockée dans le répertore central des utilisateurs.
 
 #### Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
 L'entrée dans la _fiche personnelle_ dans le répertoire des utilisateurs étant détruite par le serveur au second échec, aucune attaque par force brute n'est possible à distance.
 
-Les attaques possibles ne sont que celles, sur le poste, par le serveur ou par les deux.
+Les attaques possibles ne sont que celles, depuis l'appareil, depuis le serveur ou depuis les deux conjointement.
 
 ##### Par attaque depuis l'appareil
 Le code PIN **N'EST PAS** stocké localement sur l'appareil: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
 - en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
 - sous forme crypté par une clé locale dans le serveur.
 
-> Le seul moyen est de casser un des deux couples de codes (s1 s2), ce qui reste impossible si s1 et s2 sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque sur un appareil.
+> Le seul moyen d'attaque serait de casser un des deux couples de codes `(s1 s2)`, ce qui reste impossible si s1 et s2 sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque depuis un appareil.
 
 ##### Par attaque depuis le serveur
 L'administrateur du serveur protège l'accès à la base de données. Les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
 - a) avoir accès à la base,
-- b) avoir la clé de l'administrateur.
+- b) avoir la clé de cryptage de l'administrateur (que l'hébergeur de la base de données ne connaît pas).
 
-En supposant que l'administrateur de la base de données dispose aussi de la clé de cryptage des données dans la base, la clé `Kp` s'obtient depuis `kppin` comme cryptage de `Kp` par `pinkl`, cryptage du `code PIN` par la clé `Kl`: la clé Kl est tirée aléatoirement sur 32 bytes, c'est impossible.
+En supposant que l'administrateur de la base de données dispose aussi de la clé de cryptage des données dans la base, la clé `Kp` s'obtient depuis `kppin` comme cryptage de `Kp` par `pinkl`, cryptage du `code PIN` par la clé `Kl`: la clé `Kl` ayant été tirée aléatoirement sur 32 bytes, c'est impossible.
 
 ##### Par attaque conjointe: vol de l'appareil + complicité de l'administrateur
 Cette fois la clé `Kl` est accessible, en clair sur le poste. 
 
-Le _token_ de l'application est lisible en lançant l'application en _debug_: il est possible d'accéder au quaduplet protégeant kppin par recherche dans la base de la ligne identifiée par le `sha(SH(token, Kl))`: il _suffit_ de casse par force brute le code PIN jusqu'à ce que, `pinkl` le cryptage du code PIN testé crypté par `Kl`, ait un `sha` dont la valeur est stockée dans le quadruplet. Le décryptage du kppin de ce quaduplet par ce pinkl, donne la clé `Kp`.
+Le _token_ de l'application est lisible en lançant l'application en _debug_: il est possible d'accéder au quaduplet protégeant `kppin` par recherche dans la base de la ligne identifiée par le `sha(SH(token, Kl))`: il _suffit_ de casser par force brute le code PIN jusqu'à ce que, `pinkl` le cryptage du code PIN testé crypté par `Kl`, ait un `sha` dont la valeur est stockée dans le quadruplet. Le décryptage du kppin de ce quaduplet par ce pinkl, donne la clé `Kp`.
 
 ##### _Dureté_ du code PIN
 Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
 
 Toutefois UN SEUL essai d'un code demande un temps calcul important, le Strong Hash n'est _strong_ que parce qu'il exige du temps calcul non parallélisable et inapte à bénéficier de processeurs dits _graphiques_.
 
-Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique certes il va s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevables de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
+Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique certes il va s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la pa`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevable de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
 
 En conséquence pour casser le code PIN de `bob` sur un de ses appareils favoris, un hacker doit:
 - connaître le login / mot de passe de l'appareil,
@@ -685,11 +683,11 @@ En conséquence pour casser le code PIN de `bob` sur un de ses appareils favoris
 - avoir la complicité de l'administration technique du serveur,
 - avoir de gros moyens informatiques.
 
-Ces conditions constituent déjà un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ `bob` de donner son code PIN.
+Ces conditions constituent un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ `bob` de donner son code PIN.
 
-Depuis n'importe quel poste l'utilisateur peut s'identifier et détruire instantannément les données associées à ses appareils favoris, mais si hacker détient l'appareil et qu'il finit par obtenir la clé Kp, les bases de données locales de `bob` sont décryptables.
+Depuis n'importe quel poste l'utilisateur peut s'identifier et détruire instantannément les données associées à ses appareils favoris, mais si hacker détient l'appareil et qu'il finit par obtenir la clé `Kp`, les bases de données locales de `bob` sont décryptables.
 
-> SI l'hypothèse d'une collusion possible entre les administrateurs ET des voleurs capables de dérober un appareil est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et allourdir ses sessions sur l'appareil, **soit** choisir un code PIN très dur à 18 signes (ce qui reste vivable)qui sera incassable.
+> SI l'hypothèse d'une collusion possible entre les administrateurs ET des voleurs capables de dérober un appareil est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et allourdir ses sessions sur l'appareil, **soit** il faut choisir un code PIN dur à plus de 15 signes (ce qui reste vivable) qui sera incassable.
 
 ## Bases de données locale _cache_ sur un poste personnel
 Pour une **application** donnée, sur un poste _personnel_, le profil `bob` détient une petite base de données locale **par organisation**. Elle contient:
@@ -698,16 +696,16 @@ Pour une **application** donnée, sur un poste _personnel_, le profil `bob` dét
 - un ou deux ou trois index définissent à quels fils, chaque document est attaché.
 - les contenus des documents et des fils sont cryptés par la clé `Kp` de l'utilisateur.
 
-Quand une application est lancée elle va déterminer en fonction du souhait de l'utilisateur, quels _fils de documents_ contiennent les documents à charger en mémoire:
+Quand une application est lancée elle va déterminer en fonction du souhait de l'utilisateur sur la page d'accueil, quels _fils de documents_ contiennent les documents à charger en mémoire:
 - pour chacun l'application lit le contenu du fil détenu dans la base locale et demande au serveur de lui retourner le dernier état s'il est plus récent que celui obtenu de la base locale.
 - l'application peut ainsi,
   - a) charger depuis la base locale les documents actuellement déclarés attachés au fil,
   - b) si nécessaire au vu des versions respectives, demander au serveur tous les documents attachés à ce fil de version postérieure.
   - c) mette à jour dans la base locale, les documents et le fil.
 
-En effectuant ette opération pour tous les fils constituannt le contexte de travail de la session, l'application,
+En effectuant cette opération pour tous les fils constituant le contexte de travail de la session, l'application,
 - a) dispose en mémoire des fils nécessaires et des documents attachés,
-- b) a mis à jour la base de données locales, qui pour ce contexte demandé par l'utilisateur, est à jour.
+- b) a mis à jour la base de données locales, qui pour cette session ouverte par l'utilisateur, est à jour.
 
 ## Le mode _avion_
 Il est possible sur un poste _personnel_ où l'utilisateur a ouvert récemment l'application et accédé à une de ses sessions favorites. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
@@ -715,34 +713,32 @@ Il est possible sur un poste _personnel_ où l'utilisateur a ouvert récemment l
 La base de données locale d'une application pour une organisation contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: certes ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
 
 La base de données est cryptée par la clé `Kp` et l'application doit se la procurer:
-- l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé Kp cryptée par la clé Kl lisible localement.
-- l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir Kp depuis la variable locale `$bob$kp`.
-
-
+- l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé `Kp` cryptée par la clé `Kl` lisible localement.
+- l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir `Kp` depuis la variable locale `$bob$kp`.
 
 # Annexe: le Use Case _circuit court_
 
 ## Vision générale: les _documents_
 
-Un **groupe de consommateurs** est identifié par son code `gc`. 
+Un **point-de-livraison regroupe des consommateurs** et est identifié par son code `gc`. 
 - **Document FGC** : fiche de renseignement donnant des informations de contact, son ou ses mots de passe, liste des groupements de producteurs auxquels il peut commander. 
 
-Un **consommateur** est identifié par son code dans son groupe: `gc co`. 
+Un **consommateur** est identifié par son code dans son point-de-livraison: `gc co`. 
 - **Document FCO** : fiche de renseignement donnant des informations de contact, son mot de passe, un statut de blocage.
 
 Un **groupement de producteurs** est identifié par son code `gp`. 
 - **Document FGP** : fiche de renseignement donnant des informations de contact, son ou ses mots de passe, liste des groupes de consommateurs qui peuvent lui émettre des commandes.
 
-Un `producteur` est identifié par son code dans son groupement: `gp pr`. 
+Un **producteur** est identifié par son code dans son groupement: `gp pr`. 
 - **Document FPR** : fiche de renseignement donnant des informations de contact et son mot de passe.
 
 Une **référence de produit** est identifiée par son code dans son producteur: `gp pr rp`.
 
-Le **calendrier des livraisons d'un groupement** de producteurs est identifié par le code du groupement `gp`.
+Le **calendrier des livraisons d'un groupement de producteurs** est identifié par le code du groupement `gp`.
 - **Document CALG** : il donne la liste des livraisons déclarées avec pour chacune:
   - son de code `livr`, date de livraison (théorique et immuable).
   - les dates-heures d'ouverture, de clôture des commandes, d'expédition et d'archivage. Des règles fixent comment et quand ces dates peuvent être changées, en particulier les unes par rapports aux autres.
-  - la liste des groupes de consommateurs livrés (point de livraison).
+  - la liste des points-de-livraison (groupes de consommateurs) livrés.
 
 Une **livraison d'un groupement** est identifiée par le groupement livrant et son numéro de livraison: `gp livr`.
 - **Document LIVRG**:
@@ -771,20 +767,20 @@ Un **bon de commande d'un groupement** est identifié par `gc gp livr`.
 
 Un **carton d'un producteur pour la livraison à un groupe** est identifié par `gp pr livr gc`.
 - **Document CART**: 
-  - généré / mis à jour à chaque mise à jour d'un BCC du groupe pour une ligne concernant un produit de ce producteur. 
-  - il donne par produit du producteur la somme des quantités commandées dans le groupe. Ce document est une redondance générée / mise à jour à chaque mise à jour 
+  - généré / mis à jour à chaque mise à jour d'un `BCC` du groupe pour une ligne concernant un produit de ce producteur. 
+  - il donne par produit du producteur la somme des quantités commandées dans le groupe. Ce document est une redondance générée / mise à jour à chaque mise à jour.
 
 _Remarque 1_: quand une commande est réceptionnée, pour chaque produit (en général commandé mais pas forcément), figure une quantité livrée ou un poids livré.
 - pour certains produits, des poulets par exemple, la quantité livrée est le nombre N de poulets et le poids livré est une liste de N poids individuels des poulets. Quand il y a un poids total c'est, soit temporaire en estimation avant obtention des poids individuels, soit la somme des poids individuels.
 
 _Remarque 2_: le rapprochement entre les informations de commande et celles de livraison (réception) permet de détecter des problèmes à résoudre:
-- des quantités excédentaires ou insuffisantes: il faudra pour chaque consommateur ajuster la quantité.
+- des quantités excédentaires ou insuffisantes: il faudra pour chaque consommateur ajuster la quantité distribué.
 - des paquets individualisés (des poulets) au déchargement non attribués et des consommateurs n'ayant pas reçu leurs paquets.
-- des produits livrés mais pas commandés:il faudra les répartir sur des consommateurs, le cas échéant le _groupement_ lui-même.
+- des produits livrés mais pas commandés: il faudra les répartir sur des consommateurs, le cas échéant un consommateur virtuel représentant le point-de-livraison lui-même.
 
 Le **catalogue général des produits** d'un groupement est identifié par `gp`.
 - **Document CATG**. Il donne pour chaque produit:
-  - un _descriptif permanent_ ne pouvant pas changer après déclaration, sauf le libellé. Un produit _à l'unité_ ne peut pas devenir _au poids_, il faut définir un autre produit.
+  - un _descriptif permanent_ ne pouvant pas changer après déclaration, sauf le libellé. Un produit _à l'unité_ ne peut pas devenir _au poids_ (il faut définir un autre produit).
     - son code et sa référence (_code-barre_).
     - un libellé descriptif,
     - si c'est un produit _sec_, _frais_ ou _surgelé_.
@@ -793,10 +789,10 @@ Le **catalogue général des produits** d'un groupement est identifié par `gp`.
   - une _liste chronologique_ de dates à laquelle les conditions de ventes du produit ont changé:
     - sa disponibilité,
     - son prix unitaire,
-    - ses poids _net_ et _brut_: le poids _net_ est celui sans l'emballage (ce que mange le consommateur), son poids _brut_ inclut l'emballage (ce que ça pèse dans le camion).
+    - ses poids _net_ et _brut_: le poids _net_ est celui sans l'emballage (ce que mange le consommateur), son poids _brut_ inclut l'emballage (ce que ça pèse approximativement dans le camion).
 
 Le **catalogue d'une livraison** d'un groupement est identifié par `gp livr`.
-- **Document CATL**. Il donne pour une livraison, la liste des produits avec pour chacun sa conditions de vente.
+- **Document CATL**. Il donne pour une livraison, la liste des produits avec pour chacun sa condition de vente.
   - la catalogue d'une livraison est _calculé_ avant ouverture de la livraison depuis le catalogue général.
   - il peut être amendé ponctuellement jusqu'à l'ouverture de la commande.
   - après ouverture de la commande, quand une condition de vente d'un produit change, les deux conditions existent: celle _actuelle_ et celle _à l'ouverture de la commande_.
@@ -810,17 +806,17 @@ Le **répertoire général** des groupes et groupements n'a pas d'identifiant (c
 Le **répertoire des consommateurs** d'un groupe est identifié par le code du groupe `gc`.
 - **Document RCO** : pour le groupe lui-même et pour chaque consommateur il donne une fiche de contact.
 
-Le **répertoire des producteurs** d'un groupe est identifié par le code du groupe `gc`.
+Le **répertoire des producteurs** d'un groupement est identifié par le code du groupement `gp`.
 - **Document RPR** : pour le groupement lui-même et pour chaque producteur il donne une fiche de contact.
 
 Le **chat d'une livraison** est identifié par le groupement livrant et la date de livraison `gp livr`.
-- **Document CHL**: c'est une suite chronologique de news alimentée par le groupement. Tous les groupes de consommateurs sont concernés. Un groupe de consommateurs peuvent y déposer aussi des news (avec modération).
+- **Document CHL**: c'est une suite chronologique de news alimentée par le groupement. Tous les groupes de consommateurs sont concernés. Un point-de-livraison (groupe de consommateurs) peut y déposer aussi des news (avec modération).
 
-Le **chat d'une distribution** est identifié par le groupement livrant, la date de livraison et le groupe distributeur `gp livr gc`.
-- **Document CHD**: c'est une suite chronologique de news alimentée par le groupe et les consommateurs.
+Le **chat d'une distribution** est identifié par le groupement livrant, la date de livraison et le point-de-livraison distributeur `gp livr gc`.
+- **Document CHD**: c'est une suite chronologique de news alimentée par les consommateurs.
 
-Le **chat d'un groupe de consommateurs** est écrit par le groupe et les consommateurs du groupe indépendamment de toute livraison et est identifié par `gc`.
-- **Document CHCO**: c'est une suite chronologique de news alimentée par le groupe et les consommateurs. Les groupements de producteurs peuvent émettre, avec modération, des news.
+Le **chat d'un point-de-livraison (groupe de consommateurs)** est écrit par les consommateurs indépendamment de toute livraison et est identifié par `gc`.
+- **Document CHCO**: c'est une suite chronologique de news alimentée par les consommateurs. Les groupements de producteurs peuvent émettre, avec modération, des news.
 
 Le **chat d'un groupement de producteurs** est écrit par le groupement et les producteurs du groupement indépendamment de toute livraison et est identifié par `gc`.
 - **Document CHPR**: c'est une suite chronologique de news alimentée par le groupement et les producteurs. Les groupes de consommateurs peuvent émettre, avec modération, des news.
@@ -847,11 +843,9 @@ Un consommateur souhaite voir:
 - chats des livraisons ouvertes de son groupe.
 - ses commandes sur les livraisons ouvertes. Ce dernier fil peut être utile pour un _consommateur_ pour lequel il y a plusieurs utilisateurs susceptibles de commander: famille, proches, voisins... Il permet de voir apparaître des notifications quand un de ces utilisateurs a modifié une commande.
 
-> Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupement qui en fera les informations de synthèses sur le chat du groupe.
+> Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupe qui en fera les informations de synthèses sur le chat du groupe.
 
 ### Point de vue d'un groupe (un de ses animateurs) (A SUIVRE).
-
-> Il ne suit pas par fils de news les évolutions tarifaires, les évolutions des dates, etc. C'est l'animateur du groupement qui en fera les informations de synthèses sur le chat du groupe.
 
 ### _Fils de synchronisation_ des documents
 Chaque document est accessible par son identifiant.
@@ -904,7 +898,7 @@ La description d'un type de fil donne:
 - la liste de ses propriétés identifiantes.
 - pour chaque document pouvant faire partie du fil:
   - son type,
-  - le numéro de l'index définissant ses propriétés d'appartenance. Par convention 0 pour l'id complète.
+  - le numéro de l'index (0, 1, 2) définissant ses propriétés d'appartenance. Par convention 0 pour l'id complète.
   - s'il peut y avoir un filtre pour éviter les notifications non pertinentes:
     - le numéro du paramètre de filtre (en général 1),
     - le numéro de l'index dans le document pour retrouver la propriété filtrée.
@@ -917,7 +911,7 @@ Fil `#CMDGC` : `gc.gp.livr` - commande d'un groupe à un groupement - Filtre de 
 Fil `#CMDOV` : `gc.gp` - commandes ouvertes d'un groupe à un groupement
 - `BCG` : 1
 
-Fil `#CALGP` : `gp` - calendrier des livraisons d'un groupement
+Fil `#CALGP` : - calendrier des livraisons d'un groupement
 - `CALG` : 0 - un singleton pour le fil
 - `LIVRG` : 1
 
@@ -953,41 +947,55 @@ Pour s'abonner à un fil il faut fixer:
 - les types de documents cités dans l'abonnement sont seuls considérés : `[BCG, CART, BCC]`
 - la ou les valeurs de filtres à appliquer pour éviter une notification non pertinente: `co1` (qui s'appliquera aux documents BCC dont l'index 2 est égal à `co1`).
 
-### Périmètre: _de base_ et extensions dynamiques
-Un périmètre a un code `@GROUPE` et une liste de propriétés identifiantes:
+### _Template de session_ et extensions dynamiques
+Un _template de session_ a un code `@GROUPE` et une liste de propriétés identifiantes:
 - par exemple `@GROUPE [gc]`
-- un ou plusieurs types de _credential_. Pour chacun toutes ses propriétés identifiantes sont citées dans l'identifiant du périmètre. Le type de _credential_ `CREDGC` a pour identifiant `gc`.
+- un ou plusieurs types de _credential_. Pour chacun, toutes ses propriétés identifiantes doivent être citées dans l'identifiant du template. Le type de _credential_ `CREDGC` a pour identifiant `gc`.
 
-Le _périmètre de base_ est constitué d'un ou plusieurs _fils_ dont le path est entièrement fixé depuis les propriétés identifiantes du périmètre, pour chaque fil, quel est le type de credential à appliquer: 
+Un _template de session_ est constitué d'un ou plusieurs _fils_ dont le path est entièrement fixé depuis les propriétés identifiantes du template, pour chaque fil, quel est le type de credential à appliquer: 
 - par exemple le fil `#RGC.gc [RG, RP, CHPR, FPR]` (path `gc`) -type de _credential_ `CREDGC`.
 
-> L'exemple précédent est celui d'un périmètre d'ouverture avec un seul fil. Dans la réalité il y a en général plusieurs fils à ouvrir, sous contrôle d'un (a minima en général), voire plusieurs (plus rarement) _credentials_.
+> L'exemple précédent est celui d'un _template de session_ avec un seul fil. Dans la réalité il y a en général plusieurs fils à ouvrir, sous contrôle d'un (a minima en général), voire plusieurs (plus rarement) _credentials_.
 
-**Quand dans une session un utilisateur veut _se connecter_ à un périmètre** il doit fournir,
-- a) l'identifiant du périmètre `@GROUPE/gc1` d'ouverture.
-- b) le (ou les) _credential_ dont le serveur vérifiera qu'il lui donne le droit d'accéder aux fils de ce périmètre. 
+**Quand dans une session un utilisateur veut _ouvrir une session suivant un template_** il doit fournir,
+- a) son type @`GROUPE` et tous ses paramètres (`gc1`): `@GROUPE/gc1`.
+- b) le (ou les) _credential_ requis par le template dont le serveur vérifiera qu'il lui donne le droit d'accéder aux fils de ce périmètre. 
   - par exemple _le_ ou _un des_ mots de passe enregistré pour le groupe `gc1`.
 
 Le _succès_ de la connexion est l'abonnement de l'application terminale au(x) fil(s) du groupe `gc`.
 
-#### _Périmètre_ pour un groupe: `gc` - liste des abonnements
-Le _périmètre_ autour d'un groupe `gc` contient le fil suivant:
-- `#RGC.gc [RG, RP, CHPR, FPR]` : le document `RG` donne une liste des groupements `gp` à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
+#### _Template de session_ pour un groupe: `gc` - liste des abonnements
+Un _template de session_ autour d'un groupe `gc` contient:
+- un fil _principal_, `#RGC.gc [RG, RP, CHPR, FPR]` : le document `RG` donne une liste calculable des groupements `gp`, à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
+- N fils _secondaires_ `#CALGP/gp [CALG, LIVRG]`, un par `gp` de la liste calculée ci-dessus.
+- N fils _secondaires_ `#CHL/gp [CHL, CHD {gc}]`, un par `gp` de la liste calculée ci-dessus.
 
-Quand une exécution d'une application s'est _connectée_ au périmètre `@GROUPE [gc]` elle en lit la liste des codes `gp` des groupements pouvant livrer `gc`. Elle va alors s'abonner aux fils suivants (2 pour chacun des N `gp` de cette liste):
-- N fils `#CALGP/gp [CALG, LIVRG]`.
-- N fils `#CHL/gp [CHL, CHD {gc}]`.
+En cours de session une application peut fixer une livraison _courante_ `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr [BCG, CART, BCC]` (elle pourrait également en avoir plusieurs selon la logique applicative souhaitée).
 
-A chaque fois que le fil `#RGC` notifie une évolution (ce qui est rare), l'application terminale en obtient la mise à jour et recalcule la nouvelle liste des `gp`.
-- elle se désabonne de tous les fils `#CALGP #CHL` dont le `gp` n'est plus dans la nouvelle liste: ce sont des groupements qui n'existent plus ou ne livrent plus ce point-de-livraison,
-- elle s'abonne à tous les fils `#CALGP #CHL` pour les `gp` de la nouvelle liste n'étant pas dans l'ancienne: nouveaux groupements ou groupements nouvellement disposés à livrer le point-de-livraison.
+#### Un _template_ partiellement déterminé
+La construction du _template_ `#GROUPE` **n'est donc entièrement déterminée** par le seul identifiant `gc` du template: elle dépend d'une liste de valeurs calculée depuis le document `RG`.
 
-Quand une exécution d'une application fixe une livraison courante `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr [BCG, CART, BCC]`.
+Il peut y avoir deux visions de ce template, statique et dynamique.
 
-#### Périmètre pour un consommateur: `gc co` - liste des abonnements
-Le _périmètre_ autour d'un groupe `gc co` contient le fil fil `#RGC.gc [RG, RP, CHPR, FPR]`
+##### La vision _statique_ 
+Un second paramètre de `$GROUPE` est décrit comme une liste `*gp` qui s'écrit `@GROUPE/gc1, *gp=RG.lstgp`. 
+- Un pré-traitement lit le document `RG` et calcule la liste des `gp` passée en paramètre par sa méthode `lstgp`. 
+- Le template devient alors complètement déterminé après ce traitement d'initialisation. 
+- Dans ce cas, l'évolution éventuelle de `RG` pouvant possiblement changer `*gp` n'est pas censée recalculer le _template_ et la liste des fils qui en dépendent.
 
-Dynamiquement il y aura des abonnements pour chaque `gp` à qui il peut commander: 
+##### La vision _dynamique_
+La description est semblable à la vision _statique_, mais de plus à chaque fois que le document `RG` est détecté changé sur l'écoute du fil `#RGC` (ce qui dans cet exemple est improbable en pratique), il faut réinitialiser les fils:
+- se désabonner de tous les fils `#CALGP #CHL` dont le `gp` n'est plus dans la nouvelle liste: ce sont des groupements qui n'existent plus ou ne livrent plus ce point-de-livraison,
+- s'abonner à tous les fils `#CALGP #CHL` pour les `gp` de la nouvelle liste n'étant pas dans l'ancienne: nouveaux groupements ou groupements nouvellement disposés à livrer le point-de-livraison.
+
+L'application terminale étant notifiée des évolutions de `RG` elle peut simplement émettre une requête au serveur pour faire recalculer / changer ce groupe d'abonnements. Sauf qu'en l'occurrence, le serveur doit disposer de la liste actuelle des `gp` pour établir la différence avec la nouvelle qu'il est capable d'obtenir. Ceci introduit un concept de _fil secondaire d'un principal_:
+- pour un _principal_ connaître la liste de ses secondaires,
+- pour un _principal_, garder ses paramètres à calculer, à la fois en disposant du nom du calcul et en conservant dans l'instance du fil lui-même les résultats du dernier calcul d'initialisation.
+
+#### _Template de session_ pour un consommateur: `gc co` - liste des abonnements
+Ce _template_ autour d'un groupe `gc co` contient un fil _principal_ `#RGC.gc [RG, RP, CHPR, FPR]`.
+
+Comme ci-avant il y aura des fils secondaires dépendant associé à chaque `gp` à qui il peut commander: 
 - N fils `#CALGP/gp [CALG, LIVRG]`, 1 pour chaque `gp` récupéré du document `RG`.
 - N fils `#CHL/gp filtre:gp.gc [CHL, CHD]`
 
@@ -1037,3 +1045,11 @@ Mais deux demandes faites pour deux fils, forcément à des moments différents,
 
 ## Décompte des consommations 
 (En réflexion)
+
+## Authentification _double_
+(questions, pertinence)
+
+Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigeant une confirmation sur un appareil #2 (favori ou non).
+- que se passe-t-il quand l'appareil #1 n'est déclaré _favori_ ?
+- et si l'utilisateur N'A PAS d'appareil #2 (au moins sous la main) ?
+- si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
