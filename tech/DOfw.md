@@ -483,7 +483,7 @@ L'application terminale a en conséquence besoin de savoir pour chaque organisat
 
 Ce répertoire contient la liste des triplets `{ application, prestataire, organisation }` déclarés par les prestataires:
 - ils peuvent en exporter des listes sélectives, en particulier pour une application / prestataire, la liste des organisations gérées. 
-- une application terminale peut faire appel à n'importe quel prestatire afin de récupérer le prestataire traitant une organisation donnée
+- une application terminale peut faire appel à n'importe quel prestataire afin de récupérer le prestataire traitant une organisation donnée
 
 **Remarque** : chaque prestataire peut ensuite gérer **dans _sa_ base de données**, un document relatif à l'organisation comportant:
 - un **statut** : est-elle ouverte, restreinte en lecture seule (archive), fermée jusqu'à nouvel ordre.
@@ -497,6 +497,19 @@ Une fiche personnelle est cryptée dans la base de données de sorte que seul l'
 - Ces applications n'exportent jamais le texte en clair d'une fiche sur le réseau.
 - _L'impression_ de cette fiche (en clair) peut être toutefois explicitement demandée par l'utilisateur qui est alors responsable de ce qu'il en fait.
 
+### Les applications peuvent-elles connaître le USERID ?
+Une application terminale bien entendu, **à condition** que l'utilisateur se soit enregistré.
+- elle peut communiquer dans un _credential_ ce USERID à un serveur accompagné du `SH(s1, s2)` prouvant que l'utilisateur a bien fourni cette clé d'accès `(s1, s2)`.
+- à la première présentation de ce USERID, typiquement à l'enregistrement de l'utilisateur, le serveur peut vérifier auprès du répertoire des utilisateurs que ce USERID est bien authentifié et va conserver le couple `(USERID, sha(SH(s1, s2))` dans la base de l'application.
+- les authentifications ultérieures se feront seulement à partir de la base locale.
+
+Les applications **peuvent** en conséquence utiliser le répertoire des utilisateurs pour les authentifier **MAIS** ceci oblige les utilisateurs à s'enregistrer dans ce répertoire pour utiliser l'application ce qui pose un problème déontologique: les applications peuvent établir des liens logiques entre elles.
+
+Une solution consiste à permettre à un  utilisateur d'une application qui souhaite disposer d'un USERID,
+- soit d'en créer un spécifique de l'application avec une authentification spécifique,
+- soit, au choix de l'utilisateur, d'utiliser son USERID du répertoire des utilisateurs, externe aux applications.
+
+### Rubriques d'une _fiche personnelle_
 Il y a plusieurs rubriques dans la _fiche personnelle_ d'un utilisateur:
 - des _préférences_,
 - des _credentials_,
@@ -558,7 +571,7 @@ Sa _fiche personnelle_ est créée,
 - le ou les credentials de sa session sont enregistrés, 
 - les paramètres de sa session sont enregistrée en tant que première session favorite.
 
-En cours d'une session, l'utilisateur peut ouvrir de nouveaux accès pour de nouveaux rôles après avoir fourni le cas échéant de nouveaux _credentials_. Les paramètres de l'état courant de la session peuventt être enregistrés comme _session favorite_, une nouvelle ou en remplaçant une antérieure.
+En cours d'une session, l'utilisateur peut ouvrir de nouveaux accès pour de nouveaux rôles après avoir fourni le cas échéant de nouveaux _credentials_. Les paramètres de l'état courant de la session peuvent être enregistrés comme _session favorite_, une nouvelle ou en remplaçant une antérieure.
 
 Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donné une de ses clés d'accès à sa fiche personnelle, n'a plus qu'à cliquer sur l'une de ses sessions favorites pour avoir à disposition tous les documents correspondants sans avoir eu à en citer d'identifiants ni à fournir de credentials.
 
@@ -570,7 +583,7 @@ Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donn
 - l'unicité de `s1` est vérifiée par l'enregistrement du `SHA(SH(s1+, s1+))`.
 - l'unicité de `s1 s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
 
-##### Accès par l'utilisateur à sa _fiche personnelle_
+#### Accès par l'utilisateur à sa _fiche personnelle_
 Quand un utilisateur s'est enregistré, à l'ouverture d'une application, celle-ci lui propose de démarrer une des sessions favorites listées dans sa fiche personnelle: 
 - lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
 - le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour ce `USERID`. Il peut retourner,
@@ -596,21 +609,21 @@ L'application terminale peut ainsi désormais:
 > Dans ce répertoire la fiche d'un utilisateur est anonyme, inconnu des GAFAM, ne contient aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile (sauf à les avoir volontairement sasis en _préférences_ mais elles sont cryptées). Son enregistrement dans ce répertoire est inviolable, pour autant que les couples `s1 s2` en clés principales et de secours, qu'il a choisi soient respectueux d'un minimum de règles simples.
 
 ### _Appareils favoris_ de l'utilisateur
-Un appareil _de confiance / personnel_ est un appareil où il considère qu'il peut stocker des données locales permanentes et où il s'est choisi un _alias_, par exemple `bob` qui préfixe le nom des données stockées localement.
+Un appareil _de confiance / personnel_ est un appareil où l'utilisateur considère qu'il peut stocker des données locales permanentes et où il s'est choisi un _alias_, par exemple `bob` qui préfixe le nom des données stockées localement.
 - `$bob$kp` : couple de 2 cryptages de la clé `Kp` par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
 - `$bob$pf` : _fiche personnelle_ cryptée par la clé `Kp`.
 - `$bob$kl` : _clé locale_ : cette clé aléatoire est générée la première fois que `bob` déclare cet appareil comme favori. De facto elle identifie l'utilisateur sur cet appareil.
-- `$bob$orgX$myappX`: pour chaque application `myappX`, une base de données locale mémoire _cache_ des fils de documents de l'organisation `orgX` chargés lors des sessions antérieures. Les contenus des documents sont cryptés par la clé `Kp`.
+- `$bob$orgX$myappX`: pour chaque application `myappX`, une base de données locale mémoire _cache_ des documents de l'organisation `orgX` chargés lors des sessions antérieures. Les contenus des documents sont cryptés par la clé `Kp`.
 
 > Ces données _peuvent être détruites_ à n'importe quel moment par n'importe quel utilisateur de l'appareil: elles ne sont disponibles que **du fait de la bonne entente présumée entre les utilisateurs de l'appareil**. Sur le PC ou téléphone prêté par un inconnu, dans un cyber-café, outre qu'il n'est pas correct d'occuper ainsi de l'espace, il est surtout déraisonnable d'espérer le retrouver plus tard.
 
 Exécuter une application sur un _appareil favori_ de l'utilisateur présente des avantages significatifs:
-- **forte réduction de l'usage du réseau comme du nombre d'accès à la base de données:** de nombreux documents peuvent être déjà présents dans la base de données locales de l'application. La mise à niveau de ceux-ci est _incrémentale_ ne chargeant que ceux ayant changé ou nouveaux.
+- **réduction de l'usage du réseau comme du nombre d'accès à la base de données:** de nombreux documents peuvent être déjà présents dans la base de données locales de l'application. La mise à niveau de ceux-ci est _incrémentale_ ne chargeant que ceux ayant changé ou nouveaux.
 - **possibilité d'avoir des sessions en mode _avion_**, sans aucun accès au réseau (voir plus loin les restrictions associées).
 - **authentification rapide depuis un code PIN court** au lieu de devoir fournir une de ses deux clés longues `s1 s2` pour accéder à sa `fiche personnelle`.
 
 #### Déclarer un appareil comme favori
-La liste des _alias_ ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit (re)déclarer cet appareilm comme favori ou si c'était déjà fait.
+La liste des _alias_ ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit (re)déclarer cet appareil comme favori ou si c'était déjà fait.
 
 Pour effectuer cette déclaration, l'utilisateur doit fournir une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver sa fiche personnelle:
 - s'il y a déjà un code PIN enregistré, l'utilisateur le donne pour vérification, 
@@ -624,7 +637,15 @@ Pour une première déclaration sur cet appareil, l'application terminale:
 - calcule `pinkl` comme cryptage du `code PIN` par la clé `Kl`.
 - calcule `kppin` comme cryptage de `Kp` par `pinkl`.
 - récupère `token`, le jeton qui identifie l'application sur cet appareil.
-- fait stocker dans la fiche USERID un quadruplet correspondant à la déclartion de l'appareil comme favori: `{ sha(SH(token, Kl)), sha(pinkl), kppin, err: 0 }`.
+- fait stocker dans la fiche personnelle un quadruplet correspondant à la déclaration de l'appareil comme favori: `{ sha(SH(token, Kl)), sha(pinkl), kppin, err: 0 }`.
+
+##### Plus d'un _alias_ sur un appareil pour un utilisateur
+L'utilisateur ayant déclaré un alias `bob` sur un appareil peut en déclarer un autre `bill` sur ce même appareil:
+- `bill` aura son propre jeu de variables `$bil$kp $bill$kl $bill$pf` et ses propres bases locales _cache_.
+- le code PIN sera le même pour `bob` et `bill`.
+- la clé Kl sera la même pour `bob` et `bill`.
+- la copie de la fiche personnelle de l'utilisateur dans `$bill$fp` sera identique à celle de `bob` mais en général _copiée_ à un autre instant (donc ayant une version antérieure ou postérieure).
+- les bases locales _cache_ sont différentes, les mêmes activités n'ont en général pas été effectuées sous les deux alias. En conséquence en mode _avion_ les documents peuvent apparaître différents (des listes différentes) et de versions différentes (pas vus au même instant).
 
 #### Ouverture d'une application sur un appareil déclaré _favori_
 L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des utilisateurs habituels de l'appareil.
@@ -632,43 +653,43 @@ L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des util
 L'application terminale:
 - récupère la clé `Kl` dans la variable `$bob$kl` et le `token` de l'application sur l'appareil. Elle soumet _au serveur une requête d'authentification_ par code PIN avec:
   - `SH(token, Kl)` : ceci retrouve `sha(pinkl) kppin USERID`.
-  - `pinkl` : SI pinkl ne correspond pas au `sha(pinkl)` récupéré, le compteur d'erreur `err` est mis à 1. **Si ce compteur était déjà à 1, le code PIN et l'entrée de l'appareil sont détruites**.
+  - `pinkl` : SI `pinkl` ne correspond pas au `sha(pinkl)` de la fiche personnelle, le compteur d'erreur `err` est mis à 1. **Si ce compteur était déjà à 1, le code PIN et l'entrée de l'appareil sont détruites**.
   - retourne à l'application terminale,
-    - la _fiche personnelle_ identifiée par USERID,
+    - la _fiche personnelle_ identifiée par `USERID`,
     - `kppin`.
 - l'application terminale disposant de la clé locale `Kl`, décrypte `kppin` avec `Kl` et récupère ainsi `Kp` ce qui lui permet,
   - de décrypter **la fiche personnelle en mémoire**,
   - de la stocker localement pour usage en mode avion dans `$bob$pf`.
 
-L'utilisateur et l'application terminale se retrouve dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longues `s1, s2` avec une fiche personnelle en clair et ce en ayant seument donné un code PIN et désigné un alias local.
+L'utilisateur et l'application terminale se retrouvent dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longues `s1, s2`, la fiche personnelle est en clair en mémoire. Depuis un appareil favori, l'utilisateur a seulement saisi un code PIN plus court que `(s1, s2)` et désigné un alias local.
 
-> Le code PIN n'est jamais décodable sur le serveur ni depuis la base de données.
+> Le code PIN ne peut jamais être décrypté avec seulement les données du serveur ou seulement les données locales de l'appareil (comme la clé `Kp`).
 
-> L'alias local reste local: il sert seulement à l'utilisateur à désigner le groupe de variables locales `$kp $Kl $pf` et les bases de données des couples `application, organisation`. En renommant en debug ces données, ou par une fonction locale de l'application, le nom local peut être changé sans aucun impact sur la fiche personnelle stockée dans le répertore central des utilisateurs.
+> L'alias local reste local: il sert seulement à l'utilisateur à désigner le groupe de variables locales `$kp $Kl $pf` et les bases de données des couples `application, organisation`. En renommant en debug ces données, ou par une fonction locale de l'application, les alias peuvent être changés. Ils ne sont pas stockés (ni en clair, ni haché) dans la fiche personnelle stockée dans le répertoire central des utilisateurs.
 
 #### Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
 L'entrée dans la _fiche personnelle_ dans le répertoire des utilisateurs étant détruite par le serveur au second échec, aucune attaque par force brute n'est possible à distance.
 
-Les attaques possibles ne sont que celles, depuis l'appareil, depuis le serveur ou depuis les deux conjointement.
+Les attaques possibles sont celles effectuées, depuis l'appareil, depuis le serveur ou depuis les deux conjointement.
 
-##### Par attaque depuis l'appareil
+##### Attaque depuis l'appareil
 Le code PIN **N'EST PAS** stocké localement sur l'appareil: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
 - en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
 - sous forme crypté par une clé locale dans le serveur.
 
-> Le seul moyen d'attaque serait de casser un des deux couples de codes `(s1 s2)`, ce qui reste impossible si s1 et s2 sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque depuis un appareil.
+> Le seul moyen d'attaque serait de casser un des deux couples de codes `(s1 s2)`, ce qui reste impossible si `s1` et `s2` sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque depuis un appareil.
 
 ##### Par attaque depuis le serveur
 L'administrateur du serveur protège l'accès à la base de données. Les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
-- a) avoir accès à la base,
-- b) avoir la clé de cryptage de l'administrateur (que l'hébergeur de la base de données ne connaît pas).
+- a) avoir un accès en lecture à la base, que le prestataire hébergeur de la base de données a.
+- b) avoir la clé de cryptage de l'administrateur, que le prestataire hébergeur de la base de données, n'a pas.
 
 En supposant que l'administrateur de la base de données dispose aussi de la clé de cryptage des données dans la base, la clé `Kp` s'obtient depuis `kppin` comme cryptage de `Kp` par `pinkl`, cryptage du `code PIN` par la clé `Kl`: la clé `Kl` ayant été tirée aléatoirement sur 32 bytes, c'est impossible.
 
 ##### Par attaque conjointe: vol de l'appareil + complicité de l'administrateur
-Cette fois la clé `Kl` est accessible, en clair sur le poste. 
+Cette fois la clé `Kl` est accessible, en clair sur l'appareil. 
 
-Le _token_ de l'application est lisible en lançant l'application en _debug_: il est possible d'accéder au quaduplet protégeant `kppin` par recherche dans la base de la ligne identifiée par le `sha(SH(token, Kl))`: il _suffit_ de casser par force brute le code PIN jusqu'à ce que, `pinkl` le cryptage du code PIN testé crypté par `Kl`, ait un `sha` dont la valeur est stockée dans le quadruplet. Le décryptage du kppin de ce quaduplet par ce pinkl, donne la clé `Kp`.
+Le _token_ de l'application est lisible en lançant l'application en _debug_: il est possible d'accéder au quadruplet protégeant `kppin` par recherche dans la base de la ligne identifiée par le `sha(SH(token, Kl))`: il _suffit_ de casser par force brute le code PIN jusqu'à ce que, `pinkl` le cryptage du code PIN testé crypté par `Kl`, ait un `sha` dont la valeur est stockée dans le quadruplet. Le décryptage du `kppin` de ce quadruplet par ce `pinkl`, donne la clé `Kp`.
 
 ##### _Dureté_ du code PIN
 Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
@@ -683,11 +704,11 @@ En conséquence pour casser le code PIN de `bob` sur un de ses appareils favoris
 - avoir la complicité de l'administration technique du serveur,
 - avoir de gros moyens informatiques.
 
-Ces conditions constituent un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ `bob` de donner son code PIN.
+Ces conditions constituent un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ `bob` de donner son code PIN (tant qu'il est vivant).
 
-Depuis n'importe quel poste l'utilisateur peut s'identifier et détruire instantannément les données associées à ses appareils favoris, mais si hacker détient l'appareil et qu'il finit par obtenir la clé `Kp`, les bases de données locales de `bob` sont décryptables.
+Depuis n'importe quel appareil l'utilisateur peut s'identifier et détruire instantanément les données associées à ses appareils favoris, mais si le hacker détient l'appareil et qu'il finit par obtenir la clé `Kp`, les bases de données locales de `bob` peuvent être décryptées.
 
-> SI l'hypothèse d'une collusion possible entre les administrateurs ET des voleurs capables de dérober un appareil est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et allourdir ses sessions sur l'appareil, **soit** il faut choisir un code PIN dur à plus de 15 signes (ce qui reste vivable) qui sera incassable.
+> SI l'hypothèse d'une collusion possible entre les administrateurs ET des voleurs capables de dérober un appareil est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et alourdir ses sessions sur l'appareil, **soit** il faut choisir un code PIN dur à plus de 15 signes (ce qui reste vivable) qui sera incassable.
 
 ## Bases de données locale _cache_ sur un poste personnel
 Pour une **application** donnée, sur un poste _personnel_, le profil `bob` détient une petite base de données locale **par organisation**. Elle contient:
@@ -715,6 +736,9 @@ La base de données locale d'une application pour une organisation contient les 
 La base de données est cryptée par la clé `Kp` et l'application doit se la procurer:
 - l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé `Kp` cryptée par la clé `Kl` lisible localement.
 - l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir `Kp` depuis la variable locale `$bob$kp`.
+
+# Les _activités_ définies dans une application
+
 
 # Annexe: le Use Case _circuit court_
 
