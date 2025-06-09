@@ -584,86 +584,95 @@ Lors d'une prochaine ouverture de l'application l'utilisateur, après avoir donn
 - l'unicité de `s1 s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
 
 #### Accès par l'utilisateur à sa _fiche personnelle_
-Quand un utilisateur s'est enregistré, à l'ouverture d'une application, celle-ci lui propose de démarrer une des sessions favorites listées dans sa fiche personnelle: 
+Quand un utilisateur est enregistré, l'ouverture d'une application lui propose de démarrer une des sessions favorites listées dans sa fiche personnelle: 
 - lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
 - le serveur peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `USERID` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)` pour ce `USERID`. Il peut retourner,
   - la clé `Kp` cryptée par `s1 + s2` (et qu'il est incapable de décrypter faute de connaître `s1` et `s2`).
-  - la clé `Kl` cryptée par Kp: _clé locale_ requise sur les appareils favoris.
   - le set des _préférences_ de l'utilisateur crypté par `Kp`.
   - la liste des _sessions favorites_ et des _credentials_ enregistrés cryptée par `Kp`.
-  - le `code PIN crypté par Kl` pour un accès depuis un appareil favori (voir ci-après).
 
-> Quand il n'a pas utilisé de session favorite enregistrée, l'utilisateur peut créer sa session depuis une des _sessions template_ codée de l'application, en fournir les paramètres (le code de son point-de-livraison, son code consommateur) et indiquer quel credential de sa liste il veut utiliser (ou saisir ses intiales et mots de passe). La session peut être enregistrée pour une ouverture en un clic la prochaine fois.
+> Quand il n'a pas utilisé de session favorite enregistrée, l'utilisateur peut créer sa session depuis une des _sessions template_ codée de l'application, en fournir les paramètres (le code de son point-de-livraison, son code consommateur) et indiquer quel credential de sa liste il veut utiliser (ou le saisir, par exemple ses initiales et mot de passe). La session peut être enregistrée comme favorite pour une ouverture en un clic la prochaine fois.
 
-L'application terminale dispose ainsi en mémoire de la fiche de l'utilisateur _clair_.
-
-L'application terminale peut ainsi désormais:
+L'application terminale disposant en mémoire de la fiche de l'utilisateur en _clair_ peut:
 - mettre à jour les _préférences_ de l'utilisateur et les enregistrer cryptées par la clé `Kp` qu'il vient de récupérer.
 - pour chaque _session favorite_ et _credential_,
   - proposer de l'effacer le cas échéant,
   - adapter son _libellé_ facilitant le choix de l'utilisateur.
-- modifier son code PIN d'accès rapide.
 
 > L'utilisateur peut avoir plusieurs usages plus ou moins fréquents pour accéder à ses applications dans des circonstances diverses: l'utilisation de sa _fiche personnelle_ lui permet de n'avoir qu'un couple `s1 s2` à se souvenir. 
 
-> Dans ce répertoire la fiche d'un utilisateur est anonyme, inconnu des GAFAM, ne contient aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile (sauf à les avoir volontairement sasis en _préférences_ mais elles sont cryptées). Son enregistrement dans ce répertoire est inviolable, pour autant que les couples `s1 s2` en clés principales et de secours, qu'il a choisi soient respectueux d'un minimum de règles simples.
+> Dans ce répertoire la fiche d'un utilisateur est anonyme, inconnu des GAFAM, ne contient aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile (sauf à les avoir volontairement saisies en _préférences_ mais elles sont cryptées). Son enregistrement dans ce répertoire est inviolable, pour autant que les couples `s1 s2` en clés principales et de secours, qu'il a choisi soient respectueux d'un minimum de règles simples.
 
 ### _Appareils favoris_ de l'utilisateur
-Un appareil _de confiance / personnel_ est un appareil où l'utilisateur considère qu'il peut stocker des données locales permanentes et où il s'est choisi un _alias_, par exemple `bob` qui préfixe le nom des données stockées localement.
-- `$bob$kp` : couple de 2 cryptages de la clé `Kp` par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
-- `$bob$pf` : _fiche personnelle_ cryptée par la clé `Kp`.
-- `$bob$kl` : _clé locale_ : cette clé aléatoire est générée la première fois que `bob` déclare cet appareil comme favori. De facto elle identifie l'utilisateur sur cet appareil.
-- `$bob$orgX$myappX`: pour chaque application `myappX`, une base de données locale mémoire _cache_ des documents de l'organisation `orgX` chargés lors des sessions antérieures. Les contenus des documents sont cryptés par la clé `Kp`.
-
-> Ces données _peuvent être détruites_ à n'importe quel moment par n'importe quel utilisateur de l'appareil: elles ne sont disponibles que **du fait de la bonne entente présumée entre les utilisateurs de l'appareil**. Sur le PC ou téléphone prêté par un inconnu, dans un cyber-café, outre qu'il n'est pas correct d'occuper ainsi de l'espace, il est surtout déraisonnable d'espérer le retrouver plus tard.
+Un appareil _de confiance / personnel_ est un appareil où l'utilisateur considère qu'il peut stocker des données locales permanentes.
 
 Exécuter une application sur un _appareil favori_ de l'utilisateur présente des avantages significatifs:
 - **réduction de l'usage du réseau comme du nombre d'accès à la base de données:** de nombreux documents peuvent être déjà présents dans la base de données locales de l'application. La mise à niveau de ceux-ci est _incrémentale_ ne chargeant que ceux ayant changé ou nouveaux.
 - **possibilité d'avoir des sessions en mode _avion_**, sans aucun accès au réseau (voir plus loin les restrictions associées).
 - **authentification rapide depuis un code PIN court** au lieu de devoir fournir une de ses deux clés longues `s1 s2` pour accéder à sa `fiche personnelle`.
 
+#### Stockage local à l'appareil
+Une **micro base locale des alias** stocke quelques données relatives aux utilisateurs ayant déclaré l'appareil comme _favori_.
+- la base hébergée / gérée par le browser est spécifique du _domaine_ de l'application terminale.
+- elle est cryptée mais la clé figurant dans l'application terminale elle peut être retrouvée plus ou moins facilement en debug.
+
+Une table a une ligne par _alias_ d'utilisateur comportant:
+- `alias` : le code d'alias d'un des utilisateurs.
+- `ka` : une clé de 32 bytes générée à la création de l'entrée.
+- `fp` : la _fiche personnelle_ de l'utilisateur cryptée par sa clé `Kp`.
+- `ckp` : le couple de 2 cryptages de la clé `Kp` de l'utilisateur par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
+
 #### Déclarer un appareil comme favori
-La liste des _alias_ ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit (re)déclarer cet appareil comme favori ou si c'était déjà fait.
+La liste des _alias_ des utilisateurs ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit,
+- déclarer cet appareil comme favori.
+- si c'était déjà fait changer son code PIN.
+- supprimer les entrées des _alias_ qui ne l'inspirent pas.
 
-Pour effectuer cette déclaration, l'utilisateur doit fournir une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver sa fiche personnelle:
-- s'il y a déjà un code PIN enregistré, l'utilisateur le donne pour vérification, 
-- sinon, c'est le premier appareil qu'il déclare favori, il donne **un code PIN d'au moins 8 signes** et l'alias `bob` sous lequel il sera identifié localement sur l'appareil.
+Pour déclarer l'appareil comme favori ou refixer son code PIN, l'utilisateur doit fournir,
+- l'alias de son choix, sélectionné dans la liste ou inventé à l'instant,
+- **un code PIN d'au moins 8 signes**,
+- une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver sa fiche personnelle.
 
-Pour une première déclaration sur cet appareil, l'application terminale:
-- récupère la clé locale `Kl` dans la fiche personnelle s'il y en a une, ou en génère aléatoirement une qui sera cryptée par la clé `Kp` et stockée dans la fiche personnelle. 
-- stocke la clé `Kl`en clair dans la variable locale `$bob$kl`.
-- stocke le clé `Kp` (cryptée par les deux clés d'accès `s1, s2`) dans la variable locale `$bob$kp`.
-- stocke la _fiche personnelle_ cryptée par `Kp` dans la variable locale `$bob$pf`.
-- calcule `pinkl` comme cryptage du `code PIN` par la clé `Kl`.
-- calcule `kppin` comme cryptage de `Kp` par `pinkl`.
-- récupère `token`, le jeton qui identifie l'application sur cet appareil.
-- fait stocker dans la fiche personnelle un quadruplet correspondant à la déclaration de l'appareil comme favori: `{ sha(SH(token, Kl)), sha(pinkl), kppin, err: 0 }`.
-
-##### Plus d'un _alias_ sur un appareil pour un utilisateur
-L'utilisateur ayant déclaré un alias `bob` sur un appareil peut en déclarer un autre `bill` sur ce même appareil:
-- `bill` aura son propre jeu de variables `$bil$kp $bill$kl $bill$pf` et ses propres bases locales _cache_.
-- le code PIN sera le même pour `bob` et `bill`.
-- la clé Kl sera la même pour `bob` et `bill`.
-- la copie de la fiche personnelle de l'utilisateur dans `$bill$fp` sera identique à celle de `bob` mais en général _copiée_ à un autre instant (donc ayant une version antérieure ou postérieure).
-- les bases locales _cache_ sont différentes, les mêmes activités n'ont en général pas été effectuées sous les deux alias. En conséquence en mode _avion_ les documents peuvent apparaître différents (des listes différentes) et de versions différentes (pas vus au même instant).
-
-#### Ouverture d'une application sur un appareil déclaré _favori_
-L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des utilisateurs habituels de l'appareil.
+> Si l'alias avait déjà une entrée, l'application terminale va essayer le code PIN proposé: en cas d'échec, l'entrée de l'alias dans le _répertoire des alias_ est supprimée.
 
 L'application terminale:
-- récupère la clé `Kl` dans la variable `$bob$kl` et le `token` de l'application sur l'appareil. Elle soumet _au serveur une requête d'authentification_ par code PIN avec:
-  - `SH(token, Kl)` : ceci retrouve `sha(pinkl) kppin USERID`.
-  - `pinkl` : SI `pinkl` ne correspond pas au `sha(pinkl)` de la fiche personnelle, le compteur d'erreur `err` est mis à 1. **Si ce compteur était déjà à 1, le code PIN et l'entrée de l'appareil sont détruites**.
-  - retourne à l'application terminale,
-    - la _fiche personnelle_ identifiée par `USERID`,
-    - `kppin`.
-- l'application terminale disposant de la clé locale `Kl`, décrypte `kppin` avec `Kl` et récupère ainsi `Kp` ce qui lui permet,
-  - de décrypter **la fiche personnelle en mémoire**,
-  - de la stocker localement pour usage en mode avion dans `$bob$pf`.
+- récupère depuis l'entrée de répertoire accessible par `(s1, s2)`,
+  - `fp` : la _fiche personnelle_ de l'utilisateur cryptée par la clé `Kp` de l'utilisateur. Disposant de s1 s2, l'application terminale,
+    - obtient `Kp`,
+    - décrypte la fiche personnelle avec `Kp`.
+  - `userid` : de l'utilisateur.
+  - `ckp` : le couple de 2 cryptages de la clé `Kp` de l'utilisateur par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
+- génère aléatoirement une clé `Ka` qui est identifiante de l'alias.
+- enregistre une entrée dans le _répertoire des alias_:
+  - `aliasid` : le SHA de `Ka`, clé d'accès dans ce répertoire.
+  - `userid` : de l'utilisateur ayant déclaré cet alias.
+  - `kppin` : cryptage de `Kp` par le _cryptage du code PIN (allongé) par `Ka`._
+  - `err` : 0. Nombre de tentatives infructueuses d'accès au code PIN.
+  - `lm` : dernier mois d'accès, en l'occurrence le mois de création.
+enregistre dans la base locale des alias une entrée avec : `alias ka fp ckp`.
+
+In fine l'application terminale dispose en mémoire de la _ficher personnelle_ en clair de l'utilisateur, obtenue par la saisie de `(s1 s2)`.
+
+#### Ouverture d'une application sur un appareil déclaré _favori_
+L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des utilisateurs habituels de l'appareil obtenue en lisant la base locale des alias.
+
+L'application terminale:
+- dispose du code de l'alias, du code PIN et de la clé `Ka` associée.
+- lit l'entrée `a` du _répertoire des alias_ par l'accès `SHA(Ka)`.
+- calcule x _cryptage du code PIN (allongé) par `Ka`_.
+- tente d'obtenir `Kp` en décryptant `a.kppin` par `x`:
+  - enregistre dans lm le mois courant (si sa valeur a changé).
+  - en cas d'échec, incrémente le compteur d'erreur et s'il était déjà à 1 supprime dans le _répertoire des alias_ l'entrée `a`.
+  - en cas de réussite il dispose de `Kp`:
+    - accède à `fp` la fiche personnelle de l'utilisateur par `a.userid`,
+    - la décrypte par `Kp`,
+    - stocke dans la base locale des alias de l'appareil, `fp` et `ckp` (ce qui les met à jour).
+
+In fine l'application terminale dispose en mémoire de la _ficher personnelle_ en clair de l'utilisateur, obtenue par la saisie du code PIN.
 
 L'utilisateur et l'application terminale se retrouvent dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longues `s1, s2`, la fiche personnelle est en clair en mémoire. Depuis un appareil favori, l'utilisateur a seulement saisi un code PIN plus court que `(s1, s2)` et désigné un alias local.
 
-> Le code PIN ne peut jamais être décrypté avec seulement les données du serveur ou seulement les données locales de l'appareil (comme la clé `Kp`).
+> Le code PIN ne peut jamais être décrypté, ni avec seulement les données du _répertoire des alias_, ni seulement avec les données de la base locale de l'appareil.
 
 > L'alias local reste local: il sert seulement à l'utilisateur à désigner le groupe de variables locales `$kp $Kl $pf` et les bases de données des couples `application, organisation`. En renommant en debug ces données, ou par une fonction locale de l'application, les alias peuvent être changés. Ils ne sont pas stockés (ni en clair, ni haché) dans la fiche personnelle stockée dans le répertoire central des utilisateurs.
 
