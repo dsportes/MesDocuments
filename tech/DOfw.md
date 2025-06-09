@@ -612,13 +612,11 @@ Exécuter une application sur un _appareil favori_ de l'utilisateur présente de
 - **authentification rapide depuis un code PIN court** au lieu de devoir fournir une de ses deux clés longues `s1 s2` pour accéder à sa `fiche personnelle`.
 
 #### Stockage local à l'appareil
-Une **micro base locale des alias** stocke quelques données relatives aux utilisateurs ayant déclaré l'appareil comme _favori_.
-- la base hébergée / gérée par le browser est spécifique du _domaine_ de l'application terminale.
-- elle est cryptée mais la clé figurant dans l'application terminale elle peut être retrouvée plus ou moins facilement en debug.
+Une **micro base locale des alias** stocke quelques données relatives aux utilisateurs ayant déclaré l'appareil comme _favori_. Elle est hébergée / gérée par le browser dans un espace spécifique du _domaine_ de l'application terminale.
 
-Une table a une ligne par _alias_ d'utilisateur comportant:
-- `alias` : le code d'alias d'un des utilisateurs.
-- `ka` : une clé de 32 bytes générée à la création de l'entrée.
+La base a une table ayant une ligne par _alias_ d'utilisateur comportant:
+- `alias` : l'alias choisi par un des utilisateurs.
+- `ka` : une clé de 32 bytes générée à la création de l'entrée. Elle est cryptée _mollement_ par une clé détenue dans le source de l'application terminale (donc lisible en debug avec un peu de fatigue).
 - `fp` : la _fiche personnelle_ de l'utilisateur cryptée par sa clé `Kp`.
 - `ckp` : le couple de 2 cryptages de la clé `Kp` de l'utilisateur par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
 
@@ -646,7 +644,9 @@ L'application terminale:
 - enregistre une entrée dans le _répertoire des alias_:
   - `aliasid` : le SHA de `Ka`, clé d'accès dans ce répertoire.
   - `userid` : de l'utilisateur ayant déclaré cet alias.
-  - `kppin` : cryptage de `Kp` par le _cryptage du code PIN (allongé) par `Ka`._
+  - soit `x` le _SH(code PIN allongé, `Ka`)_.
+  - `shax` : le SHA de `x`.
+  - `kpx` : le cryptage de `Kp` par `x`.
   - `err` : 0. Nombre de tentatives infructueuses d'accès au code PIN.
   - `lm` : dernier mois d'accès, en l'occurrence le mois de création.
 enregistre dans la base locale des alias une entrée avec : `alias ka fp ckp`.
@@ -657,16 +657,23 @@ In fine l'application terminale dispose en mémoire de la _ficher personnelle_ e
 L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des utilisateurs habituels de l'appareil obtenue en lisant la base locale des alias.
 
 L'application terminale:
-- dispose du code de l'alias, du code PIN et de la clé `Ka` associée.
-- lit l'entrée `a` du _répertoire des alias_ par l'accès `SHA(Ka)`.
-- calcule x _cryptage du code PIN (allongé) par `Ka`_.
-- tente d'obtenir `Kp` en décryptant `a.kppin` par `x`:
-  - enregistre dans lm le mois courant (si sa valeur a changé).
-  - en cas d'échec, incrémente le compteur d'erreur et s'il était déjà à 1 supprime dans le _répertoire des alias_ l'entrée `a`.
-  - en cas de réussite il dispose de `Kp`:
-    - accède à `fp` la fiche personnelle de l'utilisateur par `a.userid`,
-    - la décrypte par `Kp`,
-    - stocke dans la base locale des alias de l'appareil, `fp` et `ckp` (ce qui les met à jour).
+- dispose,
+  - du code de l'alias, 
+  - du code PIN, 
+  - de la clé `Ka` associée.
+  - de `x`, le _cryptage du code PIN (allongé) par `Ka`_
+- soumet une requête 1 au serveur avec en arguments: `sha(x)` et `aliasid`: le `sha(Ka)`:
+  - lit l'entrée `a` du _répertoire des alias_ par sa clé `aliasid`.
+  - enregistre dans `a.lm` le mois courant (si sa valeur a changé).
+  - compare `a.shax` et `sha(x)` reçu en argument:
+      - en cas d'inégalité, incrémente le compteur d'erreur `a.err` et s'il est supérieur à 1 supprime l'entrée `a` du _répertoire des alias_ .
+      - en cas d'égalité, retourne `a.userid` et `a.kpx` 
+- obtient `Kp` en décryptant `a.kpx` par `x`.
+- soumet une requête 2 au serveur avec userid en argument et en récupère en retour `fp` la _fiche personnelle_ de l'utilisateur par sa clé `userid`.
+- décrypte la fiche par `Kp` et en extrait `ckp`.
+- stocke dans la base locale des alias de l'appareil, dans l'entrée correspondante de l'alias de l'utilisateur, `fp` (cryptée) et `ckp` (ce qui les met à jour).
+
+> **Remarque**: la clé `Kp` n'a jamais été en clair dans un serveur.
 
 In fine l'application terminale dispose en mémoire de la _ficher personnelle_ en clair de l'utilisateur, obtenue par la saisie du code PIN.
 
@@ -674,56 +681,56 @@ L'utilisateur et l'application terminale se retrouvent dans les mêmes condition
 
 > Le code PIN ne peut jamais être décrypté, ni avec seulement les données du _répertoire des alias_, ni seulement avec les données de la base locale de l'appareil.
 
-> L'alias local reste local: il sert seulement à l'utilisateur à désigner le groupe de variables locales `$kp $Kl $pf` et les bases de données des couples `application, organisation`. En renommant en debug ces données, ou par une fonction locale de l'application, les alias peuvent être changés. Ils ne sont pas stockés (ni en clair, ni haché) dans la fiche personnelle stockée dans le répertoire central des utilisateurs.
+> L'alias est local et sert seulement à l'utilisateur à retrouver facilement sa ligne dans la liste présentée à so choix. Son texte peut être n'importe quoi et être modifié à loisir.
 
 #### Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
-L'entrée dans la _fiche personnelle_ dans le répertoire des utilisateurs étant détruite par le serveur au second échec, aucune attaque par force brute n'est possible à distance.
+L'entrée dans le _répertoire des alias_ étant détruite par le serveur au second échec, aucune attaque par force brute n'est possible à distance.
 
-Les attaques possibles sont celles effectuées, depuis l'appareil, depuis le serveur ou depuis les deux conjointement.
+Les attaques possibles restent celles effectuées, depuis l'appareil, depuis le serveur ou depuis les deux conjointement.
 
 ##### Attaque depuis l'appareil
 Le code PIN **N'EST PAS** stocké localement sur l'appareil: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
 - en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
-- sous forme crypté par une clé locale dans le serveur.
+- par le sha de son cryptage par la clé Ka dans le _répertoire des alias_.
 
-> Le seul moyen d'attaque serait de casser un des deux couples de codes `(s1 s2)`, ce qui reste impossible si `s1` et `s2` sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque depuis un appareil.
+> Le seul moyen d'attaque serait de casser un des deux couples de codes `(s1 s2)`, ce qui est impossible si `s1` et `s2` sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque depuis un appareil.
 
 ##### Par attaque depuis le serveur
-L'administrateur du serveur protège l'accès à la base de données. Les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
-- a) avoir un accès en lecture à la base, que le prestataire hébergeur de la base de données a.
-- b) avoir la clé de cryptage de l'administrateur, que le prestataire hébergeur de la base de données, n'a pas.
+L'administrateur du serveur protège l'accès à la base de données contenant les _répertoires des utilisateurs et des alias_. Les données de celle-ci sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut donc,
+- a) avoir un accès en lecture à la base: remarque, le prestataire hébergeur de la base de données l'a.
+- b) avoir la clé de cryptage de l'administrateur: remarque, le prestataire hébergeur de la base de données ne l'a pas.
 
-En supposant que l'administrateur de la base de données dispose aussi de la clé de cryptage des données dans la base, la clé `Kp` s'obtient depuis `kppin` comme cryptage de `Kp` par `pinkl`, cryptage du `code PIN` par la clé `Kl`: la clé `Kl` ayant été tirée aléatoirement sur 32 bytes, c'est impossible.
+En supposant que l'administrateur de la base de données dispose aussi de la clé de cryptage des données dans la base, le hacker peut tester par force brute des codes PIN `px`:
+- calcul de `x` son SH(`px`, `Ka`) et vérification que `x` décrypte `kpx`.
+- mais il n'a pas `Ka`, clé de 32 bytes tirée aléatoirement, donc inatteignable par force brute.
 
 ##### Par attaque conjointe: vol de l'appareil + complicité de l'administrateur
-Cette fois la clé `Kl` est accessible, en clair sur l'appareil. 
+Cette fois la clé `Ka` est accessible, dans le debug de l'application terminale en exécution sur l'appareil. 
 
-Le _token_ de l'application est lisible en lançant l'application en _debug_: il est possible d'accéder au quadruplet protégeant `kppin` par recherche dans la base de la ligne identifiée par le `sha(SH(token, Kl))`: il _suffit_ de casser par force brute le code PIN jusqu'à ce que, `pinkl` le cryptage du code PIN testé crypté par `Kl`, ait un `sha` dont la valeur est stockée dans le quadruplet. Le décryptage du `kppin` de ce quadruplet par ce `pinkl`, donne la clé `Kp`.
+Le hacker peut tester par force brute des codes PIN `px`:
+- calcul de `x` son SH(`px`, `Ka`) et vérification que `x` décrypte `kpx`.
 
-##### _Dureté_ du code PIN
 Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
 
 Toutefois UN SEUL essai d'un code demande un temps calcul important, le Strong Hash n'est _strong_ que parce qu'il exige du temps calcul non parallélisable et inapte à bénéficier de processeurs dits _graphiques_.
 
-Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique certes il va s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la pa`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevable de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
+Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique il va certes s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la pa`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevable de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
 
-En conséquence pour casser le code PIN de `bob` sur un de ses appareils favoris, un hacker doit:
+En conséquence pour casser un code PIN sur un appareil favori, un hacker doit:
 - connaître le login / mot de passe de l'appareil,
-- le dérober, au moins un moment, et lancer l'application pour en obtenir le _token_ et la clé locale `Kl` de `bob`,
+- l'emprunter et y lancer l'application pour en obtenir les `Ka`.
 - avoir la complicité de l'administration technique du serveur,
 - avoir de gros moyens informatiques.
 
-Ces conditions constituent un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ `bob` de donner son code PIN (tant qu'il est vivant).
+Ces conditions constituent un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ l'utilisateur de donner son code PIN (tant qu'il est vivant).
 
-Depuis n'importe quel appareil l'utilisateur peut s'identifier et détruire instantanément les données associées à ses appareils favoris, mais si le hacker détient l'appareil et qu'il finit par obtenir la clé `Kp`, les bases de données locales de `bob` peuvent être décryptées.
-
-> SI l'hypothèse d'une collusion possible entre les administrateurs ET des voleurs capables de dérober un appareil est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et alourdir ses sessions sur l'appareil, **soit** il faut choisir un code PIN dur à plus de 15 signes (ce qui reste vivable) qui sera incassable.
+> SI l'hypothèse d'une collusion possible entre, les administrateurs ET des voleurs capables de dérober un appareil et d'y ouvrir une session, est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et alourdir ses sessions sur l'appareil, **soit** il faut choisir un code PIN _dur_ à plus de 15 signes (ce qui reste vivable) qui sera incassable.
 
 ## Bases de données locale _cache_ sur un poste personnel
-Pour une **application** donnée, sur un poste _personnel_, le profil `bob` détient une petite base de données locale **par organisation**. Elle contient:
+Sur un poste _favori_, le profil `bob` détient une petite base de données locale **par application** portant le nom de l'application suivi d'un hash de la clé `Ka`. Elle contient:
 - des copies (forcément retardées par principe) de documents de l'application.
 - des copies également retardées de _fils de documents_.
-- un ou deux ou trois index définissent à quels fils, chaque document est attaché.
+- trois index définissent à quels fils, chaque document est attaché.
 - les contenus des documents et des fils sont cryptés par la clé `Kp` de l'utilisateur.
 
 Quand une application est lancée elle va déterminer en fonction du souhait de l'utilisateur sur la page d'accueil, quels _fils de documents_ contiennent les documents à charger en mémoire:
@@ -738,13 +745,13 @@ En effectuant cette opération pour tous les fils constituant le contexte de tra
 - b) a mis à jour la base de données locales, qui pour cette session ouverte par l'utilisateur, est à jour.
 
 ## Le mode _avion_
-Il est possible sur un poste _personnel_ où l'utilisateur a ouvert récemment l'application et accédé à une de ses sessions favorites. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
+Il est possible sur un poste _favori_ où l'utilisateur a ouvert récemment l'application et accédé à une de ses sessions favorites. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
 
-La base de données locale d'une application pour une organisation contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: certes ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
+La base de données locale d'une application contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: certes ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
 
 La base de données est cryptée par la clé `Kp` et l'application doit se la procurer:
-- l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé `Kp` cryptée par la clé `Kl` lisible localement.
-- l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir `Kp` depuis la variable locale `$bob$kp`.
+- l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé `Kp` cryptée par la clé `Ka` lisible localement.
+- l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir `Kp` depuis la base locale des alias.
 
 # Les _activités_ définies dans une application
 
