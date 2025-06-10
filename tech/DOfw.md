@@ -3,26 +3,30 @@ layout: page
 title: Réflexions à propos d'un framework "Orienté document"
 ---
 
-Le mot _application_ (Facebook, TikTok ...) désigne en réalité un système applicatif dont l'architecture schématique peut se résumer en deux niveaux:
+Le mot _application_ (Facebook, TikTok ...) correspond à une architecture schématiquement en deux niveaux:
 - des _serveurs centraux_ détiennent les données et effectuent les calculs sollicités par des demandes émises par ...
 - des _applications terminales_ s'exécutant sur les terminaux / appareils des utilisateurs et sollicitant les serveurs centraux.
 
 ### Installation de l'application sur un appareil / terminal (_device_)
 Un PC, une tablette, un mobile sont des _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...).
 
-Selon la variante technique choisie, il faut,
-- soit dans un browser _ouvrir la page Web_ de l'application.
-- soit _l'installer_ sur chaque appareil d'où un utilisateur souhaite s'en servir.
+Selon la variante technique choisie, un utilisateur démarre une application:
+- soit dans un browser _en ouvrant la page Web_ de l'application.
+- soit _en l'installant_ sur un de ses appareils puis en la lançant.
 
 #### Application de type Web : PWA _Progressive Web Application_
-Depuis un browser l'utilisateur appelle une URL d'un _magasin d'applications_ qui ouvre une page contenant l'application:
+Depuis un browser l'utilisateur appelle une URL d'un _magasin d'applications_ qui ouvre la page d'accueil de l'application:
 - l'application peut être directement utilisable depuis cette page.
-  - L'utilisateur peut déclarer un _raccourci sur son bureau_ (ou dans son browser) vers cette page afin d'éviter la saisie de l'URL de l'application. 
-  - Certains OS (comme iOS) des appareils ne permettent pas une utilisation directe d'une telle page Web et oblige à une installation, au demeurant simple, de l'application depuis cette page.
-- l'application _peut ou doit_ (selon le browser utilisé et l'OS de l'appareil) être _installée_ par le browser. Elle apparaît ensuite comme une application locale de l'appareil avec une icône de lancement, typiquement sur le bureau.
+  - L'utilisateur peut déclarer un _raccourci sur son bureau_ ou dans son browser vers cette URL afin d'éviter la ressaisie de celle-ci. 
+  - Certains OS (comme iOS) des appareils ne permettent pas une utilisation directe d'une telle page Web et oblige à une _installation_, au demeurant simple, de l'application depuis cette page.
+- l'application _peut ou doit_ selon le browser utilisé et l'OS de l'appareil, être _installée_ par le browser. Elle apparaît ensuite comme une application locale de l'appareil avec une icône de lancement, typiquement sur le bureau.
+
+Le changement de version d'une application PWA est automatique: au lancement la vérification d'existence et le téléchargement d'une nouvelle version est automatique, l'utilisateur étant convié à appuyer sur un bouton pour redémarrer celle-ci.
 
 #### Application de type _mobile_
 L'utilisateur l'installe depuis le ou un des magasins d'application supportés par l'OS du mobile.
+
+Le changement de version est en général automatique mais peut être opérée manuellement.
 
 > Il n'y a ensuite quasiment pas de différence perceptible par l'utilisateur à l'utilisation de l'application, il clique sur une icône pour l'ouvrir (la lancer).
 
@@ -32,8 +36,8 @@ L'utilisateur l'installe depuis le ou un des magasins d'application supportés p
 Les applications en exécution sur leur appareil envoient à des **serveurs centraux** des demandes de mise à jour et consultation des données de l'application.
 
 Le terme générique de _serveurs_ recouvre des variantes techniques non perceptibles de l'extérieur:
-- **Serveurs permanents**: plusieurs processus sont en exécution en permanence afin de traiter les requêtes qui leurs parviennent sur l'URL du pool de processus et ont été routées vers l'un ou l'autre.
-- **Cloud Function**: un _serveur éphémère_ du _Cloud_ est lancé pour traiter une demande de service reçue sur son URL:
+- **Serveurs permanents**: plusieurs processus sont en exécution en permanence afin de traiter les requêtes qui leur parviennent sur l'URL du pool de processus et ont été routées vers l'un ou l'autre.
+- **Cloud Functions**: un _serveur éphémère_ du _Cloud_ est lancé pour traiter une demande de service reçue sur son URL:
   - la demande est traitée et le serveur éphémère reste actif un certain temps pour traiter d'autres demandes. Un serveur éphémère peut traiter plusieurs dizaines de demandes en parallèle.
   - en l'absence de nouvelles demandes, un serveur éphémère reste en attente, entre 3 et 60 minutes pour fixer les idées, puis s'interrompt.
   - si le flux des demandes sature la capacité d'un serveur éphémère, un deuxième, voire un troisième etc. sont lancés.
@@ -54,7 +58,7 @@ Deux prestataires, par exemple **Rouge** et **Bleu**, peuvent proposer un même 
 Les services `randos` proposés par **Rouge** et **Bleu** sont-ils _identiques_ ?
 - **ils peuvent l'être** avec exactement le même logiciel, pas forcément à tout instant la même version.
 - **ils peuvent différer** avec un `randos/Rouge` proposant des fonctionnalités additionnelles par rapport à `randos/Bleu`.
-- enfin ils peuvent différer selon le prix de leurs prestations et leur qualité (temps de réponse, disponibilité, restrictions de volume, ...).
+- enfin ils peuvent différer selon le prix de leurs prestations et leur qualité d'usage: temps de réponse, disponibilité, restrictions de volume...
 
 > Si le nom d'un service comme `randos` traduit sa fonctionnalité générale, un _service précis_ est désigné par le couple du **nom de service / nom du prestataire** le proposant : `randos/Rouge`. Ce couple se traduit par une URL qui permet de solliciter _ce_ service spécifiquement délivré par _ce_ prestataire.
 
@@ -69,12 +73,12 @@ C'est à chaque utilisateur de choisir la **variante** qu'il veut installer (voi
 
 Les _variantes_ de l'application terminale `randos` ont pour caractéristiques de faire appel au service `randos` d'un des prestataires le proposant.
 
-> Il n'est pas exclu qu'une application _terminale_ donnée soit restrictive vis à vis du choix du prestataire de service. Ce peut être le cas quand un prestataire de service _haut de gamme_ propose aussi dans un magasin une variante plus complète de l'application terminale complétée d'écrans accédant aux prestations supplémentaires qu'il offre.
+> Une application _terminale_ donnée peut avoir des exigences vis à vis du choix du prestataire de service. Un prestataire de service _haut de gamme_ peut proposer aussi dans un magasin une variante plus complète de l'application terminale avec des écrans accédant aux prestations supplémentaires qu'il offre.
 
 # Organisations: les services sont _multi-tenant_
 Un service comme `randos`, peut à la manière de Discord, proposer d'héberger les applications d'associations de randonneurs distinctes: chaque organisation / _tenant_ dispose de _son_ espace de données propre complètement étanche à celui des autres.
 
-Un service `boutiques` va proposer de gérer plusieurs boutiques, pas une seule, mais de manière à ce que les données de chacune soient totalement isolées de celle des autres.
+Un service `boutiques` propose de gérer plusieurs boutiques, pas une seule, mais de manière à ce que les données de chacune soient totalement isolées de celle des autres.
 
 Les données d'un service d'un prestataire sont stockées dans deux _mémoires persistantes_ (voir plus loin):
 - **UNE base de données** logiquement strictement partitionnée par organisation, sans aucun lien ou référence à des données / documents d'une organisation par une autre.
@@ -88,13 +92,13 @@ UNE base centrale unique pour `randos` indique pour chaque organisation le prest
 > Une organisation peut _migrer_ d'un prestataire à un autre: ce transfert technique des données est génériquement possible, sauf quand un prestataire a des données additionnelles absentes chez l'autre.
 
 ### Une application terminale peut accéder à plus d'une organisation
-Dans le cas de l'application `randos`, un utilisateur donné peut être membre de plus d'une association de randonneurs: une pour ses randonnées près de chez lui, une autre pour les randonnées de montagne et une troisième pour les treks lointains. Depuis la même application il peut basculer d'une organisation à une autre.
+Dans le cas de l'application `randos`, un utilisateur peut être membre de plus d'une association de randonneurs: une pour ses randonnées près de chez lui, une autre pour les randonnées de montagne et une troisième pour les treks lointains. Depuis la même application il peut basculer d'une organisation à une autre.
 
 Un gestionnaire de boutiques peut par exemple gérer trois boutiques différentes (trois organisations) avec des rôles différents pour chacune.
 
-Les utilisateurs de Discord font souvent partie de plusieurs groupes, qui s'ignorent entre eux, ayant des sujets d'intérêt totalement différents.
+Les utilisateurs de Discord accèdent souvent à plusieurs _serveurs_ qui s'ignorent entre eux, ayant des sujets d'intérêt totalement différents.
 
-L'utilisateur qui ouvre sur son poste son application `randos` peut disposer de pages de synthèse lui montrant ce qui est important pour chacune des associations auxquelles il participe. Pour agir effectivement sur l'une d'entre elles, il basculera sur une page d'accueil spécifique de l'association sélectionnée et ses actions de mises à jour ne porteront que sur celle-là.
+L'utilisateur qui ouvre sur son appareil son application `randos` peut disposer de pages de synthèse lui montrant ce qui est important pour chacune des associations auxquelles il participe. Pour agir effectivement sur l'une d'entre elles, il basculera sur une page d'accueil spécifique de l'association sélectionnée et ses actions de mises à jour ne porteront que sur celle-là.
 
 # L'exécution d'une application sur un appareil
 Sur un appareil donné, on ne peut pas lancer plus d'une exécution d'une application donnée, par exemple une seule application `randos`.
@@ -102,9 +106,9 @@ Sur un appareil donné, on ne peut pas lancer plus d'une exécution d'une applic
 > Dans le cas d'une application Web-PWA, chaque browser (Firefox, Chrome ...) est vu comme un **appareil différent**: on peut avoir s'exécutant au même instant sur son PC, une application sous Firefox ET une application sous Chrome.
 
 **Une application sur UN appareil** peut avoir trois états:
-- être en exécution au **premier plan**. Sa fenêtre est affichée et a le _focus_ (elle capte les actions de la souris ou du clavier). Pour un mobile c'est celle (ou l'une des deux) visibles.
-- être en **arrière plan** : elle a été lancée mais est recouverte par d'autres.
-  - sur un browser, c'est un autre onglet qui a le focus ou la fenêtre du browser est en icône: mais l'utilisateur peut cliquer sur son onglet pour l'amener au premier plan ou sur l'icône du browser dans la barre d'icônes pour l'afficher.
+- être en exécution au **premier plan**. Sa fenêtre est affichée et a le _focus_, elle capte les actions de la souris ou du clavier. Pour un mobile c'est celle, ou l'une des deux, visibles.
+- être en exécution en **arrière plan** : elle a été lancée mais est recouverte par d'autres.
+  - sur un browser, c'est un autre onglet qui a le focus ou la fenêtre du browser est en icône: l'utilisateur peut cliquer sur son onglet pour l'amener au premier plan ou sur l'icône du browser dans la barre d'icônes pour l'afficher.
   - sur un mobile elle est cachée mais peut être ramenée au premier plan quand l'utilisateur la choisit dans sa liste des applications _ouvertes mais cachées_.
 - être **non lancée**: son exécution n'a pas encore été demandée, ou a été active puis fermée.
 
@@ -122,55 +126,60 @@ Une notification ressemble à un SMS:
 > L'application _peut_ en tenir compte et effectuer des traitements et des requêtes ultérieures aux serveurs.
 
 **Quand l'application destinatrice d'une notification est au PREMIER PLAN:**
-- elle peut afficher un court message dans une petite fenêtre _popup_ (voire émettre un son ...) pour alerter l'utilisateur,
-- elle peut effectuer le traitement simple ou complexe adapté aux données portées par la notification.
+- elle _peut_ afficher un court message dans une petite fenêtre _popup_ (voire émettre un son ...) pour alerter l'utilisateur,
+- elle _peut_ et généralement va, effectuer le traitement adapté aux données portées par la notification.
 
 **Quand l'application destinatrice est en ARRIÈRE PLAN:**
-- elle peut (ou l'OS de l'appareil ou le browser dans lequel elle s'exécute) peut afficher en _popup_ la notification ce qui alerte l'utilisateur,
+- elle _peut_ (ou l'OS de l'appareil ou le browser dans lequel elle s'exécute) afficher en _popup_ la notification ce qui alerte l'utilisateur,
 - si l'utilisateur clique sur cette _popup_, l'application correspondante repasse au premier plan.
 
 **Quand l'application destinatrice N'EST PAS en exécution:**
-- l'OS de l'appareil ou le browser dans lequel elle est enregistrée, peut afficher en _popup_ la notification ce qui alerte l'utilisateur,
+- l'OS de l'appareil ou le browser dans lequel elle est enregistrée, , selon que l'utilisateur l'autorise ou non, afficher en _popup_ la notification ce qui alerte l'utilisateur,
 - si l'utilisateur clique sur cette _popup_, l'application est lancée.
 
 ## Des applications _écoutantes_ réagissant au flux d'informations poussées
-Les applications **_sourdes_** classiques ne peuvent afficher des écrans que sur sollicitation de l'utilisateur: l'écran ne se remet à jour que suite à une action de l'utilisateur:
-- si ce dernier ne fait rien, l'écran ne change pas et affiche des données plus ou moins anciennes qui ont déjà été modifiées par l'action d'autres utilisateurs, du temps qui passe, etc.
+Les applications **_sourdes_** classiques ne peuvent afficher des écrans que sur sollicitation de l'utilisateur. L'écran ne se remet à jour que suite à une action de l'utilisateur: si ce dernier ne fait rien, l'écran ne change pas et affiche des données plus ou moins anciennes qui ont pu être déjà modifiées par l'action d'autres utilisateurs, du temps qui passe, etc.
 
 Les applications **_écoutantes_** peuvent remettre à jour leurs écrans et données détenues localement même sans action d'un utilisateur simplement en fonction des _notifications_ poussées vers elles par les serveurs.
 
 # Documents, fichiers et _fils_ traçant leurs évolutions
 
 ## Document
-Un document est composé de:
-- un agrégat de données structurées selon le standard JSON:
-  - les données primitives sont des _string, number, boolean_.
-  - deux structures sont utilisables:
-    - les listes ordonnées,
-    - les maps _clé (string) / valeur.
-- un ensemble de _fichiers_ attachés au document (mais pas stockés physiquement dans le document).
+Selon le standard JSON:
+- deux **structures** de données sont utilisables:
+  - des listes ordonnées,
+  - des maps, associations _clé (string) / valeur_.
+  - chaque terme d'une structure peut être une structure ou une donnée primitive.
+- les données primitives sont des _string, number, boolean_.
+
+Un document est un agrégat de données structurées en JSON dont la racine est une map dont chaque nom / clé donne la valeur d'une propriété qui peut être une structure ou une donnée élémentaire.
+
+Des _fichiers_ peuvent être attachés à un document
+- chaque descriptif d'un fichier est une _map_ de quelques propriétés (nom, type, taille ...).
+- les descriptifs sont inscrits dans une map `_files_` de la racine du document.
+- le contenu effectif des fichiers sont des suites de bytes stockés à part dans un _storage_.
 
 > Un document peut en conséquence être volumineux.
 
-**Il y a plusieurs _types_ de document**, chacun correspondant à une structure dont la racine est une map de _propriétés_, chacune pouvant aussi avoir elle-même une valeur primitive ou liste ou map.
+**Il y a plusieurs _types_ de document**, chacun correspondant à une structure dont la racine est une map de _propriétés_.
 
 **Parmi ces propriétés une liste ordonnée de propriétés _string_ immuables constitue l'identifiant fonctionnel du document** (clé primaire en SQL, path en NOSQL). 
 
 Exemple du document `CART` du _use-case circuit court_:
 - un _carton_ est un ensemble de produits emballés ensemble par un producteur `pr` d'un groupement `gp` gérant un camion à destination de points de livraison `gc` pour une livraison donnée `livr`.
-- 4 propriétés sont identifiantes: `gp pr livr gc`, ce quadruplet identifiant exactement un carton (mais aussi comment les accéder).
+- `gp pr livr gc`, forment un quadruplet identifiant exactement un carton, donnant d'ailleurs de plus une information sur qui l'a constitué et à qui il est destiné.
 
-On peut définir des **regroupements** d'identifiants:
+On peut définir des **regroupements** de propriétés identifiantes dont une valeur détermine une collection de documents:
 - le regroupement #1 `gp.livr`: en fixant cette valeur un point de livraison peut obtenir la liste des cartons à décharger du camion expédié par le groupement pour cette livraison, tous producteurs confondus.
 - le regroupement #2 `gp.pr`: en fixant cette valeur un producteur peut obtenir la liste de tous les cartons qu'il doit composer pour toutes les livraisons en cours et tous les points de livraison.
 
 **Parmi les propriétés certaines (de type _string_ ou _number_) sont _indexables_**.
 - soit pour être utilisées comme identifiants secondaires, mais pas immuables, du document,
-- soit pour filtrer la collection de ces documents par des quantités de seuil.
+- soit pour filtrer la collection de ces documents selon des seuils de valeurs.
 
 La propriété `version` du document est un numéro d'ordre de mise à jour: la numérotation est _chronologique_ mais pas _continue_.
 
-La propriété `del` contient le jour de suppression quand la document est supprimé logiquement mais pas purgé physiquement (il est _zombi_).
+La propriété `del` contient le jour de suppression quand la document est en état  _zombi_, supprimé logiquement mais pas purgé physiquement.
 
 ### Stockage d'un document d'un type donné
 Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifique du type de document.
@@ -183,10 +192,10 @@ En base de données, les propriétés **visibles de la base de données** sont:
 - `del`.
 - `_data_`.
 - `z1 z2 ...` : les _regroupements_ de propriétés identifiantes (s'il y en a).
-- `p1 p2 ...` : les _propriétés_ indexables.
+- `p1 p2 ...` : les _propriétés_ indexables (s'il y en a).
 
 Le contenu structuré complexe du document `_data_` est crypté et en conséquence _opaque_ pour la base de données (et crypté pour la plupart des types de documents).
-- les propriétés identifiantes _peuvent_ être remplacées par leur _hash_ si on ne veut pas que leurs valeurs soient lisibles dans la base. C'est aussi le cas des propriétés pi quand elles sont utilisées par test d'égalité, mais par quand elles interviennent dans des filtres _d'ordre_ (les algorithmes de _has_ ne présevent pas les relations d'ordres de leurs sources).
+- les propriétés identifiantes _peuvent_ être remplacées par leur _hash_ si on ne veut pas que leurs valeurs soient lisibles dans la base. Les propriétés `pi` quand elles sont utilisées par test d'égalité peuvent être _hachées_ mais pas quand elles interviennent dans des filtres _d'ordre_ (les algorithmes de _hash_ ne préservent pas les relations d'ordres de leurs sources).
 
 ### Fichiers attachés à un document
 Un fichier est stocké en deux parties:
@@ -197,7 +206,7 @@ Un fichier est identifié par `fid` un code aléatoire universel:
 - un fichier **ne change pas** de contenu, un autre est créé avec un nouveau contenu.
 
 Le descriptif d'un fichier a les propriétés suivantes: 
-- `nom` : texte dont la seule contrainte est d'être un nom acceptable dans un système de fichiers (ne pas contenir de `/` ...).
+- `name` : texte dont la seule contrainte est d'être un nom acceptable dans un système de fichiers (ne pas contenir de `/` ...).
 - `time` : date-heure de la transaction qui l'a validé.
 - `type` : type _mime_ du fichier comme 'image/jpg'.
 - `size` : taille en bytes (son _original non crypté_).
@@ -205,14 +214,14 @@ Le descriptif d'un fichier a les propriétés suivantes:
 
 La propriété `_files_` (dans `_data_`) du document est une _map_ avec une entrée `fid` par fichier et pour valeur le descriptif du fichier.
 
-> Selon la logique de l'application, la propriété `nom` **est ou non unique dans son document**. Si elle est unique, le stockage d'un fichier d'un nom donné supprime d'office le fichier portant antérieurement ce nom. Si la propriété nom n'est contrainte à être unique, plusieurs fichiers porteront le même nom dans un document (avec des propriétés `time` différentes) vus comme autant de _révisions_ pour un nom donné.
+> Selon la logique de l'application, la propriété `name` **est ou non unique dans son document**. Si elle est unique, le stockage d'un fichier d'un nom donné supprime d'office le fichier portant antérieurement ce nom. Si la propriété `name` n'est contrainte à être unique, plusieurs fichiers porteront le même nom dans un document (avec des propriétés `time` différentes) vus comme autant de _révisions_ pour un nom donné.
 
 Le contenu du fichier est stocké sous un _path_ dans l'espace de stockage `folderId/fid`:
 - `fid` est suffisant pour garantir l'unicité du contenu.
 - `folderId` définit un _folder_ de rangement et a une structure `a/b/c ...` dont le seul intérêt est de pouvoir purger en une seule commande tous les fichiers sous une partie de ce path, par exemple les fichiers dont le path commence par `a/b`.
 - les termes qui définissent le `folderId` sont parmi ceux apparaissant dans l'id du document:
   - `gp pr livr gc` dans l'exemple ci-avant, l'id du document,
-  - `gp livr` le groupement d'id #2 défini pour le rattachement au fil CMDGP.
+  - `gp livr` le groupement d'id #2 défini pour le rattachement au fil `CMDGP`.
 
 ### Protocole de stockage / suppression d'un ou plusieurs fichiers
 Une ou plusieurs opérations de **preload** chargent le contenu du fichier dans le storage sous le path `folderId/fid`, `fid` étant généré à cet instant.
@@ -246,19 +255,19 @@ Un _fil de document_ est défini pour que des documents puissent s'y rattacher, 
 Créer et maintenir un _fil_ est le moyen retenu pour **tracer** les évolutions des documents qui lui sont attachés: une application terminale (voir un traitement d'un serveur) peut ainsi être informé / notifié qu'au moins un des documents d'un fil a changé ou a été ajouté ou supprimé.
 
 ### Type de  _fil_
-Le _type_ d'un fil définit son objectif: tracer les évolutions d'un certain nombre de documents et pour chaque selon quel filtrage sur son id. 
+Le _type_ d'un fil définit son objectif: tracer les évolutions d'un certain nombre de documents et pour chacun selon quel filtrage sur les valeurs de ses propriétés identifiantes. 
 - l'identifiant d'un fil est une suite de propriétés telle que les documents qui y seront rattachés les auront toutes dans leur propre suite de propriétés identifiantes.
 
 Dans le _use-case circuit court_ par exemple `CMDGP` sert à rattacher tous les documents utiles à une livraison `livr` gérée par un groupement `gp`.
 - l'identifiant d'un fil de type `CMDGP` est `gp.livr`.
-- les types de documents rattachés à ce fil sont listés `CHD, BCG, CART`.
-  - `CHD` (le chat ouvert pour une livraison donnée) a pour identifiant `gp livr`: il n'y aura au plus qu'un seul document `CHD` rattaché au fil.
+- les types de documents rattachés à ce fil sont `CHD, BCG, CART`.
+  - `CHD` (le chat ouvert pour une livraison donnée) a pour identifiant `gp livr`: il n'y aura au plus qu'un document `CHD` rattaché au fil.
   - `BCG` (un bon de commande d'un point de livraison) a pour identifiant `gp livr gc`: il y aura donc une collection de documents `BCG` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr` (soit au plus un par point-de-livraison `gc`).
   - `CART` à pour identifiant `gp pr livr gc`: il y aura donc une collection de documents `CART` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr`. Un carton est créé par un producteur qui y met tous les produits d'une livraison destiné à un même point-de-livraison.
 
-> Connaissant le type et l'identifiant d'un fil, par exemple `CMDGP/gp.livr` on peut _tirer_ toute une collection de documents, le cas échéant nombreuse, `CHD`,  `BCG`, `CART` rattachés au même fil, en l'occurrence celui concernant la livraison d'un camion organisé par un groupement de producteur pour une livraison donnée à plusieurs point-de-livraison (une _tournée_).
+> Connaissant le type et l'identifiant d'un fil, par exemple `CMDGP/gp.livr` on peut _tirer_ toute une collection de documents, le cas échéant nombreuse, `CHD`,  `BCG`, `CART` rattachés au même fil, en l'occurrence ceux concernant la livraison d'un camion organisé par un groupement de producteur pour une livraison donnée à plusieurs point-de-livraison (une _tournée_).
 
-Un _type de fil_ définit de facto un critère de sélection s'appliquant à un ensemble de documents ayant pour identifiant ou regroupement d'identifiant une valeur donnée.
+Un _type de fil_ définit de facto un critère de sélection s'appliquant à un ensemble de documents ayant pour identifiant ou regroupement d'identifiants une valeur donnée.
 
 **Un fil donné, une instance de son type pour un identifiant donné, est _stocké_ en base de données** dans une table / collection portant le nom du type de fil, par exemple `CMDGP`. Ces tables / collections ont toutes le même schéma.
 
@@ -268,18 +277,22 @@ Un _type de fil_ définit de facto un critère de sélection s'appliquant à un 
 
 **Propriété opaque _data_ d'un fil:**
 - `versions` est une map avec une entrée pour chaque type de document donnant le dernier numéro de version, soit _du_ document si c'est un singleton, soit du document de la collection _le plus récemment mis à jour_.
-- `cleandate` : c'est la date du dernier nettoyages des suppressions (voir plus avant).
+- `cleandate` : c'est la date du dernier nettoyage des suppressions (voir plus avant).
 
 ### Utilisation des _fils_
 Chaque fil est une **trace** de l'évolution la plus récente des documents qui lui sont attachés: 
 - le fait que la version d'un fil s'incrémente à chaque mise à jour d'un de ses documents fait du fil un événement _notifiable_.
 - dans cette _notification_, une application terminale peut retrouver pour chaque type de document (UN document si c'est un singleton dans le fil, sinon une collection des documents) si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
 
-Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui lui a été transmise, peut à réception du nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
-- _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé. De plus le filtrage s'effectuant sur la propriété indexée version, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents non modifiés.
+Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui lui a été transmise, peut à réception d'un nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
+- _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé. De plus le filtrage s'effectuant sur la propriété indexée `version`, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents non modifiés.
 - _incrémentale_: seuls les documents ayant changé depuis la version connue de l'application terminale sont lus et transmis.
 
 ### Fils et _credentials_
+Un _credential_ attaché à un fil est une petite structure de données gouvernant un droit à lire le fil et à s'y abonner. 
+
+Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
+
 Chaque _type de fil_ est associé à un _type de credential_:
 - les propriétés identifiantes du credential sont mentionnées comme propriétés identifiantes du type de fil.
 - par exemple le fil `CMDGP` est identifié par `gp.livr`.
@@ -287,8 +300,6 @@ Chaque _type de fil_ est associé à un _type de credential_:
 - très simplement pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
 
 > Des documents de ce fil, par exemple les _cartons_, apparaissent aussi dans un autre fil relatif au point-de-livraison (`CMDGC` identifié par `gc.gp.livr`). Ce second fil sera associé à un _credential_ `CREDGC` identifié par `gc`. Les _cartons_ seront donc accessibles soit en ayant un _credential_ `CMDGP`, soit un _credential_ `CMDGC`, avec en conséquence des notifications de deux ordres avec des autorisations différentes.
-
-> Un _credential_ attaché à un fil gouverne son droit à le lire et à s'y abonner. Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
 
 ### Traitements dans un serveur: attachement / mise à jour d'un document dans un fil
 - récupération des `version` `vi` de tous les fils dans lequel le document est à insérer / mettre à jour.
@@ -306,13 +317,13 @@ Le document supprimé va être traité comme une mise jour particulière:
 - sa propriété `del` donne le jour de suppression.
 - son _data_ est mis à null.
 
-Le document est devenu _zombi_.
+Le document est en état _zombi_, supprimé logiquement.
 
 > _Remarque_: rien ne l'empêche de renaître plus tard.
 
 La possibilité d'obtention d'une mise à jour incrémentale depuis un état détenu à la date `d` est bornée par la possibilité de disposer des suppressions.
 - si elles sont gardées, même _zombi_ avec une taille minimale, sans limite de temps, la base peut être encombrée de zombis.
-- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants. C'est à l'application terminale de déterminer les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet.
+- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants. C'est à l'application terminale de déterminer, si besoin est, les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet.
 
 Le serveur va à l'occasion d'une suppression d'un document regarder les `cleandate` du ou des fils auxquels est rattaché le document: si ces dates ont plus de 18 mois, il va purger effectivement les documents zombis depuis plus d'an de ces fils (en testant leur propriété `del`). Il mettra à jour la ou les `cleandate` du ou de ces fils.
 
@@ -322,7 +333,7 @@ De cette façon les documents supprimés sont purgés au fil du temps mais avec 
 
 **Un _fil_ fait aussi office de _news_, d'alerte:** quand un document change (un bon de commande), le ou les fils auxquels il est attaché (la livraison de samedi)sont informés et le fil a noté qu'un bon de commande a changé. 
 
-**Si des applications s'étaient abonné à ce fil**, leurs utilisateurs vont voir apparaître sur leurs écrans une _notification_ indiquant _qu'un bon de commande a changé pour la livraison de samedi_. Si l'application d'un utilisateur était lancée et que la page courante montrait cette livraison, l'application est allé chercher les bons de commande attachés au fil de la livraison de samedi ayant une version plus récente que celle que l'application a en mémoire: la page est mise à jour à l'écran sans intervention de l'utilisateur.
+**Si des applications s'étaient abonnées à ce fil**, leurs utilisateurs vont voir apparaître sur leurs écrans une _notification_ indiquant _qu'un bon de commande a changé pour la livraison de samedi_. Si l'application d'un utilisateur était lancée et que la page courante montrait cette livraison, l'application est allé chercher les bons de commande attachés au fil de la livraison de samedi ayant une version plus récente que celle que l'application a en mémoire: la page est mise à jour à l'écran sans intervention de l'utilisateur.
 
 Suivant ce paradigme, une application présente à son utilisateur trois concepts:
 - des **_fils d'information_** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution tarifaire (un tarif vu comme une collection de documents). Ces fils **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
@@ -339,7 +350,7 @@ Quand une application est en exécution elle peut rester _abonnée_ à des _fils
 Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, certains de ces abonnements restent actifs, du moins un certain temps:
 - les notifications correspondantes continueront à s'afficher en _popups_, l'OS ou le browser de l'application s'en chargeant.
 - l'utilisateur reste informé des _news_ auxquelles il était abonné.
-- un clic sur un ces _popups_ ouvre l'application ce qui lui permet de connaître en détail les documents ayant changé.
+- un clic sur un ces _popups_ ouvre l'application ce qui lui permet plus ou moins directement de connaître en détail les documents ayant changé.
 
 > Chaque application détermine pour chaque fil auquel elle est abonné, si l'abonnement s'interrompt ou non quand l'application s'arrête.
 
@@ -348,43 +359,106 @@ Pour assurer la synchronisation d'une collection de documents, le _fil_ correspo
 
 Les **_fils de news_** sont a contrario beaucoup plus sobres: ils correspondent à quelques documents / collections bien ciblés et pas à tous ceux qui seraient nécessaires à une synchronisation complète de ces documents.
 
+**La caractéristique d'un _fil de news_ est qu'il peut produire des textes en popups de notification alors que l'application terminale ne s'exécute pas** et en conséquence le texte complet est à produire par le serveur. Pour que ces textes soient lisibles, l'abonnement à un _fil de news_ va fournir une petite structure de données permettant au serveur de générer le texte de la notification. Par exemple:
+- la langue courante de la session au moment de l'abonnement,
+- l'identifiant d'un texte _template_ traduit dans plusieurs langues,
+- des intitulés / labels / noms associés afin que le texte les référencent plutôt qu'un code identifiant abscons pour l'utilisateur (le _nom_ d'un producteur, plutôt que son code).
+
+# Modules génériques utilisables dans les logiciels serveurs
+Ces modules forment une couche logicielle offrant un certain nombre de services de bases raccourcissant et sécurisant l'effort de développement.
+
+## Gestion des _opérations_
+**Une opération est initiée par la réception d'un requête HTTP**. La couche de base:
+- identifie l'opération demandée en fonction de l'URL.
+- récupère les paramètres d'entrée et les met à disposition de l'opération dans une structure.
+- **gère l'opération comme une succession de phases:**
+  - **phase 1:** vérification que les paramètres d'entrée sont bien formés, présents s'ils étaient obligatoires, etc. _Normalement_ l'application terminale s'en est assuré mais l'opération dans le serveur fait cette vérification pour éviter de tomber sur des exceptions dues à des valeurs qui n'auraient pas dues être trouvées en entrée. Cette phase s'effectue sans accès à la base de données.
+  - **phase 2:** c'est une transaction au sens de la base de données. Elle lit, met à jour créé et supprime des documents et élabore un résultat. En cas d'exception détectée comme liée à une saturation technique de la base de données, cette phase est annulée et relancée (du moins un certain nombre de fois).
+  - **phase 3:** c'est une phase de nettoyage qui peut effectuer quelques mises à jour dans la base de données, typiquement dans la table `toDelete` pour la gestion des fichiers.
+  - **phase 4:** la phase 2 a produit une liste de fils de documents mis à jour. Cette phase identifie les abonnements à ces fils et génèrent les _notifications_ aux applications abonnées.
+- **retourne le résultat à l'application appelante,**
+  - construit en phase 2,
+  - ainsi que les fils déterminés en phase 4 auxquels l'application appelante était abonnés.
+
+## Gestion des documents
+Un module gère une _mémoire cache_ des documents les plus récemment demandés et mis à jour, du moins pour les types de documents spécifiés. 
+
+Ainsi la demande par une opération en phase 2 d'un document qui se trouve en _cache_,
+- soit délivre le document s'il n'est pas exigé à être absolument dans sa version la plus récente mais tolère une _certaine ancienneté_,
+- soit s'assure que c'est bien la dernière version: si c'est le cas seul un index a été lu, sinon le document est lu et conservé en _cache_.
+
+Le module gère également une _mémoire cache de documents_ pour chaque opération en cours.
+- les documents lus y sont stockés dans leur forme _objet compilé_ (et non le format sérialisé de stockage en base).
+- les documents supprimés et créés y sont aussi stockés.
+
+A la fin de l'opération le module gère les _fils_ impactés par les documents modifiés / créés / détruits, et les met à jour dans la base. Ces _fils_ seront utilisés en phase 4 de l'opération pour notifier les applications abonnées.
+
+## Requête de collecte des documents d'un fil
+Quand une application terminale souhaite disposer des documents mis à jour pour un fil donné, ce module détermine en fonction du fil transmis:
+- si la mise à jour peut être _incrémentale_ ou si elle doit être _intégrale_,
+- quels documents sont à retourner en fonction des versions détenues par l'application terminale.
+
+## Providers d'accès à la base de données
+Un provider présente un interface indépendant de la base de données gérée. 
+- pour chacun des services de cet interface, il implémente l'accès effectif à la base qu'il gère:
+  - mise en forme / sérialisation des documents,
+  - cryptages / hachages éventuels des _data_ et propriétés indexées,
+  - gestion des transactions commit / rollback.
+
+Pour un serveur donné, le (ou les ?) _providers_ requis sont importés.
+
+Un _provider_ d'accès à **LA** base commune hébergeant les répertoires des services est disponible afin de masquer la technologie effective utilisée dans cette base.
+
+> Typiquement en _test_ l'usage du provider _SQLIte_ simplifie le développement plutôt que ceux qui seront utilisés effectivement en production (_Postgresql_, _Firebase_...).
+
+## Providers d'accès au _storage_
+Les quelques services généraux d'accès sont développés pour chaque type de storage souhaité (AWS-S3, GCP, File-system ...).
+
+## Principe de _déclaration_ statique
+La structure des documents et leur rattachements aux fils se fait par _déclaration statique_ dans des modules de configuration. Il en est de même pour les options techniques de cryptage / hachage par type de document.
+
+Toutefois dans ces déclarations il peut apparaître des noms de fonctions applicatives spécifiques qui sont à développer par codage et non plus par déclaration.
+
+## Modules utilitaires
+Un module de cryptographie évite de gérer les subtilités du paramétrages des algorithmes.
+
+> Vis à vis des applications terminales, les serveurs ne connaissent **QUE** les concepts de documents et fils de documents: abonnements et mises à jour incrémentales. Le reste de la logique applicative passe par l'usage des opérations.
+
 # Un utilisateur, ses appareils et ses applications
 
 Un utilisateur qui veut utiliser une application (Web-PWA ou non) est placé devant deux cas de figure:
 - **soit l'appareil qu'il s'apprête à utiliser est _le sien_**: un peu plus généralement c'est un appareil,
   - qu'il utilise régulièrement, que se soit le sien ou celui d'un proche,
-  - c'est un appareil de confiance: il peut laisser quelques informations personnelles localement dessus (mais cryptées).
+  - c'est un appareil de confiance: il peut y laisser quelques informations cryptées et espérer raisonnablement les retrouver plus tard.
 - **soit l'appareil qu'il s'apprête à utiliser ne lui est pas familier**, il est partagé par des utilisateurs inconnus comme au cyber-café ou est celui d'une connaissance qui le lui a prêté temporairement:
   - il ne doit pas y laisser quelques informations que ce soit, aucune trace de son utilisation de l'application,
   - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour raccourcir ses saisies.
 
-### _Profil_ sur un appareil _favori_
+### Appareil _favori_
 C'est un appareil qui _peut_ être utilisé par d'autres que soi-même. Typiquement dans un cadre familial ou un couple, l'appareil n'est pas strictement _personnel_.
 
 Le _login_ à un tel appareil est _protégé_ par un mot de passe ou tout autre dispositif que seuls des proches connaissent, à moins que l'appareil leur soit prêté déverrouillé. 
 
-_Plusieurs personnes peuvent plus ou moins occasionnellement s'en servir_: d'où le principe d'y avoir possiblement plusieurs _profils_.
+_Plusieurs personnes peuvent plus ou moins occasionnellement s'en servir_: d'où le principe d'y avoir possiblement plusieurs _contextes personnels_, chacun étant repéré par un libelle parlant, un _alias_ de l'utilisateur.
 - un browser comme Firefox a une notion d'utilisateur: on peut basculer d'un utilisateur à un autre (sans pour autant avoir changé de connexion au niveau de l'OS). Chacun a ses sites favoris, son historique de navigation et ses mots de passe enregistrés.
 - Thunderbird, le gestionnaire de mails locaux, supporte de gérer plusieurs _profils_, chacun avec ses comptes mails.
 
-#### Des _profils_ plus ou moins bien défendus
+#### Des _contextes_ plus ou moins bien défendus
 Ce n'est pas parce qu'on partage un appareil avec un proche qu'on a envie de partager avec lui ses informations confidentielles.
 
 Or dans les cas cités ci-dessus, la confidentialité est plutôt _lâche_:
 - Thunderbird ne demande rien: on choisit son profil, sans mot de passe ou quoi que ce soit. Les boîtes mail sont de toutes les façons en clair dans le file-system, confidentialité _intra-familiale_ zéro.
 - Chrome s'ouvre sur le compte _courant_: si vous ne vous déconnectez pas **explicitement** avant de fermer le browser, il s'ouvre la fois suivante sur votre compte, ses mots de passe, ses historiques et ses favoris. Si vous vous déconnectez Chrome est strict sur la connexion et demandera même à votre téléphone si c'est vraiment vous qui essayez de vous connecter: il suffit d'y répondre OUI et c'est bon (même si vous vous êtes fait voler votre téléphone en état déverrouillé, Google est content).
 
-#### Déclarer sont _profil_ sur un appareil
+#### Déclarer son ou ses _alias_ sur un appareil _favori_
 Il est possible de déclarer un appareil comme _favori_ en fixant un _alias_ (par exemple `bob`) et un code PIN. Voir le détail plus avant.
 
-Quelques informations _lacales_ sont alors mémorisés sur l'apparel,
-- dont le nom est préfixé par l'alias: `$bob$...`
-- dont le contenu est crypté. Même l'accès (malaisé) par le _file-system_ de l'OS ne permet pas à un _hacker_ d'accéder à son contenu.
+Quelques informations _locales_ sont alors mémorisés sur l'appareil dans une micro base de données dont l'espace est gérée par le _browser_. Le contenu est crypté, illisible en _debug_ et  même l'accès (malaisé) par le _file-system_ de l'OS ne permet pas à un _hacker_ d'accéder à son contenu.
 
 Pour un utilisateur lancer une application depuis un appareil _favori_ a plusieurs avantages:
-- démarrage plus rapide, moins de réseau et moins d'accès dans le serveur en utilisant de petites bases de données locales spécifiques du profil comme _cache_ de documents.
-- possibilité d'accéder en mode _avion_ sans accès au réseau.
-- identification plus rapide mais sûr par usage du code PIN.
+- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant de petites bases de données locales spécifiques du profil comme _cache_ de documents.
+- **possibilité d'accéder en mode _avion_** sans accès au réseau.
+- **identification plus rapide** mais sûr par usage d'un code PIN.
 
 ### Lancement d'une application sur un appareil _favori_
 La liste des quelques profils enregistrés est présentée: l'utilisateur choisit le sien et donne son code PIN.
