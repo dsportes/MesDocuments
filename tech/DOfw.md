@@ -198,8 +198,9 @@ Tout utilisateur peut s'y faire enregistrer son _profil_.
 Le _profil_ d'un utilisateur est identifié par un `userid`, un code généré aléatoirement à son inscription, et peut contenir les rubriques suivantes:
 - la liste de **ses _appareils favoris_** comportant des données cryptographiques.
 - la liste de **ses _préférences_**: données _pré-saisies_ souvent demandées par les applications ou choix simples (langue préférée, mode _sombre / clair_ ...).
-- la liste de ses **_credentials favoris_**. Un _credential_ est une petite structure de données contenant des propriétés d'authentification comme un couple login / mot de passe (ou tout autre dispositif).
-- la liste de ses _sessions favorites_. En choisissant une session favorite, un utilisateur se retrouve à l'ouverture d'une application directement en présence des données adaptées à son besoin.
+- la liste de **ses _sessions favorites_**. En choisissant une session favorite, un utilisateur se retrouve à l'ouverture d'une application avec le _desktop de l'application_ initialisé avec les documents visibles adaptés à son besoin et les _credentials_ correspondant.
+
+> Un _credential_ est une petite structure de données ayant un _type_ donné et donnant les autorisations d'accès pour un objet précis: par exemple le type `CRDCO` donne une autorisation à un _consommateur donné attaché à un point de livraison donné_ en citant ses initiales et son mot de passe. Les accès aux documents et le droit d'invoquer des opérations requièrent un ou des _credentials_.
 
 # Documents, fichiers et _fils_ traçant leurs évolutions
 
@@ -348,15 +349,15 @@ Une application terminale qui a gardé en mémoire la dernière image d'un fil q
 - _incrémentale_: seuls les documents ayant changé depuis la version connue de l'application terminale sont lus et transmis.
 
 ### Fils et _credentials_
-Un _credential_ attaché à un fil est une petite structure de données gouvernant un droit à lire le fil et à s'y abonner. 
+Le _credential_ attaché à un fil gouverne le droit à en lire les documents et à s'y abonner. 
 
 Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
 
 Chaque _type de fil_ est associé à un _type de credential_:
-- les propriétés identifiantes du credential sont mentionnées comme propriétés identifiantes du type de fil.
+- les paramètres du credential sont mentionnées comme propriétés identifiantes du type de fil.
 - par exemple le fil `CMDGP` est identifié par `gp.livr`.
 - son _credential_ associé sera par exemple `CREDGP` identifié par `gp`.
-- très simplement pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
+- pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
 
 > Des documents de ce fil, par exemple les _cartons_, apparaissent aussi dans un autre fil relatif au point-de-livraison (`CMDGC` identifié par `gc.gp.livr`). Ce second fil sera associé à un _credential_ `CREDGC` identifié par `gc`. Les _cartons_ seront donc accessibles soit en ayant un _credential_ `CMDGP`, soit un _credential_ `CMDGC`, avec en conséquence des notifications de deux ordres avec des autorisations différentes.
 
@@ -538,7 +539,7 @@ Si aucun utilisateur n'est enregistré par cette phrase dans le répertoire cent
 La liste des quelques profils enregistrés est présentée: l'utilisateur choisit le sien par exemple _Bob sur le mobile d'Alice_ et donne **son code PIN**.
 
 L'application ouvre sa page d'accueil où l'utilisateur peut choisir,
-- soit une de ses sessions _favorites_ ouvrant directement accès à ses documents grâce aux _credentials_ pré-enregistrés.
+- soit une de ses _sessions favorites_ donnant directement accès à des fils de documents dont les identifiants et _credentials_ sont enregistrés dans la _session favorite_.
 - soit d'accéder à ses données en donnant les identifications et _credentials_ requis (ce qu'il veut faire, ou, au nom de qui ...).
 
 En fermant l'application, l'utilisateur peut choisir:
@@ -560,9 +561,9 @@ Si l'utilisateur était déjà enregistré par cette phrase dans le répertoire 
 
 Si aucun utilisateur n'est enregistré par cette phrase dans le répertoire central des _profils_, il lui est demandé de confirmer cette phrase et un _profil_ est créé pour lui dans le répertoire des profils avec la génération et l'enregistrement de son `userid` et de sa clé `Kp`.
 
-Si l'utilisateur n'avait pas de _profil_ enregistré, ou simplement pas souhaité saisir sa phrase `s1 s2`, l'application propose un dialogue d'accueil où il devra indiquer:
+Si l'utilisateur n'avait pas de _profil_ enregistré, ou simplement pas souhaité saisir sa phrase `s1 s2`, l'application propose un _desktop_ où il devra indiquer:
 - son intention, avec quel rôle il souhaite accéder aux documents,
-- quels documents il souhaite accéder et fournit le ou les _credentials_ associés.
+- quels documents il souhaite accéder et fournir le ou les _credentials_ associés.
 - le cas échéant il choisira les _fils de news_ qui l'intéresse et donnera le cas échéant les _credentials_ associés.
 
 > Pour l'application, un utilisateur _sans profil_ a les mêmes possibilités qu'un utilisateur ayant un _profil enregistré_. Il doit saisir plus d'informations pour faire valoir ses droits d'accès, bref les données qui sont pré-remplies pour une session déclarée _favorite_ pour l'utilisateur.
@@ -574,9 +575,9 @@ Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'ap
 
 ### Accès d'un utilisateur à son _profil_
 Depuis n'importe quelle application terminale, après avoir fourni son code PIN (si c'est un appareil _favori_) ou sa phrase d'authentification `s1 s2`, l'utilisateur peut afficher en clair les rubriques de son _profil_.
-- en particulier il peut voir la liste de ses appareils favoris avec leur alias.
-- il peut effectuer des mises à jour de ses _préférences_,
-- il peut supprimer des sessions favorites, _credentials favoris_ et appareils favoris.
+- en particulier il peut voir la liste de ses _appareils favoris_ avec leur alias et supprimer ceux jugés inutiles.
+- il peut effectuer des mises à jour de ses _préférences_.
+- il peut supprimer des _sessions favorites_.
 
 # Glossaire technique
 
@@ -600,20 +601,20 @@ Les applications terminales connaissent la clé publique du serveur Pub-S. Quand
 
 ### Les applications peuvent-elles utiliser le `userid` d'un profil d'utilisateur ?
 Une application terminale **à condition** que l'utilisateur se soit enregistré, dispose du _profil_ en clair de l'utilisateur, donc de son `userid`.
-- elle peut le communiquer dans un _credential_ à un serveur accompagné du `SH(s1, s2)` prouvant que l'utilisateur a bien fourni cette clé d'accès `(s1, s2)`.
-- à la première présentation de ce `userid`, typiquement à l'enregistrement de l'utilisateur, le serveur peut vérifier auprès du répertoire des utilisateurs qu'il est bien authentifié et va conserver le couple `(userid, sha(SH(s1, s2))` dans la base de l'application.
+- elle peut le communiquer dans un _credential_ à un serveur accompagné du `SH(s1, s2)` prouvant que l'utilisateur a bien fourni sa clé d'accès `(s1, s2)`.
+- à la première présentation de ce `userid`, typiquement à l'enregistrement de l'utilisateur, le serveur va conserver le couple `(userid, sha(SH(s1, s2))` dans la base de l'application.
 - les authentifications ultérieures se feront seulement à partir de la base du prestataire et non de la base commune à tous.
+- ultérieurement l'utilisateur peut aussi bien s'authentifier directement auprès du serveur à partir de `(s1, s2)` que d'un accès depuis un appareil favori et la saisie d'un code PIN.
 
-Les applications **peuvent** en conséquence utiliser le répertoire des profils des utilisateurs pour les authentifier **MAIS** ceci oblige les utilisateurs à s'enregistrer dans ce répertoire pour utiliser l'application ce qui peut pose un problème déontologique car des liens logiques pourraient être établis entre elles.
+Les applications **peuvent** en conséquence utiliser le répertoire des profils des utilisateurs pour les authentifier **MAIS** ceci oblige les utilisateurs à enregistrer leur _profil_ dans ce répertoire pour utiliser l'application ce qui peut pose un problème déontologique car des liens logiques pourraient être établis entre elles.
 
-Une solution consiste à permettre à un  utilisateur d'une application qui souhaite disposer d'un `userid`,
+Une solution consiste à permettre à un utilisateur d'une application qui souhaite disposer d'un `userid`,
 - soit d'en créer un spécifique de l'application avec une authentification spécifique,
 - soit, au choix de l'utilisateur, d'utiliser son `userid` du répertoire des profils des utilisateurs, externe aux applications.
 
 # Détail d'un _profil_
 Il y a plusieurs rubriques dans le _profil_ d'un utilisateur:
 - des _préférences_,
-- des _credentials_,
 - des _sessions favorites_,
 - des _appareils favoris_.
 
@@ -643,25 +644,6 @@ Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné 
 
 Quand une application a besoin de l'une de ces informations, elle propose à l'utilisateur en pré-saisie la ou l'une des valeurs inscrites en _préférences_ si elle y en a. L'utilisateur peut en sélectionner une ou en saisir une autre (à enregistrer ou non en préférence).
 
-### _Credentials_: droits d'accès
-Un _credential_ est un droit d'accès pour lire / agir sur des données d'une application. Le type le plus standard de _credential_ est un couple _login / mot de passe_, mais des formes plus sophistiquées existent _passphrase_ ... (voir le chapitre sur l'authentification _double_).
-
-Pour une application donnée, il existe plusieurs **types** de _credential_, conférant chacun des natures d'autorisations différentes. Par exemple pour l'application "circuitscourts",
-- le **type `PL`** est le _credential_ d'un _point-de-livraison_:
-  - il est identifié par le code `gc` d'un point-de-livraison.
-  - il est unique, il n'y a qu'un credential reconnu par point.
-- **le type `CO`** est le _credential_ d'un _consommateur_:
-  - il est identifié par `gc co` identifiant un consommateur attaché à un point-de-livraison.
-  - il est **multiple**: pour un `gc co`. Il y est défini une valeur de  _credential_ associée aux initiales du membre de la famille du consommateur. Chacun a par commodité son propre mot de passe de manière à pouvoir le cas échéant en bloquer facilement un sans bloquer les autres, ou plus simplement avoir une valeur courante et une de secours en cas d'oubli de la première.
-
-**Le _jeton_ associé à un _credential_** est un texte généralement assez opaque, typiquement d'un texte `SH(s1, s2)` ou d'un mot de passe `SH(mp, mp)`. Ce sont les serveurs qui sont en charge de vérifier la validité d'un _credential_, par exemple en comparant la valeur fournie par l'application terminale avec son SHA enregistré en base de données.
-
-> Sauf rares exceptions, une opération d'un serveur exige un, voire plusieurs, _credentials_ qui sont vérifiés avant de traiter effectivement l'opération.
-
-Un _credential_ peut être enregistré dans la _profil_ de l'utilisateur avec un libellé court, connu seulement de l'utilisateur: `mon accès conso à JP`. Énigmatique dans l'absolu, ce texte est signifiant pour l'utilisateur lui donnant accès à ses documents de _consommateur_ dans le cadre d'un point-de-livraison qui lui est familier (plus que le code aléatoire correspondant): il a saisi, son code de point de livraison, son code de consommateur, ses initiales (ou rien) et le mot de passe.
-
-> L'enregistrement des _credentials_ d'un utilisateur dans son _profil_ lui permet de simplement cliquer dans une courte liste pour le fournir plutôt que d'avoir à se rappeler et à saisir un mot de passe long: c'est l'accès à son _profil_ qui est sécurisée pour un utilisateur, ceci protégeant **tous** ses _credentials_ favoris.
-
 ### _Sessions favorites_ d'un utilisateur
 Lorsqu'un utilisateur ouvre une application terminale il commence une _session_: en général il ne peut pas faire grand-chose avant d'avoir déclaré a minima, 
 - a) son intention, qu'est-ce qu'il veut y faire, 
@@ -689,9 +671,10 @@ Lors d'une prochaine ouverture de l'application, après avoir donné son code PI
 ##### Accès par l'utilisateur à son _profil_
 Quand un utilisateur est enregistré, l'ouverture d'une application terminale lui propose de d'utiliser son _profil_: 
 - lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
-- l'application terminale soumet un requête à un serveur qui:
-  - peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `userid` pour cet utilisateur et vérifier la validité de `SH(s1+, s2+)`. Dans ce cas il retourne le _profil_ crypté à l'application terminale.
-- celle-ci peut décrypter la clé `Kp` cryptée par `s1 + s2` (ce que le serveur ne pouvait pas faire faute de connaître `s1` et `s2`) et décrypter toutes les données du _profil_.
+- l'application terminale soumet une requête à un serveur qui:
+  - peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `userid` pour cet utilisateur,
+  - vérifier la validité de `SH(s1+, s2+)`. Dans ce cas il retourne le _profil_ crypté à l'application terminale.
+- l'application terminale peut décrypter la clé `Kp` cryptée par `s1 + s2` (ce que le serveur ne pouvait pas faire faute de connaître `s1` et `s2`) et décrypter toutes les données du _profil_.
 
 ## Stockage local dans un appareil _favori_
 Une **micro base locale des alias** stocke quelques données relatives aux utilisateurs ayant déclaré l'appareil comme _favori_. Elle est hébergée / gérée par le browser dans un espace spécifique du _domaine_ de l'application terminale.
@@ -705,26 +688,25 @@ La base a une table ayant une ligne par _alias_ d'utilisateur comportant:
 #### Déclarer un appareil comme favori
 La liste des _alias_ des utilisateurs ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit,
 - déclarer cet appareil comme favori.
-- si c'était déjà fait changer son code PIN.
+- si c'était déjà le cas, changer son code PIN.
 - supprimer les entrées des _alias_ qui ne l'inspirent pas.
 
 Pour déclarer l'appareil comme favori ou refixer son code PIN, l'utilisateur doit fournir,
 - l'alias de son choix, sélectionné dans la liste ou inventé à l'instant,
 - **un code PIN d'au moins 8 signes**,
-- une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver sa fiche personnelle.
+- une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver son _profil_ dans le répertoire des profils.
 
 > Si l'alias avait déjà une entrée, l'application terminale va essayer le code PIN proposé: en cas d'échec, l'entrée de l'alias dans le _profil_ est supprimée.
 
 L'application terminale:
 - récupère depuis l'entrée de répertoire accessible par `(s1, s2)`,
-  - `fp` : le _profil_ de l'utilisateur crypté par la clé `Kp` de l'utilisateur. Disposant de s1 s2, l'application terminale,
+  - `fp` : le _profil_ de l'utilisateur crypté par la clé `Kp` de l'utilisateur. Disposant de `s1 s2`, l'application terminale,
     - obtient `Kp`,
     - décrypte le profil avec `Kp`.
-  - `userid` : de l'utilisateur.
-  - `ckp` : le couple de 2 cryptages de la clé `Kp` de l'utilisateur par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
+  - `ckp` : le couple des 2 cryptages de la clé `Kp` de l'utilisateur par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
 - génère aléatoirement une clé `Ka` qui est identifiante de l'alias.
 - enregistre une entrée dans le _profil_:
-  - `aliasid` : identifiant. Le SHA de `Ka`. Soit `x` le _SH(code PIN allongé, `Ka`).
+  - `aliasid` : identifiant : le SHA de `Ka`. Soit `x` le _SH(code PIN allongé, `Ka`)_.
   - `shax` : le SHA de `x`.
   - `kpx` : le cryptage de `Kp` par `x`.
   - `err` : 0. Nombre de tentatives infructueuses d'accès au code PIN.
@@ -742,7 +724,7 @@ L'application terminale:
   - de la clé `Ka` associée.
   - de `x`, le _cryptage du code PIN (allongé) par `Ka`_
 - soumet une requête au serveur avec en arguments: `sha(x)` et `aliasid`: le `sha(Ka)`:
-  - lit l'enregistrement `a` par l'index `aliasid` (sa clé primaire est `userid.aliasid`).
+  - la requête lit l'enregistrement `a` par l'index `aliasid` (sa clé primaire est `userid.aliasid`).
   - enregistre dans `a.lm` le mois courant (si sa valeur a changé).
   - compare `a.shax` et `sha(x)` reçu en argument:
     - en cas d'inégalité, incrémente le compteur d'erreur `a.err` et s'il est supérieur à 1 supprime l'entrée `a` du _profil_ .
@@ -755,7 +737,7 @@ L'application terminale:
 
 In fine l'application terminale dispose en mémoire du _profil_ en clair de l'utilisateur, obtenue par la saisie du code PIN.
 
-L'utilisateur et l'application terminale se retrouvent dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longues `s1, s2`, la fiche personnelle est en clair en mémoire. Depuis un appareil favori, l'utilisateur a seulement saisi un code PIN plus court que `(s1, s2)` et désigné un alias local.
+L'utilisateur et l'application terminale se retrouvent dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longues `s1 s2`, le _profil_ est en clair en mémoire. Depuis un appareil favori, l'utilisateur a seulement saisi un code PIN plus court que `s1, s2` et désigné un alias local.
 
 > Le code PIN ne peut jamais être décrypté, ni avec seulement les données du _répertoire des alias_, ni seulement avec les données de la base locale de l'appareil.
 
@@ -825,13 +807,14 @@ En effectuant cette opération pour tous les fils constituant le contexte de tra
 ## Le mode _avion_
 Il est possible sur un poste _favori_ où l'utilisateur a ouvert récemment l'application et accédé à une de ses sessions favorites. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
 
-La base de données locale d'une application contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: certes ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
+La base de données locale d'une application contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
 
 La base de données est cryptée par la clé `Kp` et l'application doit se la procurer:
 - l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé `Kp` cryptée par la clé `Ka` lisible localement.
 - l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir `Kp` depuis la base locale des alias.
 
 # Les _activités_ définies dans une application
+
 Dans une application terminale une _activité_ désigne un ensemble de tâches cohérentes qu'un utilisateur peut effectuer. Par exemple dans l'exemple _circuitscourts_:
 - l'activité _commande d'un consommateur_ où un consommateur peut déclarer les quantités qu'il souhaite recevoir pour les livraisons en cours.
 - l'activité _contrôle et réception des livraisons_ pour les animateurs d'un point-de-livraison visant à vérifier les commandes, réceptionner les camions et noter les quantités reçues.
@@ -842,44 +825,45 @@ Une _activité_ décrit à la fois:
 - quels processus _suites d'actions élémentaires concourant à un objectif plus global_, un utilisateur peut engager dans le cadre de cette activité.
 - quels _credentials_ un utilisateur doit présenter pour avoir le droit de voir les données et d'exécuter les processus.
 
-### Une session d'une application pour un utilisateur peut comporter plusieurs activités
-- a minima une, sinon que peut-il voir ou faire ? Mais une phase initiale _d'accueil_ lui permet justement d'en sélectionner au moins une quand il n'en a encore choisi aucune.
-- le cas échéant plusieurs:
-  - plusieurs du même type: assurer _le contrôle et réception des livraisons_ pour deux points-de-livraisons.
-  - plusieurs de types différents: assurer _la commande d'un consommateur_ (pour lui-m^me) et contribuer à _la préparation d'une livraison_ à titre d'aide d'un groupement de producteurs ami.
+### Une session d'une application pour un utilisateur peut avoir plusieurs activités ouvertes
+Au lancement de l'application, selon l'application parfois une ou plusieurs activités peuvent être systématiquement ouvertes et donner accès à des informations libres d'accès. Toutefois en général, l'utilisateur n'a pas d'activité ouverte et le _desktop de l'application_ est justement là pour lui permettre d'en choisir une première.
 
-### Un _type d'activité_ a des paramètres identifiants et un ou des _types de credentials_
+Ultérieurement plusieurs activités peuvent être ouvertes:
+- plusieurs du même type: assurer _le contrôle et réception des livraisons_ pour deux points-de-livraisons.
+- plusieurs de types différents: assurer _la commande d'un consommateur_ (pour lui-même) et contribuer à _la préparation d'une livraison_ à titre d'aide d'un groupement de producteurs ami.
+
+### Un _type d'activité_ a des paramètres et est associé à un ou plusieurs _types de credentials_
 Par exemple l'activité _commande d'un consommateur_ a pour paramètres,
 - `gc` : le code d'un point-de-livraison.
 - `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
+- les `initiales` d'un utilisateur,
+- le `mot-de-passe` déclaré pour le couple `gc.co` pour les initiales fournies.
 
-Ce type d'activité est associé à un ou plusieurs types de _credential_, ici par exemple `CREDCO`,
-- qui a pour paramètres:
-  - `gc` : le code d'un point-de-livraison.
-  - `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
-- qui a pour propriétés:
+Ce type d'activité est associé à un ou plusieurs types de _credential_, ici par exemple `CREDCO` qui peut se construire à partir des paramètres de l'activité:
+- `gc co` : sont les identifiants d'un _credential_ CREDCO dont les autres propriétés sont: 
   - les `initiales` d'un utilisateur,
   - le `mot-de-passe` déclaré pour le couple `gc.co` pour les initiales fournies.
 
-Le ou les _types de credentials_ déclarés requis pour une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_.
+Le ou les _types de credentials_ déclarés associés à une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_: un _credential_ peut ainsi être généré depuis ceux-ci et sera délivré aux opérations qui le requièrent.
 
 ## Choisir et exercer une activité dans une session d'une application terminale
-La _page d'accueil_ de l'application présente à l'utilisateur les _types d'activité_ qu'il peut choisir. C'est en général une liste assez courte mais pourquoi pas longue pour une application complexe, et dans ce dernier cas avec une possibilité de sélection par mot clé et / ou une présentation arborescente, selon le paramétrage de la page d'accueil de l'application.
+Le _desktop_ de l'application présente à l'utilisateur les _types d'activité_ qu'il peut choisir. 
+- Ce peut être une liste courte,
+- Ce peut être pour une application complexe une liste longue, avec une possibilité de sélection par mot clé et / ou une présentation arborescente.
+- Le paramétrage du _desktop_ déclare comment il apparaît et comment l'utilisateur peut sélectionner une activité.
 
-Quand l'utilisateur a choisi l'une d'entre elles, il doit saisir:
-- les paramètres de l'activité choisi: par exemple un code `gc` et un code `co`.
-- les propriétés du ou des _credentials_ requis: par exemple des `initiales` et un `mot-de-passe`.
+Quand l'utilisateur a choisi un type d'activité il doit saisir tous les paramètres de l'activité: par exemple un code `gc` et un code `co`, des `initiales` et un `mot-de-passe`.
 
-Il a alors une _activité ouverte_, ce qui apparaît sur sa page d'accueil.
+Il a alors une _activité ouverte_, ce qui apparaît sur son _desktop_.
 
-Il peut en ouvrir d'autres, du même type ou non, chacune figurée par exemple par un onglet ou une icône.
+Il peut en ouvrir d'autres, du même type ou non, chacune figurée par exemple par un onglet et / ou une icône et / ou un libellé.
 
-Depuis sa _page d'accueil_ il pourra _basculer d'une activité à l'autre_ par exemple en cliquant sur un onglet ou une icône, ou si l'application le permet en voir plus d'une affichée (une en haut, une en bas).
+Depuis le _desktop_ l'utilisateur peut _basculer d'une activité à une autre_ par exemple en cliquant sur un onglet ou une icône, ou si l'application le permet en voir plus d'une affichée (une en haut, une en bas).
 
 ### Enregistrement d'une _session favorite_ dans son _profil_
 Si l'utilisateur a un profil enregistré, à n'importe quel moment de sa session de travail en cours il peut:
 - sélectionner en les cochant certaines de ses activités en cours,
-- enregistrer cette sélection en lui donnant un libelle clair pour lui.
+- enregistrer cette sélection en lui donnant un libelle clair pour lui, comme _commandes Bob à JP_.
 
 
 
