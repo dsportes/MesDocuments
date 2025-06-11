@@ -832,6 +832,56 @@ La base de données est cryptée par la clé `Kp` et l'application doit se la pr
 - l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir `Kp` depuis la base locale des alias.
 
 # Les _activités_ définies dans une application
+Dans une application terminale une _activité_ désigne un ensemble de tâches cohérentes qu'un utilisateur peut effectuer. Par exemple dans l'exemple _circuitscourts_:
+- l'activité _commande d'un consommateur_ où un consommateur peut déclarer les quantités qu'il souhaite recevoir pour les livraisons en cours.
+- l'activité _contrôle et réception des livraisons_ pour les animateurs d'un point-de-livraison visant à vérifier les commandes, réceptionner les camions et noter les quantités reçues.
+- l'activité _préparation d'une livraison_ pour un groupement de producteurs, gérant le calendrier de la livraison, rassemblant les cartons préparés par les producteurs pour effectuer une tournée auprès des points-de-livraison associés.
+
+Une _activité_ décrit à la fois:
+- sur quelles données elle doit opérer, quels documents doivent être rendus visibles aux utilisateurs ayant opté pour cette activité.
+- quels processus _suites d'actions élémentaires concourant à un objectif plus global_, un utilisateur peut engager dans le cadre de cette activité.
+- quels _credentials_ un utilisateur doit présenter pour avoir le droit de voir les données et d'exécuter les processus.
+
+### Une session d'une application pour un utilisateur peut comporter plusieurs activités
+- a minima une, sinon que peut-il voir ou faire ? Mais une phase initiale _d'accueil_ lui permet justement d'en sélectionner au moins une quand il n'en a encore choisi aucune.
+- le cas échéant plusieurs:
+  - plusieurs du même type: assurer _le contrôle et réception des livraisons_ pour deux points-de-livraisons.
+  - plusieurs de types différents: assurer _la commande d'un consommateur_ (pour lui-m^me) et contribuer à _la préparation d'une livraison_ à titre d'aide d'un groupement de producteurs ami.
+
+### Un _type d'activité_ a des paramètres identifiants et un ou des _types de credentials_
+Par exemple l'activité _commande d'un consommateur_ a pour paramètres,
+- `gc` : le code d'un point-de-livraison.
+- `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
+
+Ce type d'activité est associé à un ou plusieurs types de _credential_, ici par exemple `CREDCO`,
+- qui a pour paramètres:
+  - `gc` : le code d'un point-de-livraison.
+  - `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
+- qui a pour propriétés:
+  - les `initiales` d'un utilisateur,
+  - le `mot-de-passe` déclaré pour le couple `gc.co` pour les initiales fournies.
+
+Le ou les _types de credentials_ déclarés requis pour une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_.
+
+## Choisir et exercer une activité dans une session d'une application terminale
+La _page d'accueil_ de l'application présente à l'utilisateur les _types d'activité_ qu'il peut choisir. C'est en général une liste assez courte mais pourquoi pas longue pour une application complexe, et dans ce dernier cas avec une possibilité de sélection par mot clé et / ou une présentation arborescente, selon le paramétrage de la page d'accueil de l'application.
+
+Quand l'utilisateur a choisi l'une d'entre elles, il doit saisir:
+- les paramètres de l'activité choisi: par exemple un code `gc` et un code `co`.
+- les propriétés du ou des _credentials_ requis: par exemple des `initiales` et un `mot-de-passe`.
+
+Il a alors une _activité ouverte_, ce qui apparaît sur sa page d'accueil.
+
+Il peut en ouvrir d'autres, du même type ou non, chacune figurée par exemple par un onglet ou une icône.
+
+Depuis sa _page d'accueil_ il pourra _basculer d'une activité à l'autre_ par exemple en cliquant sur un onglet ou une icône, ou si l'application le permet en voir plus d'une affichée (une en haut, une en bas).
+
+### Enregistrement d'une _session favorite_ dans son _profil_
+Si l'utilisateur a un profil enregistré, à n'importe quel moment de sa session de travail en cours il peut:
+- sélectionner en les cochant certaines de ses activités en cours,
+- enregistrer cette sélection en lui donnant un libelle clair pour lui.
+
+
 
 
 # Annexe: le Use Case _circuit court_
