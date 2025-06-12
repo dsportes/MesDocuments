@@ -1099,73 +1099,61 @@ Pour s'abonner à un fil il faut fixer:
 - les types de documents cités dans l'abonnement sont seuls considérés : `[BCG, CART, BCC]`
 - la ou les valeurs de filtres à appliquer pour éviter une notification non pertinente: `co1` (qui s'appliquera aux documents BCC dont l'index 2 est égal à `co1`).
 
-### _Template de session_ et extensions dynamiques
-Un _template de session_ a un code `@GROUPE` et une liste de propriétés identifiantes:
-- par exemple `@GROUPE [gc]`
-- un ou plusieurs types de _credential_. Pour chacun, toutes ses propriétés identifiantes doivent être citées dans l'identifiant du template. Le type de _credential_ `CREDGC` a pour identifiant `gc`.
+## Applications terminales: _activités_
 
-Un _template de session_ est constitué d'un ou plusieurs _fils_ dont le path est entièrement fixé depuis les propriétés identifiantes du template, pour chaque fil, quel est le type de credential à appliquer: 
-- par exemple le fil `#RGC.gc [RG, RP, CHCO, FGC, FCO]` - type de _credential_ `CREDGC`.
+Une _classe d'activité_ est décrite par son nom `CMDCO` _commandes d'un consommateur_:
+- **des variables immuables de construction**: liste des variables _string_ qui sont fournies à la construction d'une instance et sont invariantes sue le cycle de vie.
+  - `gc` : le code d'un point-de-livraison.
+  - `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
+  - `initiales` de l'utilisateur,
+  - `pwd` : mot de passe de l'utilisateur pour accès au couple `gc.co` pour les initiales fournies.
+- **la liste des types de credentials** à instancier depuis les arguments de construction: `[CREDCO]`
+- **les variables**. Ces valeurs déterminent quels _fils_ sont dynamiquement instanciés. Ce sont:
+  - des valeurs scalaires.
+  - des listes de valeurs scalaires: `*gp`
+  - des listes de tuples: `*gpx,livrx`
+- la liste des _fils_ gérés par l'activité avec leurs identifiants et la correspondance avec les variables qui les définissent.
+  - `#RGC : {gc,co} - [RG, RC:{gc}, CHCO:{gc}, FGC:{gc}, FCO:{gc, co}]`
+    - _fil_ singleton entièrement déterminé par la constante de construction `gc`.
+    - `RG RC CHCO FGC FCO` : sont des singletons de par leur id fixée (`gc` ou `gc, co`)
+  - `#CALGP : {gp} - [CALG:{gp}, LIVRG:{gp}]`
+    - N _fils_ puisque `*gp` est une liste.
+  - `#CHL : {gp} - [CHL:{gp}, CHD:{gp, co}]`
+    - N _fils_ puisque `*gp` est une liste.
+  - `#CMDGC : {gc,lx.gp,lx.livr} - [BCG:{gc,lx.gp,lx.livr}, CART:{gc,lx.gp,lx.livr}]`
+    - N _fils_ puisque `*lx` est une liste.
 
-> L'exemple précédent est celui d'un _template de session_ avec un seul fil. Dans la réalité il y a en général plusieurs fils à ouvrir, sous contrôle d'un (a minima en général), voire plusieurs (plus rarement) _credentials_.
+`*gp` : liste des groupements susceptibles d'organiser une livraison.
+- **Calculé** par la méthode `lgp(RGC.RG)`
+  - la méthode a accès à l'activité et donc en particulier ses _fils_ et les variables.
+  - la liste citée indique quelles variables et fils elle utilise dans son calcul. Si l'une d'elle change, la liste est recalculée.
+  - Si `RG` n'avait pas été un singleton, `lgp` aurait été construite en itérant sur la collection des documents.
 
-**Quand dans une session un utilisateur veut _ouvrir une session suivant un template_** il doit fournir,
-- a) son type @`GROUPE` et tous ses paramètres (`gc1`): `@GROUPE/gc1`.
-- b) le (ou les) _credential_ requis par le template dont le serveur vérifiera qu'il lui donne le droit d'accéder aux fils de ce périmètre. 
-  - par exemple _le_ ou _un des_ mots de passe enregistré pour le groupe `gc1`.
+`*lx` : liste de tuples, chacun désignant une livraison x.
+- **Saisie**: l'utilisateur _désigne_ un ou des couples `{gp livr}` ou aucun représentant chacun une des livraisons à afficher.
 
-Le _succès_ de la connexion est l'abonnement de l'application terminale au(x) fil(s) du groupe `gc`.
+Cette activité montre un processus complexe: seul le fil #RGC est instancié en état _à charger_ peut être demandé à l'ouverture de l'activité. Les variables `*gp` et `*li` sont des listes vides.
+- mais le chargement de `RG` par le fil `#RGC` déclenche le (re)calcul de `*gp`, sa fonction de calcul étant dépendante de `RGC.RG`.
+- il en découle que N fils `#CALGP` et N fils `#CHL` sont instanciés en état _à charger_.
 
-#### _Template de session_ pour un groupe: `gc` - liste des abonnements
-Un _template de session_ autour d'un groupe `gc` contient:
-- un fil _principal_, `#RGC.gc [RG, RP, CHCO, FGC, FCO]` : le document `RG` donne une liste calculable des groupements `gp`, à qui il peut commander, les fiches du groupement et des consommateurs, le chat du groupement.
-- N fils _secondaires_ `#CALGP/gp [CALG, LIVRG]`, un par `gp` de la liste calculée ci-dessus.
-- N fils _secondaires_ `#CHL/gp [CHL, CHD {gc}]`, un par `gp` de la liste calculée ci-dessus.
+**Remarque:** SI la méthode lgp avait été dépendante d'une variable s1 indiquant un _seuil_ quelconque s1 sur les groupements listés dans RG, la liste *gp aurait été calculée en tenant compte de la valeur de s1.
+- Si s1 est une valeur saisie, il résulterait de son changement le recalcul de *gp par la méthode lgp, avec en conséquence des fils en plus ou en moins.
+- des fils CALGP apparaîtraient en état _ok_ alors que d'autres seraient en état _à charger_: à l'écran c'est à rendre visible, dans le cas ou des totalisations seraient effectuées si tous les _fils_ ne sont pas _ok_, ils sont clairement faux / provisoires / voire même masqués.
 
-En cours de session une application peut fixer une livraison _courante_ `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr [BCG, CART, BCC]` (elle pourrait également en avoir plusieurs selon la logique applicative souhaitée).
+Le calcul lgp n'est pas forcément en lui-même complexe: toutefois à la fin d'un recalcul, non seulement le nouvel état (la liste des gp) est important mais aussi:
+- les gp ajoutés par rapport à l'état précédent: il faudra _ajouter_ des fils.
+- les gp supprimés de l'état précédent: il faudra supprimer des fils.
 
-#### Un _template_ partiellement déterminé
-La construction du _template_ `#GROUPE` **n'est donc entièrement déterminée** par le seul identifiant `gc` du template: elle dépend d'une liste de valeurs calculée depuis le document `RG`.
+### Chaque fil a 3 états: en chargement, en mise à jour, ok
+- en chargement / à charger: il n'a jamais été demandé, il est _vide_ mais par méconnaissance de son contenu.
+- en mise à jour / obsolète: le fil a été chargé mais il a été détecté que des documents du fil ont évolué sur le central, la mise à jour a été demandée et en attente de retour (qui peut être long), le fil est _obsolète_.
+- ok : le fil a été chargé, aucune notification n'a été reçue indiquant que certains de ses documents avaient été mis à jour.
 
-Il peut y avoir deux visions de ce template, statique et dynamique.
+Le chargement / la mise à jour d'un fil prend du temps. Mais sa suppression aussi:
+- il faut détecter les documents qui ne sont plus référencés,
+- il faut mettre à jour la base locale.
 
-##### La vision _statique_ 
-Un second paramètre de `$GROUPE` est décrit comme une liste `*gp` qui s'écrit `@GROUPE/gc1, *gp=RG.lstgp`. 
-- Un pré-traitement lit le document `RG` et calcule la liste des `gp` passée en paramètre par sa méthode `lstgp`. 
-- Le template devient alors complètement déterminé après ce traitement d'initialisation. 
-- Dans ce cas, l'évolution éventuelle de `RG` pouvant possiblement changer `*gp` n'est pas censée recalculer le _template_ et la liste des fils qui en dépendent.
-
-##### La vision _dynamique_
-La description est semblable à la vision _statique_, mais de plus à chaque fois que le document `RG` est détecté changé sur l'écoute du fil `#RGC` (ce qui dans cet exemple est improbable en pratique), il faut réinitialiser les fils:
-- se désabonner de tous les fils `#CALGP #CHL` dont le `gp` n'est plus dans la nouvelle liste: ce sont des groupements qui n'existent plus ou ne livrent plus ce point-de-livraison,
-- s'abonner à tous les fils `#CALGP #CHL` pour les `gp` de la nouvelle liste n'étant pas dans l'ancienne: nouveaux groupements ou groupements nouvellement disposés à livrer le point-de-livraison.
-
-L'application terminale étant notifiée des évolutions de `RG` elle peut simplement émettre une requête au serveur pour faire recalculer / changer ce groupe d'abonnements. Sauf qu'en l'occurrence, le serveur doit disposer de la liste actuelle des `gp` pour établir la différence avec la nouvelle qu'il est capable d'obtenir. Ceci introduit un concept de _fil secondaire d'un principal_:
-- pour un _principal_ connaître la liste de ses secondaires,
-- pour un _principal_, garder ses paramètres à calculer, à la fois en disposant du nom du calcul et en conservant dans l'instance du fil lui-même les résultats du dernier calcul d'initialisation.
-
-#### _Template de session_ pour un consommateur: `gc co` - liste des abonnements
-Ce _template_ autour d'un groupe `gc co` contient un fil _principal_ `#RGC.gc [RG, RP, CHPR, FPR]`.
-
-Comme ci-avant il y aura des fils secondaires dépendant associé à chaque `gp` à qui il peut commander: 
-- N fils `#CALGP/gp [CALG, LIVRG]`, 1 pour chaque `gp` récupéré du document `RG`.
-- N fils `#CHL/gp filtre:gp.gc [CHL, CHD]`
-
-Quand une exécution d'une application fixe une livraison courante `gp.livr`, elle s'abonne au fil `#CMDGC/gc.gp.livr filtre:gc.co, [BCG, BCC]`, (`BCC` est filtré par son index 2 sur `gc.co`)
-
-#### Abonnements pour un groupement: `gp` (A REVISER)
-Abonnement à `#RGC [RG, RC]` : donne une liste des groupes `gc` qui peuvent commander.
-
-Abonnement au fil `#CALGP/gp [CALG, LIVRG]`
-
-Quand il a fixé une livraison `livr`, abonnement à `#CMDGP/gp.livr [CHD, BCG, CART]`.
-
-Abonnement au fil `#CHL/gp [CHL, CHD]`
-
-Abonnements à `#CHPR/gp`.
-
-#### Abonnements pour un producteur: `gp pr`
-(TODO)
+Il y a en conséquence une file des actions en attente sur les fils: la mise en file est immédiate ainsi que le marquage éventuel d'un statut du fil, mais les actions _longues_ associées sont effectuées en asynchrone.
 
 -----------------------------------------------------------------------
 
@@ -1181,19 +1169,12 @@ Elle peut s'effectuer de deux manières:
 - en retournant le contenu binaire du fichier dans la couche applicative,
 - en retournant une URL d'accès sécurisé valable un certain temps, typiquement à transmettre à une application externe.
 
-### Fin d'une transaction
-A la fin d'une transaction le framework connaît la liste des documents créés / modifiés / supprimés et donc des fils associés.
-
-En consultant les abonnements des sessions pour chaque fil, il en résulte pour chaque application terminale (identifiée par son _token_) intéressée, une _liste de notifications_ formée des _fils changés_.
-- celles qui ne correspondent pas au _token_ de l'application terminale ayant émis la requête, sont notifiées par des messages _webpush_.
-- celle initiatrice de la requête reçoit cette liste de notifications en retour de la requête, donc très vite et par un canal raccourci ce qui lui permettra de mettre à jour son affichage au plus tôt.
-
-#### Cohérence _forte_ dans un fil, _faible_ entre fils
+### Cohérence _forte_ dans un fil, _faible_ entre fils
 L'état d'un fil retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
 
 Mais deux demandes faites pour deux fils, forcément à des moments différents, retourne deux états de fils qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre fils, un état qui globalement peut être fonctionnellement incohérent temporairement.
 
-> On peut certes grouper dans la même requête des demandes concernant plusieurs fils: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
+> On pourrait certes grouper dans la même requête des demandes concernant plusieurs fils: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
 
 ## Décompte des consommations 
 (En réflexion)
