@@ -1026,7 +1026,7 @@ Les documents devant être _synchronisés_ sont rattachés à un ou des _fils de
   - index 1 : `gc gp`
   - index 2 : `gp livr`
 - CART: carton d'un producteur pour la livraison à un groupe: `gp pr livr gc`
-  - index 1 : `gc gp livr`
+  - index 1 : `gp livr gc`
   - index 2 : `gp pr`
   - index 3 : `gp livr`
 
