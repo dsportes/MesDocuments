@@ -836,13 +836,11 @@ Ultérieurement plusieurs activités peuvent être ouvertes:
 Par exemple l'activité _commande d'un consommateur_ a pour paramètres,
 - `gc` : le code d'un point-de-livraison.
 - `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
-- les `initiales` d'un utilisateur,
-- le `mot-de-passe` déclaré pour le couple `gc.co` pour les initiales fournies.
+- `initials` d'un utilisateur,
+- `pwd` : mot de passe déclaré pour le couple `gc co` pour les `initiales` fournies.
 
 Ce type d'activité est associé à un ou plusieurs types de _credential_, ici par exemple `CREDCO` qui peut se construire à partir des paramètres de l'activité:
-- `gc co` : sont les identifiants d'un _credential_ CREDCO dont les autres propriétés sont: 
-  - les `initiales` d'un utilisateur,
-  - le `mot-de-passe` déclaré pour le couple `gc.co` pour les initiales fournies.
+- `gc co` : sont les identifiants d'un _credential_ `CREDCO` dont les autres propriétés sont `initals` et `pwd`.
 
 Le ou les _types de credentials_ déclarés associés à une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_: un _credential_ peut ainsi être généré depuis ceux-ci et sera délivré aux opérations qui le requièrent.
 
@@ -852,7 +850,7 @@ Le _desktop_ de l'application présente à l'utilisateur les _types d'activité_
 - Ce peut être pour une application complexe une liste longue, avec une possibilité de sélection par mot clé et / ou une présentation arborescente.
 - Le paramétrage du _desktop_ déclare comment il apparaît et comment l'utilisateur peut sélectionner une activité.
 
-Quand l'utilisateur a choisi un type d'activité il doit saisir tous les paramètres de l'activité: par exemple un code `gc` et un code `co`, des `initiales` et un `mot-de-passe`.
+Quand l'utilisateur a choisi un type d'activité il doit saisir tous les paramètres de l'activité: par exemple un code `gc` et un code `co`, des `initials` et un `pwd`.
 
 Il a alors une _activité ouverte_, ce qui apparaît sur son _desktop_.
 
@@ -864,9 +862,6 @@ Depuis le _desktop_ l'utilisateur peut _basculer d'une activité à une autre_ p
 Si l'utilisateur a un profil enregistré, à n'importe quel moment de sa session de travail en cours il peut:
 - sélectionner en les cochant certaines de ses activités en cours,
 - enregistrer cette sélection en lui donnant un libelle clair pour lui, comme _commandes Bob à JP_.
-
-
-
 
 # Annexe: le Use Case _circuit court_
 
@@ -950,7 +945,7 @@ Le **catalogue d'une livraison** d'un groupement est identifié par `gp livr`.
   - après ouverture de la commande, quand une condition de vente d'un produit change, les deux conditions existent: celle _actuelle_ et celle _à l'ouverture de la commande_.
   - les conditions de vente ne peuvent plus changer après la date-heure d'expédition (des paiements définitifs ont pu avoir lieu).
 
-Le **répertoire général** des groupes et groupements n'a pas d'identifiant (c'est un singleton):
+Le **répertoire général** des groupes et groupements est un singleton (pas d'identifiant):
 - **Document RG**:
   - pour chaque groupe, une _carte de visite_ du groupe.
   - pour chaque groupement, une _carte de visite_ du groupement.
@@ -1002,102 +997,109 @@ Un consommateur souhaite voir:
 ### _Fils de synchronisation_ des documents
 Chaque document est accessible par son identifiant.
 
-Certains documents peuvent être _synchronisés_: pour cela il faut définir dans quels _fils de synchronisation_ chaque document est rattaché:
-- chaque application terminale déclare à quels _fils_ elle est abonnée de manière à recevoir une notification circonstanciée quand un document rattaché à ce fil a changé.
-- chaque document peut être rattaché à au plus DEUX fils de synchronisation.
+Les documents devant être _synchronisés_ sont rattachés à un ou des _fils de synchronisation_ selon leurs propriétés identifiantes. Chaque application terminale déclare à quels _fils_ elle est abonnée de manière à recevoir une notification circonstanciée quand un document rattaché à ce fil a changé.
 
 #### Liste des documents, définition de leurs index
-- RG: répertoire général des groupes et groupements
-- RC: répertoire des consommateurs: gc
-- RP: répertoire des producteurs: gp
+- RG: cartes de visite des groupes et groupements
+- RC: cartes de visites des consommateurs d'un groupe: `gc`
+- RP: cartes de visite des producteurs d'un groupe: `gp`
 
-- FGC: fiche d'un groupe. gc
-- FCO: fiche d'un consommateur: gc co
-  - index 1 : gc
-  - index 2 : co
-- FGP: fiche d'un groupement: gp
-- FPR: fiche d'un producteur: gp pr
-  - index 1 : gp
-  - filter : pr
-- CATG: catalogue des produits d'un groupement: gp
-- CATL: catalogue d'une livraison: gp livr
+- FGC: fiche d'un groupe. `gc`
+- FCO: fiche d'un consommateur: `gc co`
+  - index 1 : `gc`
+  - index 2 : `co`
+- FGP: fiche d'un groupement: `gp`
+- FPR: fiche d'un producteur: `gp pr`
+  - index 1 : `gp`
+  - filter : `pr`
+- CATG: catalogue des produits d'un groupement: `gp`
+- CATL: catalogue d'une livraison: `gp livr`
 
-- CALG: calendrier d'un groupement: gp
-- LIVRG: livraison d'un groupement: gp livr
-  - index 1 : gp
+- CALG: calendrier d'un groupement: `gp`
+- LIVRG: livraison d'un groupement: `gp livr`
+  - index 1 : `gp`
 
-- BCC: bon de commande d'un consommateur: gc co gp livr
-  - index 1 : gc gp livr
-  - index 2 : gc co
-- BCG: bon de commande d'un groupement: gc gp livr
-  - index 1 : gc gp
-  - index 2 : gp livr
-- CART: carton d'un producteur pour la livraison à un groupe: gp pr livr gc
-  - index 1 : gc gp livr
-  - index 2 : gp pr
-  - index 3 : gp livr
+- BCC: bon de commande d'un consommateur: `gc co gp livr`
+  - index 1 : `gc gp livr`
+  - index 2 : `gc co livr`
+- BCG: bon de commande d'un groupement: `gc gp livr`
+  - index 1 : `gc gp`
+  - index 2 : `gp livr`
+- CART: carton d'un producteur pour la livraison à un groupe: `gp pr livr gc`
+  - index 1 : `gc gp livr`
+  - index 2 : `gp pr`
+  - index 3 : `gp livr`
 
-- CHL: chat d'une livraison: gp livr
-  - index 1 : gp
-- CHD: chat d'une distribution: gp livr gc
-  - index 1 : gp livr
-  - index 2 : gp gc
-- CHCO: chat d'un groupe de consommateurs: gc
-- CHPR: chat d'un groupement de producteur: gp
+- CHL: chat d'une livraison: `gp livr`
+  - index 1 : `gp`
+- CHD: chat d'une distribution: `gp livr gc`
+  - index 1 : `gp livr`
+  - index 2 : `gp gc`
+- CHCO: chat d'un groupe de consommateurs: `gc`
+- CHPR: chat d'un groupement de producteur: `gp`
 
 #### Liste des _fils_
 La description d'un type de fil donne:
-- la liste de ses propriétés identifiantes.
+- la **liste de ses propriétés identifiantes**.
 - pour chaque document pouvant faire partie du fil:
   - son type,
-  - le numéro de l'index (0, 1, 2) définissant ses propriétés d'appartenance. Par convention 0 pour l'id complète.
-  - s'il peut y avoir un filtre pour éviter les notifications non pertinentes:
-    - le numéro du paramètre de filtre (en général 1),
-    - le numéro de l'index dans le document pour retrouver la propriété filtrée.
+  - le numéro de l'index (0, 1, 2) définissant ses propriétés d'appartenance, par convention 0 pour l'id complète. Chaque index doit référencer **toutes** les propriétés identifiantes du fil.
 
-Fil `#CMDGC` : `gc.gp.livr` - commande d'un groupe à un groupement - Filtre de notification possible: `co`
-- `BCG` : 0 - C'est un singleton dans le fil
+Fil `#CMDGC` : `gc gp livr` - commande d'un groupe gc à un groupement gp pour une livraison livr
+- `BCG` : 0 - singleton dans le fil
 - `CART` : 1
-- `BCC` : 1 , 1/2 - Filtrage de notification possible avc l'index 2 (`co`) donnant la valeur du paramètre de filtre 1 (`co`)
+- `BCC` : 1
 
-Fil `#CMDOV` : `gc.gp` - commandes ouvertes d'un groupe à un groupement
+Fil `#BCC` : `gc co livr` - commandes d'un consommateur gc co pour une livraison livr (tous groupements confondus)
+- `BCC` : 2
+
+Fil `#CMDOV` : `gc gp` - commandes d'un groupe gc à un groupement gp
 - `BCG` : 1
 
-Fil `#CALGP` : `gp` - calendrier des livraisons d'un groupement
-- `CALG` : 0 - un singleton pour le fil
+Fil `#CALGP` : `gp` - calendrier des livraisons d'un groupement gp
+- `CALG` : 0 - singleton pour le fil
 - `LIVRG` : 1
+- `CHL` : 1
 
-Fil `#CMDGP` : `gp.livr` - commandes des groupes à un groupement
+Fil `#CMDGP` : `gp livr` - commandes à un groupement gp pour une livraison livr
 - `CHD` : 1
 - `BCG` : 2
 - `CART` : 3
 
-Fil `#CMDPR` : `gp.pr` : commandes ouvertes d'un producteur
+Fil `#CMDPR` : `gp pr` : commandes à un producteur gp pr
 - `CART` : 2
 
-Fil `#RGC` : `gc` - Filtre de notification possible: `co`
-- `RG` : - rien, RG est un singleton pour l'organisation
-- `RC` : 0 - c'est un singleton pour le fil
-- `CHCO`: 0 - c'est un singleton pour le fil
-- `FGC` : 0 - c'est un singleton pour le fil
-- `FCO` : 1 , 1/2
+Fil `#RG` : singleton `RG` - répertoire général des groupes et groupements
 
-Fil `#RGP` : `gp` - Filtre de notification possible: `pr`
-- `RG` : - rien, RG est un singleton pour l'organisation
-- `RP` : 0 - c'est un singleton pour le fil
-- `CHPR` : 0 - c'est un singleton pour le fil
-- `FGP` : 0 - c'est un singleton pour le fil
-- `FPR` : 1 , 1/1
+Fil `#RGC` : `gc` - fiche d'un groupe gc, ses consommateurs, son chat 
+- `RC` : 0 - singleton pour le fil
+- `CHCO`: 0 - singleton pour le fil
+- `FGC` : 0 - singleton pour le fil
+- `FCO` : 1
 
-Fil `#CHL` : `gp` - Filtre de notification possible: `gc`
+Fil `#FCO` : `gc co` - fiche du consommateur gc co
+- `FCO` : 0
+
+Fil `#RGP` : `gp` - fiche d'un groupement gp, ses producteurs, son chat
+- `RP` : 0 - singleton pour le fil
+- `CHPR` : 0 - singleton pour le fil
+- `FGP` : 0 - singleton pour le fil
+- `FPR` : 1
+
+Fil `#FPR` : `gp pr` - fiche du producteur gp pr
+- `FPR` : 0
+
+Fil `#CHL` : `gp livr` - chat de la livraison livr d'un groupement gp
 - `CHL` : 1
-- `CHD` : 1 , 1/2
+- `CHD` : 1
 
-### Abonnement à un fil, _filtre_
+Fil `#CHD` : `gp gc` - chats des distributions d'un groupement gp à un groupe gc
+- `CHD` : 2
+
+### Abonnement à un fil, total (tous documents) ou partiel (certains seulement)
 Pour s'abonner à un fil il faut fixer:
-- son code et son path exact: `#CMDGC/gc1.gp1.livr1`
-- les types de documents cités dans l'abonnement sont seuls considérés : `[BCG, CART, BCC]`
-- la ou les valeurs de filtres à appliquer pour éviter une notification non pertinente: `co1` (qui s'appliquera aux documents BCC dont l'index 2 est égal à `co1`).
+- son type et son path exact: `#CMDGC/gc1/gp1/livr1`
+- si l'abonnement est _partiel_ la liste des types de documents ciblés : `[BCG, CART]`
 
 ## Applications terminales: _activités_
 
@@ -1109,51 +1111,81 @@ Une _classe d'activité_ est décrite par son nom `CMDCO` _commandes d'un consom
   - `pwd` : mot de passe de l'utilisateur pour accès au couple `gc.co` pour les initiales fournies.
 - **la liste des types de credentials** à instancier depuis les arguments de construction: `[CREDCO]`
 - **les variables**. Ces valeurs déterminent quels _fils_ sont dynamiquement instanciés. Ce sont:
-  - des valeurs scalaires.
-  - des listes de valeurs scalaires: `*gp`
-  - des listes de tuples: `*gpx,livrx`
+  - soit des valeurs scalaires: `vmin`
+  - soit des listes de valeurs scalaires: `*gp`
+  - soit des listes de tuples: `*gpx,livrx`
 - la liste des _fils_ gérés par l'activité avec leurs identifiants et la correspondance avec les variables qui les définissent.
-  - `#RGC : {gc,co} - [RG, RC:{gc}, CHCO:{gc}, FGC:{gc}, FCO:{gc, co}]`
-    - _fil_ singleton entièrement déterminé par la constante de construction `gc`.
-    - `RG RC CHCO FGC FCO` : sont des singletons de par leur id fixée (`gc` ou `gc, co`)
-  - `#CALGP : {gp} - [CALG:{gp}, LIVRG:{gp}]`
-    - N _fils_ puisque `*gp` est une liste.
-  - `#CHL : {gp} - [CHL:{gp}, CHD:{gp, co}]`
-    - N _fils_ puisque `*gp` est une liste.
-  - `#CMDGC : {gc,lx.gp,lx.livr} - [BCG:{gc,lx.gp,lx.livr}, CART:{gc,lx.gp,lx.livr}]`
+  - `#RG` - répertoire des groupes et groupements
+    - singleton
+    - génère `*gp` par la méthode `lgp()`.
+  - `#RGC : {gc} - [RC, CHCO, FGC]` - fiche partielle du groupe gc, ses consommateurs, son chat.
+    - singleton
+    - `RC CHCO FGC` : sont des singletons de par leur id fixée.
+  - `#FCO : {gc, co}` - fiche du consommateur gc co
+    - singleton
+  - `#CALGP : {*gp}` - calendrier des livraisons du groupement gp
+    - N _fils_ : `*gp` est une liste.
+  - `#CHD : {*gp, gc}` - chats des distributions d'un groupement gp au groupe gc
+    - N _fils_ : `*gp` est une liste.
+  - `#CMDGC : {lx.gc, lx.gp, lx.livr}` - commande du groupe gc à un groupement gp pour une livraison livr
     - N _fils_ puisque `*lx` est une liste.
 
 `*gp` : liste des groupements susceptibles d'organiser une livraison.
-- **Calculé** par la méthode `lgp(RGC.RG)`
+- **Calculé** par la méthode `lgp(#RG)`
   - la méthode a accès à l'activité et donc en particulier ses _fils_ et les variables.
-  - la liste citée indique quelles variables et fils elle utilise dans son calcul. Si l'une d'elle change, la liste est recalculée.
+  - la liste des arguments indique quelles variables et fils elle utilise dans son calcul. Si l'une d'elle change, la liste est recalculée.
   - Si `RG` n'avait pas été un singleton, `lgp` aurait été construite en itérant sur la collection des documents.
 
-`*lx` : liste de tuples, chacun désignant une livraison x.
-- **Saisie**: l'utilisateur _désigne_ un ou des couples `{gp livr}` ou aucun représentant chacun une des livraisons à afficher.
+`*lx` : liste de tuples, chacun désignant une livraison à afficher.
+- **Saisie**: l'utilisateur _désigne_ 0 à N couples `gc, gp, livr` dans une liste.
 
-Cette activité montre un processus complexe: seul le fil #RGC est instancié en état _à charger_ peut être demandé à l'ouverture de l'activité. Les variables `*gp` et `*li` sont des listes vides.
-- mais le chargement de `RG` par le fil `#RGC` déclenche le (re)calcul de `*gp`, sa fonction de calcul étant dépendante de `RGC.RG`.
-- il en découle que N fils `#CALGP` et N fils `#CHL` sont instanciés en état _à charger_.
+Cette activité montre un processus complexe: 
+- les fils #RG #RGC #FCO peuvent être instanciés en état _à charger_ à l'ouverture de l'activité. Les variables `*gp` et `*lx` sont des listes vides.
+- la fin du chargement de `RG` déclenche le (re)calcul de `*gp`.
+- il en découle l'instanciation de N fils `#CALGP` et N fils `#CHD` en état _à charger_.
 
-**Remarque:** SI la méthode lgp avait été dépendante d'une variable s1 indiquant un _seuil_ quelconque s1 sur les groupements listés dans RG, la liste *gp aurait été calculée en tenant compte de la valeur de s1.
-- Si s1 est une valeur saisie, il résulterait de son changement le recalcul de *gp par la méthode lgp, avec en conséquence des fils en plus ou en moins.
-- des fils CALGP apparaîtraient en état _ok_ alors que d'autres seraient en état _à charger_: à l'écran c'est à rendre visible, dans le cas ou des totalisations seraient effectuées si tous les _fils_ ne sont pas _ok_, ils sont clairement faux / provisoires / voire même masqués.
+**Remarque:** SI la méthode `lgp()` avait été dépendante d'une variable `vmin` indiquant un _seuil_ quelconque sur les groupements listés dans `RG`, la liste `*gp` aurait été calculée en tenant compte de la valeur de `vmin`.
+- Si `vmin` est une valeur saisie, il résulterait de son changement le recalcul de `*gp` par la méthode `lgp()`, avec en conséquence des fils en plus ou en moins.
+- des fils `CALGP` apparaîtraient en état _ok_ alors que d'autres seraient en état _à charger_: à l'écran c'est visible, dans le cas ou des totalisations seraient effectuées si tous les _fils_ ne sont pas _ok_, ils sont clairement faux / provisoires / voire même masqués.
 
-Le calcul lgp n'est pas forcément en lui-même complexe: toutefois à la fin d'un recalcul, non seulement le nouvel état (la liste des gp) est important mais aussi:
+Le calcul `lgp()` n'est pas forcément en lui-même complexe: toutefois à la fin d'un recalcul, non seulement le nouvel état (la liste des gp) est important mais aussi:
 - les gp ajoutés par rapport à l'état précédent: il faudra _ajouter_ des fils.
-- les gp supprimés de l'état précédent: il faudra supprimer des fils.
+- les gp supprimés de l'état précédent: il faudra supprimer **les abonnements** à ces fils.
 
-### Chaque fil a 3 états: en chargement, en mise à jour, ok
-- en chargement / à charger: il n'a jamais été demandé, il est _vide_ mais par méconnaissance de son contenu.
-- en mise à jour / obsolète: le fil a été chargé mais il a été détecté que des documents du fil ont évolué sur le central, la mise à jour a été demandée et en attente de retour (qui peut être long), le fil est _obsolète_.
-- ok : le fil a été chargé, aucune notification n'a été reçue indiquant que certains de ses documents avaient été mis à jour.
+### Fils _partiels_ d'une activité
+Un _fil_ est partiel quand l'abonnement ne porte que sur certains types de ses documents: pour un type _partiel_ l'activité ne va pas être notifié des évolutions des documents non cités.
 
-Le chargement / la mise à jour d'un fil prend du temps. Mais sa suppression aussi:
-- il faut détecter les documents qui ne sont plus référencés,
-- il faut mettre à jour la base locale.
+Mais un _fil_ qui était _partiel_ vis à vis d'un type peut ultérieurement ne plus l'être: l'abonnement devra être mis à jour et le _fil_ sera marqué _obsolète_ (avec 0 comme version détenu en session) afin d'obtenir tous les documents de ce fil.
 
-Il y a en conséquence une file des actions en attente sur les fils: la mise en file est immédiate ainsi que le marquage éventuel d'un statut du fil, mais les actions _longues_ associées sont effectuées en asynchrone.
+Pour chaque document susceptible d'être ou non _partiel_, il est indiqué la variable associée éventuelle gouvernant sa qualité _partiel / total_.
+
+### Un fil a plusieurs états
+- **_en chargement, en mise à jour, ok_**
+  - **en chargement / à charger**: il n'a jamais été demandé, il est _vide_ par méconnaissance de son contenu.
+  - **en mise à jour / obsolète**: le fil a été chargé mais une notification a indiqué des évolutions de documents du fil sur le central. La mise à jour a été demandée et est en attente de retour (qui peut être long), le fil est _obsolète_.
+  - **ok** : le fil a été chargé, aucune notification n'a été reçue le concernant, il est a priori à jour.
+- **_actif, passif_**
+  - un fil _actif_ a un abonnement qui peut notifier des évolutions.
+  - un fil _passif_ a un contenu mais n'a plus d'abonnement actuellement demandant à être notifié de ses évolutions.
+
+### Chargement / la mise à jour d'un fil
+Il faut mettre à jour la base locale: c'est donc une opération _longue_.
+
+Une file des actions en attente sur les fils est gérée:
+- la mise en file est immédiate ainsi que le marquage éventuel d'un statut du fil, 
+- les actions _longues_ associées sont effectuées en asynchrone.
+
+### Présence de fils _inactifs_ en session
+Un fil peut avoir été actif et des documents chargés parce qu'à un moment donné l'utilisateur a eu besoin d'en voir le contenu. Si plus tard ce fil n'a plus d'intérêt faut-il le supprimer ?
+- si oui :
+  - s'il redevient utile il faudra le recharger intégralement ce qui sera long.
+  - il ne sera pas visible en mode avion.
+- si non : il encombre la base locale avec des données qui peut-être ont été demandée il y longtemps puis plus jamais.
+
+Une gestion opportuniste est pertinente:
+- quand un fil n'est plus actif, sa _date_ de fin d'activité est notée en base locale.
+- quand il redevient _actif_, y compris en mode _avion_, la date de fin d'activité est effacée.
+- en fin de session, les fils _inactifs_ depuis longtemps sont purgés.
 
 -----------------------------------------------------------------------
 
