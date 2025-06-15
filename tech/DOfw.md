@@ -1105,6 +1105,7 @@ Pour s'abonner à un fil il faut fixer:
 
 Une _classe d'activité_ est décrite par son nom `CMDCO` _commandes d'un consommateur_:
 - **des variables immuables de construction**: liste des variables _string_ qui sont fournies à la construction d'une instance et sont invariantes sue le cycle de vie.
+  - `org` ; code de l'organisation.
   - `gc` : le code d'un point-de-livraison.
   - `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
   - `initiales` de l'utilisateur,
