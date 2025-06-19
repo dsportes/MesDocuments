@@ -1108,7 +1108,7 @@ Une _classe d'activité_ est décrite par son nom `CMDCO` _commandes d'un consom
   - `org` ; code de l'organisation.
   - `gc` : le code d'un point-de-livraison.
   - `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
-  - `initiales` de l'utilisateur,
+  - `initials` de l'utilisateur,
   - `pwd` : mot de passe de l'utilisateur pour accès au couple `gc.co` pour les initiales fournies.
 - **la liste des types de credentials** à instancier depuis les arguments de construction: `[CREDCO]`
 - **les variables**. Ces valeurs déterminent quels _fils_ sont dynamiquement instanciés. Ce sont:
