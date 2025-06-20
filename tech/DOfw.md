@@ -1038,47 +1038,60 @@ Les documents devant être _synchronisés_ sont rattachés à un ou des _fils de
 - CHCO: chat d'un groupe de consommateurs: `gc`
 - CHPR: chat d'un groupement de producteur: `gp`
 
-#### Liste des _fils_
-La description d'un type de fil donne:
+#### Liste des _bags_
+La description d'un type de bag donne:
 - la **liste de ses propriétés identifiantes**.
-- pour chaque document pouvant faire partie du fil:
+- pour chaque document pouvant faire partie du bag:
   - son type,
-  - le numéro de l'index (0, 1, 2) définissant ses propriétés d'appartenance, par convention 0 pour l'id complète. Chaque index doit référencer **toutes** les propriétés identifiantes du fil.
+  - le numéro de l'index (0, 1, 2) définissant ses propriétés d'appartenance, par convention 0 pour l'id complète. Chaque index doit référencer **toutes** les propriétés identifiantes du bag.
 
-Fil `#CMDGC` : `gc gp livr` - commande d'un groupe gc à un groupement gp pour une livraison livr
+Bag `#CMDGC` : `gc gp livr` - commande d'un groupe gc à un groupement gp pour une livraison livr
 - `BCG` : 0 - singleton dans le fil
 - `CART` : 1
 - `BCC` : 1
+- Credentials: `CO gc, GC gc`
 
-Fil `#BCC` : `gc co livr` - commandes d'un consommateur gc co pour une livraison livr (tous groupements confondus)
+Bag `#BCC` : `gc co livr` - commandes d'un consommateur gc co pour une livraison livr (tous groupements confondus)
 - `BCC` : 2
+- Credentials: `CO gc, GC gc`
 
-Fil `#CMDOV` : `gc gp` - commandes d'un groupe gc à un groupement gp
+Bag `#CMDOV` : `gc gp` - commandes d'un groupe gc à un groupement gp
 - `BCG` : 1
+- Credentials: `GP gp, GC gc`
 
-Fil `#CALGP` : `gp` - calendrier des livraisons d'un groupement gp
+Bag `#CALGP` : `gp` - calendrier des livraisons d'un groupement gp
 - `CALG` : 0 - singleton pour le fil
 - `LIVRG` : 1
 - `CHL` : 1
+- Credentials: `GP, GC, CO`
 
-Fil `#CMDGP` : `gp livr` - commandes à un groupement gp pour une livraison livr
+Bag `#CMDGP` : `gp livr` - commandes à un groupement gp pour une livraison livr
 - `CHD` : 1
 - `BCG` : 2
 - `CART` : 3
+- Credentials: `GP, GC, CO`
 
-Fil `#CMDPR` : `gp pr` : commandes à un producteur gp pr
-- `CART` : 2
+Bag `#RG` : singleton `RG` - répertoire général des groupes et groupements
+- `RG`: 0
+- Credentials: `GP, GC, CO`
 
-Fil `#RG` : singleton `RG` - répertoire général des groupes et groupements
-
-Fil `#RGC` : `gc` - fiche d'un groupe gc, ses consommateurs, son chat 
+Bag `#RGC` : `gc` - fiche d'un groupe gc, ses consommateurs, son chat 
 - `RC` : 0 - singleton pour le fil
 - `CHCO`: 0 - singleton pour le fil
 - `FGC` : 0 - singleton pour le fil
 - `FCO` : 1
+- Credentials: `GC gc, CO gc`
 
-Fil `#FCO` : `gc co` - fiche du consommateur gc co
+Bag `#FCO` : `gc co` - fiche du consommateur gc co
 - `FCO` : 0
+- Credentials: `GC gc, CO gc co`
+
+Bag `#CHD` : `gp gc` - chats des distributions d'un groupement gp à un groupe gc
+- `CHD` : 2
+- Credentials: `GC gc, CO gc`
+
+Fil `#CMDPR` : `gp pr` : commandes à un producteur gp pr
+- `CART` : 2
 
 Fil `#RGP` : `gp` - fiche d'un groupement gp, ses producteurs, son chat
 - `RP` : 0 - singleton pour le fil
@@ -1093,11 +1106,9 @@ Fil `#CHL` : `gp livr` - chat de la livraison livr d'un groupement gp
 - `CHL` : 1
 - `CHD` : 1
 
-Fil `#CHD` : `gp gc` - chats des distributions d'un groupement gp à un groupe gc
-- `CHD` : 2
 
-### Abonnement à un fil, total (tous documents) ou partiel (certains seulement)
-Pour s'abonner à un fil il faut fixer:
+### Abonnement à un bag, total (tous documents) ou partiel (certains seulement)
+Pour s'abonner à un bag il faut fixer:
 - son type et son path exact: `#CMDGC/gc1/gp1/livr1`
 - si l'abonnement est _partiel_ la liste des types de documents ciblés : `[BCG, CART]`
 
@@ -1111,7 +1122,7 @@ Une _classe d'activité_ est décrite par son nom `CMDCO` _commandes d'un consom
   - `initials` de l'utilisateur,
   - `pwd` : mot de passe de l'utilisateur pour accès au couple `gc.co` pour les initiales fournies.
 - **la liste des types de credentials** à instancier depuis les arguments de construction: `[CREDCO]`
-- **les variables**. Ces valeurs déterminent quels _fils_ sont dynamiquement instanciés. Ce sont:
+- **les variables**. Ces valeurs déterminent quels _bags_ sont dynamiquement instanciés. Ce sont:
   - soit des valeurs scalaires: `vmin`
   - soit des listes de valeurs scalaires: `*gp`
   - soit des listes de tuples: `*gpx,livrx`
