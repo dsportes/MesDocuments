@@ -3,6 +3,25 @@ layout: page
 title: Use-cases : circuitscourts, asocial
 ---
 
+# Use Case _asocial_
+Les _comptes_ enregistrés dans une organisation de _asocial_:
+- ont des notes personnelles.
+- ont des un _chat un à un_ avec d'autres comptes.
+- sponsorisent la création d'un nouveau compte.
+- participent à des groupes.
+
+Chaque groupe a :
+- un _chat_ pour les discussions entre les membres du groupe.
+- des membres qui sont des comptes.
+- des notes réservées aux membres du groupe.
+
+
+## Documents
+
+### Compte
+L'identifiant co d'un compte est tiré aléatoirement à 
+
+
 # Use Case _circuit court_
 
 ## Vision générale: les _documents_
