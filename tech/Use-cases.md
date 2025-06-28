@@ -8,12 +8,54 @@ Les _comptes_ enregistrés dans une organisation de _asocial_:
 - ont des notes personnelles.
 - ont des un _chat un à un_ avec d'autres comptes.
 - sponsorisent la création d'un nouveau compte.
-- participent à des groupes.
+- peuvent être membre d'un ou plusieurs groupes.
 
 Chaque groupe a :
-- un _chat_ pour les discussions entre les membres du groupe.
+- un _chat_ pour les discussions entre les membres du groupe et un _chat_ pour chaque membre avec _l'équipe d'animation_ du groupe. 
 - des membres qui sont des comptes.
 - des notes réservées aux membres du groupe.
+
+Groupes principaux et standard: 
+- un groupe principal peut être:
+  - gratuit: l'organisation assume les coûts d'hébergement mais fixe les quotas d'espace (abonnement) et de calcul (consommation) de ses membres. Il peut être _bloqué_ par l'organisation.
+  - payant: le _groupe_ a une balance coûts d'hébergement de ses membres / crédits versés et fixe lui-même ses quotas. Il ne peut pas être bloqué par l'organisation.
+- un groupe standard est _hébergé_ par un groupe principal qui en assume les coût d'abonnement à l'espace et en fixe les limites maximales.
+
+Tout compte est toujours membre d'un groupe _principal_:
+- il peut à la limite en être le seul membre.
+- il peut _changer_ de groupe principal, à savoir être résilié de son groupe principal actuel et devenir membre d'un autre groupe principal, le cas échéant créé à cette occasion.
+
+Certains membres d'un groupe sont des _animateurs_ ayant des privilèges de gestion dans le groupe.
+
+Une _alerte_ est un signal fort visant un compte ou un ensemble de comptes. Une alerte peut _sans frais_ ou _porteuse d'une restriction_ faible ou forte. Les alertes sont les suivantes:
+- alerte d'administration technique à destination de tous les comptes: annonce d'un événement important, restriction aux seules actions de lecture seulement, blocage général de toutes les actions.
+- alerte d'un groupe _principal_ à tous les membres du groupe.
+- alerte d'un groupe _principal_ à un membre précis du groupe.
+Ces 3 alertes se cumulent autant vis à vis de leurs messages que de leurs restrictions.
+
+Un groupe _principal_ a des propriétés spécifiques que n'ont pas les groupes standards:
+- des quotas d'espace et de calcul s'appliquant à _l'ensemble_ des membres.
+- des alertes, soit à l'ensemble des membres, soit à des membres spécifiques.
+
+Tout compte a deux limites maximales qu'il ne peut pas dépasser: 
+- le nombre maximal de notes personnelles, de chats et de participations aux groupes.
+- le volume maximal de fichiers attachés à ses notes.
+
+L'abonnement d'un groupe principal est une charge forfaitaire, que l'application soit utilisée ou non, calculée depuis : 
+- le nombre maximal de notes personnelles, de chats et de participations aux groupes distribuable aux membres du groupe principal.
+- le volume maximal de fichiers distribuable aux membres du groupe principal.
+- le nombre maximal de notes du groupe.
+- le volume maximal de fichiers attachés à ses notes.
+
+La consommation de calcul d'un groupe principal est une formule où intervient,
+- le nombre de lectures et d'écritures effectuées par les actions exécutées au nom d'un compte membre du groupe,
+- le volume des fichiers _lus_ (download) et écrits (upload) par les membres du groupe.
+
+L'espace global est réglementé par un document par organisation qui contient:
+- les limites globales du nombre de notes ... distribuable aux groupes principaux.
+- les limites globales du volume de fichiers ... distribuable aux groupes principaux.
+- l'alerte globale éventuelle de l'administrateur technique.
+- des compteurs statistiques des limites distribuées aux comptes principaux et des consommations.
 
 
 ## Documents
