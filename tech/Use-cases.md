@@ -4,59 +4,139 @@ title: Use-cases : circuitscourts, asocial
 ---
 
 # Use Case _asocial_
-Les _comptes_ enregistrés dans une organisation de _asocial_:
-- ont des notes personnelles.
-- ont des un _chat un à un_ avec d'autres comptes.
-- sponsorisent la création d'un nouveau compte.
-- peuvent être membre d'un ou plusieurs groupes.
 
-Chaque groupe a :
-- un _chat_ pour les discussions entre les membres du groupe et un _chat_ pour chaque membre avec _l'équipe d'animation_ du groupe. 
-- des membres qui sont des comptes.
+### Compte
+Un _compte_ enregistré dans une organisation de _asocial_:
+- a une _carte de visite_ (photo et texte) facultative, de son choix, qui n'est lisible que par ses _contacts_.
+- a des notes personnelles.
+- a des _chat un à un_ avec d'autres comptes.
+- peut sponsoriser la création de nouveaux comptes.
+- est **membre** d'un groupe _principal_ et peut être membre de plusieurs autres groupes _hébergés_.
+
+Un _contact_ est soit l'interlocuteur d'un _chat un à un_ du compte, soit un membre des groupes dont le compte est membre.
+
+Un compte a un identifiant aléatoirement fixé à sa création et des clés de cryptages:
+- une clé personnelle qui crypte ses notes personnelles et n'est communiquée à aucun autre compte (et non lisible par le serveur).
+- une clé d'accès à sa sa _carte de visite_ transmissible à ses _contacts (mais non lisible par le serveur).
+- une clé _asymétrique_ technique qui sert à échanger les clés des _carte de visite_ et de _groupe_.
+
+### Groupe
+Un _groupe_ enregistré dans une organisation de _asocial_:
+- a un _chat_ pour les discussions entre les membres du groupe. 
+- des membres qui sont des comptes, dont certains ayant le _privilège d'animation_ du groupe.
 - des notes réservées aux membres du groupe.
 
-Groupes principaux et standard: 
-- un groupe principal peut être:
-  - gratuit: l'organisation assume les coûts d'hébergement mais fixe les quotas d'espace (abonnement) et de calcul (consommation) de ses membres. Il peut être _bloqué_ par l'organisation.
-  - payant: le _groupe_ a une balance coûts d'hébergement de ses membres / crédits versés et fixe lui-même ses quotas. Il ne peut pas être bloqué par l'organisation.
-- un groupe standard est _hébergé_ par un groupe principal qui en assume les coût d'abonnement à l'espace et en fixe les limites maximales.
+Un compte a un identifiant aléatoirement fixé à sa création et une clé de cryptage transmise aux membres du groupe (mais non lisible par le serveur) :
+- elle donne accès aux membres aux informations du groupe et à sa _carte de visite_.
+- elle crypte les notes du groupe.
 
-Tout compte est toujours membre d'un groupe _principal_:
-- il peut à la limite en être le seul membre.
-- il peut _changer_ de groupe principal, à savoir être résilié de son groupe principal actuel et devenir membre d'un autre groupe principal, le cas échéant créé à cette occasion.
+Un groupe **_principal_** rassemble des comptes, de 1 à quelques dizaines (une famille, une équipe, une petite association ...), dont les coûts d'abonnement et de consommation de calcul sont décomptés globalement et le cas échéant facturés globalement.
 
-Certains membres d'un groupe sont des _animateurs_ ayant des privilèges de gestion dans le groupe.
+Un groupe **NON principal** est _hébergé_ par **UN** groupe principal qui en gère les limites maximales d'espace qui peuvent être utilisées et sont effectivement utilisées.
 
-Une _alerte_ est un signal fort visant un compte ou un ensemble de comptes. Une alerte peut _sans frais_ ou _porteuse d'une restriction_ faible ou forte. Les alertes sont les suivantes:
-- alerte d'administration technique à destination de tous les comptes: annonce d'un événement important, restriction aux seules actions de lecture seulement, blocage général de toutes les actions.
-- alerte d'un groupe _principal_ à tous les membres du groupe.
-- alerte d'un groupe _principal_ à un membre précis du groupe.
-Ces 3 alertes se cumulent autant vis à vis de leurs messages que de leurs restrictions.
+### Chat
+Un chat est une suite limitée d'échanges textuels courts entre ses participants,
+- _chat un à un_:
+  - il n'y a que deux interlocuteurs.
+  - les textes sont cryptés par une clé spécifiquement générée pour le chat et transmise aux deux interlocuteurs (la clé n'est pas lisible par le serveur).
+- _chat de groupe_:
+  - tous les membres du groupe sont des interlocuteurs.
+  - les textes sont cryptés par la clé du groupe.
 
-Un groupe _principal_ a des propriétés spécifiques que n'ont pas les groupes standards:
-- des quotas d'espace et de calcul s'appliquant à _l'ensemble_ des membres.
-- des alertes, soit à l'ensemble des membres, soit à des membres spécifiques.
+### Note
+Une note,
+- contient un texte de quelques milliers de signes au plus,
+- peut contenir des _fichiers_ (d'une centaine de Mo au plus) ayant un type MIME.
 
-Tout compte a deux limites maximales qu'il ne peut pas dépasser: 
-- le nombre maximal de notes personnelles, de chats et de participations aux groupes.
-- le volume maximal de fichiers attachés à ses notes.
+Le texte et les fichiers sont cryptés,
+- soit par la clé du compte pour une note personnelle,
+- soit par la clé du groupe pour une note de groupe.
 
-L'abonnement d'un groupe principal est une charge forfaitaire, que l'application soit utilisée ou non, calculée depuis : 
-- le nombre maximal de notes personnelles, de chats et de participations aux groupes distribuable aux membres du groupe principal.
-- le volume maximal de fichiers distribuable aux membres du groupe principal.
-- le nombre maximal de notes du groupe.
-- le volume maximal de fichiers attachés à ses notes.
+### Maîtrise des ressources d'hébergement
+Deux classes de ressources sont gérées:
+- **les ressources _d'espace_**: elles ont un coût récurent que l'application soit utilisée ou non. Elles correspondent à un _abonnement_ dont le niveau dépend des limites maximales allouées.
+  - nombre maximal de `na: nn+nc+ng` (`nn`: nombre de notes personnelles, `nc`: nombre de chats personnels, `ng`: nombre de participations aux groupes).
+  - volume maximal `va` de fichiers des notes personnelles.
+  - nombre maximal de notes du groupe et des groupes hébergés.
+  - volume maximal de fichiers attachés à ces notes.
+- **les ressources _de calcul_**: elles sont décomptées lors des opérations demandées par un compte. Le coût de consommation est forfaitaire en de leur seuil et décompté exactement au delà de ce seuil.
+  - nombre de lectures et d'écritures effectuées au cours des actions exécutées sur demande d'un compte membre du groupe,
+  - volume des fichiers _lus_ (download) et écrits (upload) par les membres du groupe.
 
-La consommation de calcul d'un groupe principal est une formule où intervient,
-- le nombre de lectures et d'écritures effectuées par les actions exécutées au nom d'un compte membre du groupe,
-- le volume des fichiers _lus_ (download) et écrits (upload) par les membres du groupe.
+#### Groupe _principal_
+Il gère la comptabilité de ses membres. Chaque compte ne peut être membre que d'un seul groupe principal et peut en changer, à savoir en une seule opération être résilié de son groupe principal actuel et devenir membre d'un autre groupe principal: 
+- peut être _bloqué_ par l'organisation (voir les alertes ci-après).
+- enregistre pour chacun de ses membres,
+  - les limites maximales d'espace attribuées : `na` et `va`.
+  - les espaces effectivement utilisés `nu` et `vu`.
+  - la limite de consommation journalière moyenne (sur M / M-1),
+  - la consommation effective sur M et M-1.
+- enregistre pour chacun de ses groupes hébergés,
+  - les limites maximales d'espace attribuées : `na` (nombre de notes) et `va` (volume des fichiers attachés aux notes).
+  - les espaces effectivement utilisés `nu` et `vu`.
 
-L'espace global est réglementé par un document par organisation qui contient:
-- les limites globales du nombre de notes ... distribuable aux groupes principaux.
-- les limites globales du volume de fichiers ... distribuable aux groupes principaux.
-- l'alerte globale éventuelle de l'administrateur technique.
-- des compteurs statistiques des limites distribuées aux comptes principaux et des consommations.
+**Groupe _gratuit_**: 
+- ses limites globales d'espace attribuables aux membres et aux groupes hébergés sont fixées sous privilège _comptable_.
 
+**Groupe _payant_**:
+- ses limites globales d'espace attribuables aux membres et aux groupes hébergés sont fixées sous privilège de _membre animateur_ du groupe.
+- il dispose d'un **solde monétaire** :
+  - le solde est crédité à l'occasion de **paiements** dont l'historique est conservé.
+  - le solde est débité,
+    - virtuellement chaque milliseconde pour la partie _abonnement_
+    - à chaque opération demandée par un membre du groupe. 
+- il est bloqué quand le solde est négatif.
+
+> Un groupe principal subit a minima une action par mois afin que son solde soit significatif dans l'enregistrement historique mensuel.
+
+#### Un groupe _hébergé_ ...
+- est _rattaché_ à **son** groupe principal qui en gère les limites maximales d'espace attribuées et les espaces effectivement utilisés.
+- peut changer de groupe principal hébergeur.
+
+#### Abonnement / consommation par _compte_
+Un compte a des coûts d'abonnement qui lui sont propres mais de plus partage l'espace des groupes desquels il est membre et qui ne peut pas être facilement réparti. Son décompte _d'abonnement_ inclut arbitrairement une quote part de l'espace utilisé par les groupes hébergés par le groupe principal. 
+
+> En revanche aucune quote part ne lui est affectée concernant sa présence comme membre de groupes hébergés par un autre compte principal que le sien. S'il en _abuse_, l'animation de ces groupes peut aussi lui interdire l'accès en écriture et la capacité à faire dériver le volume utilisé. 
+
+**La consommation d'un compte** est une donnée plus objective correspondant aux lectures, écritures, volumes montant et descendant, effectivement décomptées sur les actions exécutées au nom du compte.
+
+### Contrôle de l'espace global alloué à une organisation
+Ce contrôle est effectué à travers les compteurs suivants enregistrés dans un document `Espace` singleton par organisation:
+- nombre maximal `nd` (de notes / chats / participations aux groupes) distribuable à l'ensemble des groupes principaux.
+- nombre `na` (de notes / chats / participations aux groupes) effectivement attribué aux groupes principaux.
+- volume maximal `vd` (des fichiers des notes) distribuable à l'ensemble des groupes principaux.
+- volume `va` (des fichiers des notes) effectivement attribué aux groupes principaux.
+
+### Alertes
+Une _alerte_ est un signal fort visant un compte ou un ensemble de comptes. 
+- une alerte porte un message et peut être _sans frais_ ou _porteuse d'une restriction_ faible ou forte.
+- une alerte provoque une notification poussée aux applications qui en ont souscrit l'écoute.
+
+##### Alerte globale de l'administrateur technique.
+Ce document singleton par organisation provoque une _notification_ à chaque mise à jour (dont l'effacement _OK_) par l'administrateur technique. Toutes les applications à l'écoute de l'organisation reçoivent une notification poussée:
+- _annonce d'une indisponibilité future, restriction aux seules actions de lecture seulement, blocage général de toutes les actions_ ...
+
+#### Autres alertes
+- alerte d'un groupe _principal_ à tous les membres du groupe
+  - explicitement levée par un animateur du groupe ou une action sous _privilège comptable_.
+  - solde monétaire faible ou négatif (blocage).
+- alerte d'un groupe _principal_ explicitement levée par un animateur du groupe ou une action sous _privilège comptable_ à un membres précis du groupe.
+
+## Types de _credentials_
+
+### AT : privilège d'administration technique (singleton)
+- donnée du PBKDF X d'une phrase longue. Le SHA de X est enregistré en configuration du serveur.
+- autorise les actions de gestion des compteurs de `Espace`.
+- autorise la déclaration / suspension des privilèges _comptables_ des organisations.
+- autorise la création de certains reports comptables.
+
+### PC `org` : privilège _comptable_ d'une organisation
+- donnée du PBKDF X d'une phrase longue. Le SHA de X est enregistré en table des _phrases de credential_.
+- autorise la création d'un groupe principal et de son premier membre animateur.
+
+### AC `org ac` : accès au compte `ac` de l'organisation `org`.
+
+### Table des phrases
 
 ## Documents
 
