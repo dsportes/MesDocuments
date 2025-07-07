@@ -903,117 +903,131 @@ Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigean
 - si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
 
 # Décompter les consommations
-Une application peut être gratuite pour ses utilisateurs ou payante selon l'usage qu'ils en font. Elle peut aussi être _mixte_, gratuite pour certains sous certaines restrictions et payante pour d'autres.
+Une application peut être gratuite pour certains de ses utilisateurs (voire tous) et payante pour d'autres selon l'usage qu'ils en font. 
 
-D'où l'option de pouvoir décompter la consommation des utilisateurs, soit individuellement, soit par _petits collectifs d'utilisateurs_ une famille, une équipe, une petite association ... Dans ce dernier cas il peut y avoir un double décompte, individuel et collectif.
+Dans le cas où l'application est toujours gratuite pour tous, il peut être nécessaire de décompter des unités d'utilisation le cas échéant pour les limiter.
 
-Ce décompte peut entraîner des contraintes:
-- non dépassement de certains seuils,
+La mise en œuvre de **contrats** permet,
+- d'effectuer des décomptes d'usage par des _utilisateurs_, 
+- d'en gérer des limites,
+- si souhaité d'établir des _factures / paiements / régularisations_.
+
+### Contrats et utilisateurs
+Un _utilisateur_ est identifié par l'application et tout utilisateur est rattaché à un instant donné à un _contrat_. Au cours de sa vie une _utilisateur_ peut être détaché de son contrat précédent et être rattaché à un autre.
+
+Un _contrat_ est un document d'identifiant aléatoire généré à sa création visant à suivre et gérer les consommations des utilisateurs qui lui sont rattachés: les consommations sont décomptées pour le mois _courant_ et le mois précédent (immuable par principe).
+
+> Dans le cas général un _contrat_ concerne un _petit collectif d'utilisateurs_ une famille, une équipe, une petite association ... mais éventuellement un seul.
+
+Le décompte des consommations peut entraîner des contraintes, par exemple:
+- rejet d'opération pour dépassement de certains seuils,
 - ralentissement en cas de dépassement,
-- blocage éventuel complet.
+- blocage éventuel de certaines opérations pour certains utilisateurs.
 
-## Décompte et facturation
-La _facturation_ intervient sur une base mensuelle en valorisant un arrêté mensuel d'un décompte en unités monétaires, spécifique de l'application et dénommée `u`. Une facture d'un mois fait apparaître,
+### Facturation des contrats
+
+Quand la _facturation_ est activée elle intervient sur une base mensuelle en valorisant un arrêté mensuel d'un décompte en unités monétaires, spécifique de l'application et dénommée `u`. Une facture d'un mois fait apparaître,
 - au débit la valorisation du décompte du mois,
 - au crédit les versements enregistrés dans le mois,
 - au débit ou au crédit des régularisations monétaires.
 
-Un _solde_ apparaît sur chaque facture mensuelle, correspondant au _solde_ au début du mois, moins les débits plus les crédits du mois.
+Un _solde_ de fin de mois apparaît sur chaque facture mensuelle, correspondant au _solde_ de fin du mois précédent, moins les débits plus les crédits du mois.
 
-En cours de mois une _facture provisoire_ est calculable, ainsi donc qu'un solde provisoire.
+Le dernier mois facturé est conservé. L'application a ainsi le moyen d'archiver les factures sur la profondeur d'historique de son choix avec un format adapté au traitement statistique.
 
-In fine, selon le _type de contrat_ du collectif, un solde négatif peut ou non être _bloquant_ pour l'usage de l'application.
+En cours de mois une _facture et un solde provisoire_ sont disponibles a titre essentiellement informatif : elle correspond à la facture qui aurait été établie le jour J à 0h.
 
-> Ainsi une application _gratuite_ peut avoir des factures mensuelles: une clause du contrat spécifiant une remise mensuelle égale au solde débiteur, intégrale ou jusqu'à un certain seuil.
+Selon le _type de contrat_, un solde négatif, mensuel ou provisoire, _peut_ être _bloquant_ pour certains usages de l'application par certains des utilisateurs du contrat.
 
-## Agents payeurs
-Un _agent payeur_ est identifié par un identifiant obtenu aléatoirement à sa création.
+**_Remarque :_** la _facturation_ peut être activée sans exiger de paiements. Un contrat peut spécifier une _remise mensuelle_, par exemple:
+- égale au solde débiteur (gratuité), 
+- remise forfaitaire (gratuité pour les consommations _faibles_),
+- dépendante de la facture du mois précédent.
 
-Un _agent payeur_ peut être associé à une liste de _passphrases_ comme autant d'alias, sachant qu'une passphrase ne peut être associée à un instant donné qu'à un seul _agent payeur_
+### Authentification d'utilisateurs via leur contrat
 
-Sauf exception toute opération du serveur désigne un _agent payeur par défaut_ à qui imputer sa consommation de ressources. Au cours de l'opération toutefois, d'autres _agents payeurs_ peuvent être cités à qui imputer certaines consommations spécifiques.
+Tout utilisateur rattaché à un contrat _peut_ y être associé à une ou plusieurs **passphrases** qui l'authentifient: 
+- une _passphrase_ donnée ne peut être associée qu'à un seul contrat à un instant donné et à un seul _utilisateur_ dans le contrat.
+- dans son contrat, un utilisateur peut avoir _plusieurs passphrases_ associées lui permettant autant de solutions d'authentification.
 
-Un _agent payeur_ intervient dans sa forme générale pour décompter les consommations de plusieurs _utilisateurs_:
-- des _utilisateurs réels_ correspondant généralement à un compte de l'application, un login ou toute autre concept équivalent,
-- des _pseudo utilisateurs_ correspondant à une entité pour laquelle un utilisateur impute une partie de son action. Par exemple le stockage et l'utilisation de documents partagés par un groupe d'utilisateurs peut être imputé au _groupe_ plutôt qu'à l'utilisateur en tant que tel.
+> Il est en conséquence possible en une seule action d'authentifier un _utilisateur_ d'identifiant inconnu (mais en fournissant une de ses passphrases) et d'obtenir son _contrat_.
 
-Un _agent payeur_ gère des _imputations_ identifiées dans l'application: 
-- soit correspondant à un _login_ identifié par une passphrase associée à un identifiant,
-- soit correspondant à une autre entité dont l'identifiant est fourni explicitement.
+Hormis le cas ci-dessus, on accède à un contrat par son identifiant et on peut y retrouver tous ses utilisateurs enregistrés par leur identifiant.
 
-### Double rôle d'un _agent payeur par défaut_
-En début d'une opération en fournissant une _passphrase_ à titre d'authentification, on obteint:
-- _l'agent payeur par défaut de l'opération_,
-- l'authentification du demandeur et son id de _login_.
+### Suivi des consommations dans les opérations
 
-Si en cours de l'opération il est nécessaire d'imputer une certaine consommation à une autre entité, l'application devra en obtenir par un moyen quelconque, l'identifiant de son agent payeur et l'identifiant sous laquelle elle doit être imputée.
+Sauf exception toute opération du serveur a un _contrat par défaut_ à qui imputer ses consommations de ressources. 
+
+Au cours de l'opération, d'autres _contrats_ peuvent être cités à qui imputer certaines consommations spécifiques selon la logique de l'application. Par exemple le stockage et l'utilisation de documents partagés par un **groupe** d'utilisateurs peut être imputé au _contrat du groupe_ plutôt qu'aux utilisateurs eux-mêmes.
 
 ## Unités décomptées
-Chaque application déclare plusieurs unités décomptées, comme par exemple:
+Chaque application déclare ses _unités d'œuvre_ à compter, comme par exemple:
 - D1: nombre de documents de type D1 stockés.
 - VF: volume de fichiers stockés.
-- NL: nombre de lectures des documents D1 et D2.
+- NL: nombre de documents D1 et D2 lus.
 - VT: volume des fichiers de type F1 téléchargés.
 
-Il y a deux catégories d'unités:
-- des unités de _stock_: elles _coûtent_ même en l'absence d'activité de l'application. Ce qui sera facturé est la **moyenne** de leur niveau sur un mois (l'intégrale de leur changements au cours du mois).
-- des unités de _calcul / travail_: en l'absence d'activité, de _travail_ elles ne coûtent rien. Ce qui sera facturé est leur **somme** sur un mois.
+Il y a deux catégories d'unités d'œuvre:
+- des unités de _stock_: elles _coûtent_ même en l'absence d'activité de l'application par le seul effet du temps qui passe. Ce qui sera facturé est leur valeur **moyenne** sur un mois (en fonction du temps passé pour chaque valeur).
+- des unités de _calcul / travail_: en l'absence d'activité elles ne coûtent rien. Ce qui sera facturé est leur **somme** sur un mois.
 
-Chaque unité a ses compteurs spécifiques: elles ne _moyennent_ ni se s'additionnent entre elles. Définir si c'est nécessaire des unités génériques englobantes.
+Chaque unité a ses compteurs spécifiques: elles ne se moyennent ni se s'additionnent entre elles. Définir si c'est nécessaire des unités génériques englobantes.
 
 Les unités sont décomptées,
-- pour chaque _imputation_ de l'agent payeur.
-- globalement pour l'agent payeur.
+- pour chaque _utilisateur_.
+- globalement pour le _contrat_ (somme des valeurs pour chaque utilisateur).
 
 ### Définition de seuils, politique de franchissement
-Pour chaque unité _de stock_ on peut fixer un seuil, au niveau fin d'une imputation comme au niveau global de l'agent payeur.
-- c'est à l'application de savoir ce qu'elle doit faire en cas de dépassement du seuil et selon le niveau de dépassement, pouvant aller jusqu'au rejet de l'opération.
+Pour chaque unité _de stock_ le contrat peut fixer un seuil, au niveau de chaque utilisateur comme au niveau global du contrat.
+- l'application applique sa propre politique selon le niveau de dépassement de chaque seuil, pouvant aller jusqu'au rejet de l'opération qui a demandé son évolution.
 
-Pour chaque unité de _calcul / travail_, on peut fixer un seuil sur la quantité de _calcul / travail_ dans le mois et le mois précédent. Par exemple le 10 du mois,
+Pour chaque unité de _calcul / travail_, le contrat peut fixer un seuil sur la quantité de _calcul / travail_ dans le mois et le mois précédent. Par exemple le 10 du mois,
 - le cumul pour le mois en cours compte pour un tiers,
 - le cumul pour le mois précédent compte pour deux tiers.
-- c'est à l'application de savoir ce qu'elle doit faire en cas de dépassement du seuil et selon le niveau de dépassement: 
+- l'application applique sa propre politique selon le niveau de dépassement: 
   - _ralentissement_ par un temps d'attente volontaire de l'opération pour freiner la consommation de calcul,
-  - rejet de l'opération.
+  - rejet de l'opération ...
 
-## Facturation mensuelle de _l'agent payeur_
-La facturation s'effectue par mois: en cours de mois il ne s'agit que d'une estimation.
+## Facturation mensuelle du contrat
+La facturation réelle s'effectue par mois. Une fois calculée la facture du mois _précédent_ est immuable.
 
-Une facturation produit un résultat immuable qui ne peut pas être révisé.
+En cours de mois une _facture provisoire_ est calculée, comme si la facturation était intervenue à 0h le jour J. 
 
-Une facturation transforme les compteurs du mois courant en unités monétaires `u` selon une **ligne tarifaire** pour chaque compteur avec,
-- un seuil et un _forfait_ en dessous du seuil, un forfait à 0 correspondant à une gratuité,
-- un coût _marginal_ en `u` au delà.
+### Solde provisoire : nombre de jours estimés avec un solde positif
+Le _solde provisoire_ est réévalué à chaque déclaration d'un paiement ou régularisation afin de pouvoir débloquer un _contrat_ instantanément, l'application décidant de sa politique face à un solde négatif: alertes, ralentissements, blocages éventuels ...
 
-Le **tarif** applicable à un _agent payeur_ est un code qui:
+Quand le solde est positif, connaissant les consommations actuelles et celles du mois précédent, il peut être estimé un nombre de jours pendant lequel ce solde restera positif si la tendance actuelle se prolonge. L'application peut en déduire le cas échéant des alertes à afficher.
+
+### Mode de calcul
+Une facturation transforme les compteurs du mois courant en unités monétaires `u` selon une **ligne tarifaire** applicable à chaque type de compteur avec,
+- un seuil,
+- un montant forfaitaire si la consommation est en dessous du seuil (un forfait à 0 pour un seuil maximal correspondant à une gratuité),
+- un coût _marginal_ en `u` au delà du seuil.
+
+Le **type de contrat** applicable à un _contrat_ est un code qui:
 - fixe la liste des lignes tarifaires applicables.
-- détermine une politique _globale_ de remise sur le total de la facture, par exemple:
-  - gratuité totale sous un certain seuil: la remise est égale au montant de la facture. Si le seuil est maximal, c'est de la gratuité.
-  - remise en fonction du montant et de ceux des mois précédents. 
+- fixe une remise sur le **total de la facture** calculée par:
+  - un taux de remise fonction du montant de la facture et de celui du mois précédent.
+  - un minimum de perception si le montant est en dessous d'un seuil (un minimum de perception à 0 pour un seuil maximal correspondant à une gratuité),
 
-> Pour Chaque _imputation_ un coût est calculé de manière plus simple en appliquant pour chaque ligne le coût marginal et globalement aucune _remise_: ce montant est _informatif_ de l'importance relative de l'imputation dans le décompte global.
+> Pour chaque _utilisateur_ un **coût marginal** est calculé en appliquant pour chaque _ligne tarifaire_ le coût marginal sans seuil et aucune remise globale.
 
-## Débits et crédits annexes
+### Débits et crédits annexes
 Une _facture_ comporte à la fin une liste de _débits / crédits_: chacun a,
 - un _code_ qui indique sa nature: par exemple _paiement reçu_,
 - une _référence_ ou _commentaire_ permettant d'en savoir plus dans l'application.
 - un montant positif ou négatif.
 
-## Solde en fin de mois
+### Solde en fin de mois
 C'est le solde en fin de mois précédent,
 - moins le montant de la facture,
 - plus ou moins les débits et crédits annexes.
 
-Le _solde provisoire_ en cours de mois est calculé au début de la première opération ayant affecté l'agent payeur un jour donné (pas à chaque opération) et donne lieu à une simulation de facturation: c'est l'application qui décide quoi faire selon le niveau de ce solde,
-- alerte avec une restriction plus ou moins forte des actions,
-- rejet de l'opération.
-
-## Remarque: début et fin d'opération
+### Remarque: début et fin d'opération
 Le début d'une opération va, en général, 
-- lire l'agent payeur de la base et authentifier l'utilisateur demandeur,
+- lire le _contrat_ depuis la base et authentifier l'utilisateur demandeur de l'opération,
 - en cas de basculement sur le mois suivant, calculer la facturation et repositionner les compteurs.
 
-En cours d'opération, les compteurs du mois courant sont mis à jour (si nécessaire).
+En cours d'opération, les compteurs du mois courant sont mis à jour (si nécessaire), la _facture provisoire_ peut être calculée, le _solde provisoire_ peut être réévalué.
 
-La fin d'une opération va, en général,
-- l'agent payeur est mis à jour en base.
+La fin d'une opération va, en général, enregistrer en base la mise à jour du _contrat_.
