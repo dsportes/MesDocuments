@@ -903,48 +903,141 @@ Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigean
 - si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
 
 # Décompter les consommations
+
 Une application peut être gratuite pour certains de ses utilisateurs (voire tous) et payante pour d'autres selon l'usage qu'ils en font. 
 
-Dans le cas où l'application est toujours gratuite pour tous, il peut être nécessaire de décompter des unités d'utilisation le cas échéant pour les limiter.
+Mais même dans le cas où l'application est toujours gratuite pour tous, il peut être cependant nécessaire de décompter des unités d'utilisation afin le cas échéant de les limiter.
 
 La mise en œuvre de **contrats** permet,
 - d'effectuer des décomptes d'usage par des _utilisateurs_, 
 - d'en gérer des limites,
 - si souhaité d'établir des _factures / paiements / régularisations_.
 
-### Contrats et utilisateurs
-Un _utilisateur_ est identifié par l'application et tout utilisateur est rattaché à un instant donné à un _contrat_. Au cours de sa vie une _utilisateur_ peut être détaché de son contrat précédent et être rattaché à un autre.
+## Contrats et utilisateurs
+
+Un _utilisateur_ est identifié par l'application et tout utilisateur est rattaché à un instant donné à un _contrat_. Au cours de sa vie un _utilisateur_ peut être détaché de son contrat précédent et être rattaché à un autre.
 
 Un _contrat_ est un document d'identifiant aléatoire généré à sa création visant à suivre et gérer les consommations des utilisateurs qui lui sont rattachés: les consommations sont décomptées pour le mois _courant_ et le mois précédent (immuable par principe).
 
-> Dans le cas général un _contrat_ concerne un _petit collectif d'utilisateurs_ une famille, une équipe, une petite association ... mais éventuellement un seul.
+> Dans le cas général un _contrat_ concerne un _petit collectif d'utilisateurs_ une famille, une équipe, une petite association ... mais éventuellement un seul utilisateur.
 
 Le décompte des consommations peut entraîner des contraintes, par exemple:
 - rejet d'opération pour dépassement de certains seuils,
 - ralentissement en cas de dépassement,
 - blocage éventuel de certaines opérations pour certains utilisateurs.
 
-### Facturation des contrats
+## Unités d'œuvre
 
-Quand la _facturation_ est activée elle intervient sur une base mensuelle en valorisant un arrêté mensuel d'un décompte en unités monétaires, spécifique de l'application et dénommée `u`. Une facture d'un mois fait apparaître,
-- au débit la valorisation du décompte du mois,
-- au crédit les versements enregistrés dans le mois,
-- au débit ou au crédit des régularisations monétaires.
+Chaque application déclare ses _unités d'œuvre_ selon deux catégories: les unités de _stock_ et les unités de _calcul / travail_.
 
-Un _solde_ de fin de mois apparaît sur chaque facture mensuelle, correspondant au _solde_ de fin du mois précédent, moins les débits plus les crédits du mois.
+Chaque unité a ses compteurs spécifiques: elles ne se moyennent ni se s'additionnent entre elles. Définir si c'est nécessaire des unités génériques englobantes.
+
+Les unités sont décomptées,
+- pour chaque _utilisateur_.
+- globalement pour le _contrat_ (somme des valeurs pour chaque utilisateur).
+
+### Unités de _stock_
+Leur existence a un coût par le seul effet du temps qui passe. Par exemple:
+- S1: nombre de commandes en cours.
+- S2: volume de fichiers stockés.
+
+Elles sont décomptées par _mois d'existence_, mais leur nombre pouvant varier à tout instant une moyenne pondérée du temps passé (à la milliseconde) est calculée. _Exemple_: 
+- 30 commandes en cours pendant 10 jours (300),
+- puis 10 commandes en cours pendant 20 jours (200),
+- correspondent à 16,6 commandes par mois ((300 + 200) / 30).
+
+### Unités de _calcul / travail_
+Elles _coûtent_ effectivement lorsqu'elles sont sollicitées. Par exemple:
+- C3: nombre de lecture de documents D1 et D2.
+- C4: volume en Mo des fichiers de type F1 téléchargés.
+
+Décompter ces unités sur un mois (par exemple le volume des fichiers téléchargés) revient à faire leur **somme** sur un mois (somme des téléchargements exécutés dans le mois).
+
+## Forfaits: profil et niveau
+
+Chaque application définit quelques **profils** de consommation (A à D par exemple):
+- chaque profil correspond à un nombre maximum d'unités de chaque type. Par exemple:
+  - profil A: 100 unités de stock S1, 20 unités S2, 5 unités C4
+  - profil B: 10 unités S1, 50 unités S2, 50 unités C4
+- un _profil_ correspond à un usage typique de consommation pour un profil d'utilisateur.
+
+Chaque application définit aussi plusieurs **niveaux** de forfaits (XS S M L XL XXL par exemple): chacun correspond,
+- à un coût forfaitaire,
+- à un coefficient multiplicateur, par exemple 10 pour L, 40 pour XL.
+
+La conjonction _profil / niveau_ définit ainsi un nombre forfaitaire d'unités de chaque type. Par exemple:
+- 500 unités C4 pour un forfait B/L.
+- 4000 unités S1 pour un forfait A/XL.
+
+## Application d'un forfait à un contrat
+
+Un _contrat_ a un forfait défini en _profil_ et _niveau_ qui peuvent changer au cours du mois:
+- le _profil_ peut changer sans conséquence sur la facturation.
+- le _niveau_ peut changer aussi: la facturation du mois est calculée sur le niveau le plus proche au dessus du niveau moyen pondéré par le temps passé à chaque niveau.
+
+### Maximum pour chaque unité
+Le forfait du contrat détermine un maximum pour chaque unité: par exemple pour le forfait A/XL, 4000 unités de stock S1 et 200 unités de calcul C4.
+
+Pour les unités de _stock_:
+- le maximum fixé ne peut pas être dépassé, l'opération demanderesse tombe en exception.
+- sauf si l'opération est marquée _privilégiée_,
+- sauf si le maximum est certes dépassé mais en baisse.
+- le **niveau d'alerte** est le pourcentage de dépassement au delà de 80% (0 en deçà).
+
+Pour les unités de _calcul_:
+- le nombre d'unité pris en compte est pris sur M et M-1:
+  - le 10 du mois, le compte pour M est affecté du coefficient 1/3, celui de M-1 pour 2/3.
+- le **niveau d'alerte** est le pourcentage de dépassement au delà de 80% (0 en deçà).
+- l'application calcule une **durée de ralentissement de l'opération** (d'attente) fonction du niveau d'alerte afin de freiner l'excès de calcul, voire de bloquer l'opération (si elle n'est pas _privilégiée).
+
+### Au niveau de chaque _utilisateur_
+Un forfait _profil / niveau_ est également fixé par _utilisateur_: l'action de blocage / ralentissement et le niveau d'alerte sont les plus restrictifs des deux _utilisateur / contrat_.
+
+## Facturation d'un contrat
+Le décompte est établi en unités ou fractions d'unités d'œuvre (pas en unité monétaire) pour toutes les unités effectivement consommées dans le mois courant et le mois précédent: il est disponible,
+- par utilisateur,
+- par sommation, globalement pour le contrat.
+
+La facturation du mois courant,
+- ne concerne globalement **que** le contrat,
+- est basée uniquement sur **niveau de forfait** pour le mois (mais celui-ci peut évoluer au cours du mois). Si compte tenu des changements en cours de mois, il apparaît que le _niveau de forfait moyen_ est L, la somme correspondante dans le tarif pour L est appliquée. Si le niveau est constant dans le mois, c'est celui-ci qui s'applique.
 
 Le dernier mois facturé est conservé. L'application a ainsi le moyen d'archiver les factures sur la profondeur d'historique de son choix avec un format adapté au traitement statistique.
 
-En cours de mois une _facture et un solde provisoire_ sont disponibles a titre essentiellement informatif : elle correspond à la facture qui aurait été établie le jour J à 0h.
+> En cours de mois la _facture est provisoire_, elle correspond au niveau de forfait moyen depuis le début du mois.
 
-Selon le _type de contrat_, un solde négatif, mensuel ou provisoire, _peut_ être _bloquant_ pour certains usages de l'application par certains des utilisateurs du contrat.
+## Tarifs monétisant chaque niveau
 
-**_Remarque :_** la _facturation_ peut être activée sans exiger de paiements. Un contrat peut spécifier une _remise mensuelle_, par exemple:
-- égale au solde débiteur (gratuité), 
-- remise forfaitaire (gratuité pour les consommations _faibles_),
-- dépendante de la facture du mois précédent.
+L'application est maîtresse de sa politique de _monétarisation_ de chaque niveau de forfait en définissant un tarif monétaire (dans l'unité monétaire de son choix) en face de chaque niveau.
 
-### Authentification d'utilisateurs via leur contrat
+C'est elle aussi qui fixe les règles pour chaque contrat du choix libre ou contraint du niveau de contrat et du tarif applicable. Ainsi une application peut par exemple:
+- laisser libre pour ses adhérents identifiés la création de contrat "Gratuit": un tarif à 0 et des niveaux inférieurs ou égaux à M.
+- laisser un _Administrateur_ créer un par un des contrats "Contrôlé": un tarif à 0 pour des niveaux inférieurs ou égaux à M et un tarif moyen pour les niveaux supérieurs.
+- laisser libre la création de contrats "Standard", un tarif fort sans limite de niveau.
+
+## Débits et crédits, solde
+La _facture_ d'un mois comporte une liste de _débits / crédits_: chacun a,
+- un _code_ qui indique sa nature: par exemple _paiement reçu_,
+- une _référence_ ou _commentaire_ permettant d'en savoir plus dans l'application.
+- un montant positif ou négatif.
+
+La première ligne est un _débit_ (possiblement à 0) correspondant à la facturation du forfait.
+
+Le _solde_ en fin de mois correspond au solde en fin du mois précédent, plus les crédits, moins les débits.
+
+En cours de mois un _solde provisoire_ est calculable simplement:
+- depuis le solde au mois précédent,
+- le niveau de forfait et le tarif applicable au contrat dans le mois,
+- la balance des débits / crédits du mois.
+
+### Politique vis à vis d'un solde négatif
+L'application fixe sa politique vis à vis d'un _contrat_ présentant un solde _provisoire_ négatif. Par exemple:
+- tolérance si le solde en début de mois était positif,
+- tolérance pour les opérations _privilégiés_,
+- alerte selon le nombre de jours estimés avec _solde positif_: simple calcul du nombre de jours pendant lequel le solde restera positif si le niveau du forfait reste inchangé.
+- rejet de l'opération.
+
+## Authentification d'utilisateurs via leur contrat
 
 Tout utilisateur rattaché à un contrat _peut_ y être associé à une ou plusieurs **passphrases** qui l'authentifient: 
 - une _passphrase_ donnée ne peut être associée qu'à un seul contrat à un instant donné et à un seul _utilisateur_ dans le contrat.
@@ -958,76 +1051,18 @@ Hormis le cas ci-dessus, on accède à un contrat par son identifiant et on peut
 
 Sauf exception toute opération du serveur a un _contrat par défaut_ à qui imputer ses consommations de ressources. 
 
-Au cours de l'opération, d'autres _contrats_ peuvent être cités à qui imputer certaines consommations spécifiques selon la logique de l'application. Par exemple le stockage et l'utilisation de documents partagés par un **groupe** d'utilisateurs peut être imputé au _contrat du groupe_ plutôt qu'aux utilisateurs eux-mêmes.
-
-## Unités décomptées
-Chaque application déclare ses _unités d'œuvre_ à compter, comme par exemple:
-- D1: nombre de documents de type D1 stockés.
-- VF: volume de fichiers stockés.
-- NL: nombre de documents D1 et D2 lus.
-- VT: volume des fichiers de type F1 téléchargés.
-
-Il y a deux catégories d'unités d'œuvre:
-- des unités de _stock_: elles _coûtent_ même en l'absence d'activité de l'application par le seul effet du temps qui passe. Ce qui sera facturé est leur valeur **moyenne** sur un mois (en fonction du temps passé pour chaque valeur).
-- des unités de _calcul / travail_: en l'absence d'activité elles ne coûtent rien. Ce qui sera facturé est leur **somme** sur un mois.
-
-Chaque unité a ses compteurs spécifiques: elles ne se moyennent ni se s'additionnent entre elles. Définir si c'est nécessaire des unités génériques englobantes.
-
-Les unités sont décomptées,
-- pour chaque _utilisateur_.
-- globalement pour le _contrat_ (somme des valeurs pour chaque utilisateur).
-
-### Définition de seuils, politique de franchissement
-Pour chaque unité _de stock_ le contrat peut fixer un seuil, au niveau de chaque utilisateur comme au niveau global du contrat.
-- l'application applique sa propre politique selon le niveau de dépassement de chaque seuil, pouvant aller jusqu'au rejet de l'opération qui a demandé son évolution.
-
-Pour chaque unité de _calcul / travail_, le contrat peut fixer un seuil sur la quantité de _calcul / travail_ dans le mois et le mois précédent. Par exemple le 10 du mois,
-- le cumul pour le mois en cours compte pour un tiers,
-- le cumul pour le mois précédent compte pour deux tiers.
-- l'application applique sa propre politique selon le niveau de dépassement: 
-  - _ralentissement_ par un temps d'attente volontaire de l'opération pour freiner la consommation de calcul,
-  - rejet de l'opération ...
-
-## Facturation mensuelle du contrat
-La facturation réelle s'effectue par mois. Une fois calculée la facture du mois _précédent_ est immuable.
-
-En cours de mois une _facture provisoire_ est calculée, comme si la facturation était intervenue à 0h le jour J. 
-
-### Solde provisoire : nombre de jours estimés avec un solde positif
-Le _solde provisoire_ est réévalué à chaque déclaration d'un paiement ou régularisation afin de pouvoir débloquer un _contrat_ instantanément, l'application décidant de sa politique face à un solde négatif: alertes, ralentissements, blocages éventuels ...
-
-Quand le solde est positif, connaissant les consommations actuelles et celles du mois précédent, il peut être estimé un nombre de jours pendant lequel ce solde restera positif si la tendance actuelle se prolonge. L'application peut en déduire le cas échéant des alertes à afficher.
-
-### Mode de calcul
-Une facturation transforme les compteurs du mois courant en unités monétaires `u` selon une **ligne tarifaire** applicable à chaque type de compteur avec,
-- un seuil,
-- un montant forfaitaire si la consommation est en dessous du seuil (un forfait à 0 pour un seuil maximal correspondant à une gratuité),
-- un coût _marginal_ en `u` au delà du seuil.
-
-Le **type de contrat** applicable à un _contrat_ est un code qui:
-- fixe la liste des lignes tarifaires applicables.
-- fixe une remise sur le **total de la facture** calculée par:
-  - un taux de remise fonction du montant de la facture et de celui du mois précédent.
-  - un minimum de perception si le montant est en dessous d'un seuil (un minimum de perception à 0 pour un seuil maximal correspondant à une gratuité),
-
-> Pour chaque _utilisateur_ un **coût marginal** est calculé en appliquant pour chaque _ligne tarifaire_ le coût marginal sans seuil et aucune remise globale.
-
-### Débits et crédits annexes
-Une _facture_ comporte à la fin une liste de _débits / crédits_: chacun a,
-- un _code_ qui indique sa nature: par exemple _paiement reçu_,
-- une _référence_ ou _commentaire_ permettant d'en savoir plus dans l'application.
-- un montant positif ou négatif.
-
-### Solde en fin de mois
-C'est le solde en fin de mois précédent,
-- moins le montant de la facture,
-- plus ou moins les débits et crédits annexes.
+Au cours de l'opération, d'autres _contrats_ peuvent être cités à qui imputer certaines consommations spécifiques selon la logique de l'application. Par exemple le stockage et l'utilisation de documents partagés par un **groupe** d'utilisateurs peut être imputé au _contrat du groupe_ plutôt qu'aux _contrats_ des utilisateurs eux-mêmes.
 
 ### Remarque: début et fin d'opération
 Le début d'une opération va, en général, 
 - lire le _contrat_ depuis la base et authentifier l'utilisateur demandeur de l'opération,
 - en cas de basculement sur le mois suivant, calculer la facturation et repositionner les compteurs.
 
-En cours d'opération, les compteurs du mois courant sont mis à jour (si nécessaire), la _facture provisoire_ peut être calculée, le _solde provisoire_ peut être réévalué.
+En cours d'opération, les compteurs du mois courant sont mis à jour (si nécessaire) et le _solde provisoire_ peut être réévalué.
 
 La fin d'une opération va, en général, enregistrer en base la mise à jour du _contrat_.
+
+Un _contrat_ a un mois de dernière mise à jour: un traitement périodique à partir du N d'un mois effectue a minima une opération sur chaque contrat dont le dernier mois de mise à jour 
+n'est pas le mois courant afin d'éviter de perdre des facturations sur les _contrats_ peu utilisés.
+
+Un traitement périodique peut aussi collecter un historique sous forme de fichier CSV pour analyse externe.
