@@ -963,11 +963,11 @@ Chaque application définit quelques **profils** de consommation (A à D par exe
 
 Chaque application définit aussi plusieurs **niveaux** de forfaits (XS S M L XL XXL par exemple): chacun correspond,
 - à un coût forfaitaire,
-- à un coefficient multiplicateur, par exemple 10 pour L, 40 pour XL.
+- à un coefficient multiplicateur, par exemple 1 pour XS, 16 pour L, 64 pour XL.
 
 La conjonction _profil / niveau_ définit ainsi un nombre forfaitaire d'unités de chaque type. Par exemple:
-- 500 unités C4 pour un forfait B/L.
-- 4000 unités S1 pour un forfait A/XL.
+- 800 unités C4 pour un forfait B/L.
+- 1600 unités S1 pour un forfait A/L.
 
 ## Application d'un forfait à un contrat
 
@@ -975,8 +975,10 @@ Un _contrat_ a un forfait défini en _profil_ et _niveau_ qui peuvent changer au
 - le _profil_ peut changer sans conséquence sur la facturation.
 - le _niveau_ peut changer aussi: la facturation du mois est calculée sur le niveau le plus proche au dessus du niveau moyen pondéré par le temps passé à chaque niveau.
 
+Un _contrat_ s'appliquant à un collectif de N membres, ce facteur multiplicatif est spécifié: par exemple 8*A/L
+
 ### Maximum pour chaque unité
-Le forfait du contrat détermine un maximum pour chaque unité: par exemple pour le forfait A/XL, 4000 unités de stock S1 et 200 unités de calcul C4.
+Le forfait du contrat détermine un maximum pour chaque unité: par exemple pour le forfait 8*A/L, 12800 unités de stock S1 et 640 unités de calcul C4.
 
 Pour les unités de _stock_:
 - le maximum fixé ne peut pas être dépassé, l'opération demanderesse tombe en exception.
@@ -991,16 +993,18 @@ Pour les unités de _calcul_:
 - l'application calcule une **durée de ralentissement de l'opération** (d'attente) fonction du niveau d'alerte afin de freiner l'excès de calcul, voire de bloquer l'opération (si elle n'est pas _privilégiée).
 
 ### Au niveau de chaque _utilisateur_
-Un forfait _profil / niveau_ est également fixé par _utilisateur_: l'action de blocage / ralentissement et le niveau d'alerte sont les plus restrictifs des deux _utilisateur / contrat_.
+Un forfait _profil / niveau_ est également fixé par _utilisateur_, par exemple A/L: l'action de blocage / ralentissement et le niveau d'alerte sont les plus restrictifs des deux _utilisateur / contrat_.
+- en l'occurrence par exemple pour S1 1600 pour _l'utilisateur_ OU 12800 pour le _contrat_.
 
 ## Facturation d'un contrat
-Le décompte est établi en unités ou fractions d'unités d'œuvre (pas en unité monétaire) pour toutes les unités effectivement consommées dans le mois courant et le mois précédent: il est disponible,
+Le décompte est établi en unités ou fractions d'unités d'œuvre pour toutes les unités effectivement consommées dans le mois courant et le mois précédent: il est disponible,
 - par utilisateur,
 - par sommation, globalement pour le contrat.
 
 La facturation du mois courant,
 - ne concerne globalement **que** le contrat,
-- est basée uniquement sur **niveau de forfait** pour le mois (mais celui-ci peut évoluer au cours du mois). Si compte tenu des changements en cours de mois, il apparaît que le _niveau de forfait moyen_ est L, la somme correspondante dans le tarif pour L est appliquée. Si le niveau est constant dans le mois, c'est celui-ci qui s'applique.
+- est établi en _unité monétaire_,
+- est basée uniquement sur **le niveau _moyen_ de forfait** pour le mois (qui peut évoluer au cours du mois). Si compte tenu des changements en cours de mois, il apparaît que le _niveau de forfait moyen_ est L, la somme correspondante dans le tarif pour L est appliquée. Si le niveau est constant dans le mois, c'est celui-ci qui s'applique.
 
 Le dernier mois facturé est conservé. L'application a ainsi le moyen d'archiver les factures sur la profondeur d'historique de son choix avec un format adapté au traitement statistique.
 
@@ -1008,12 +1012,16 @@ Le dernier mois facturé est conservé. L'application a ainsi le moyen d'archive
 
 ## Tarifs monétisant chaque niveau
 
-L'application est maîtresse de sa politique de _monétarisation_ de chaque niveau de forfait en définissant un tarif monétaire (dans l'unité monétaire de son choix) en face de chaque niveau.
+L'application est maîtresse de sa politique de _monétarisation_ de chaque niveau de forfait en définissant un tarif monétaire (dans l'unité monétaire de son choix) en face de chaque niveau sous la forme (m1 N m2)
+- N : niveau pivot: en-dessous de N appliquer m1 sinon m2.
 
-C'est elle aussi qui fixe les règles pour chaque contrat du choix libre ou contraint du niveau de contrat et du tarif applicable. Ainsi une application peut par exemple:
-- laisser libre pour ses adhérents identifiés la création de contrat "Gratuit": un tarif à 0 et des niveaux inférieurs ou égaux à M.
+Le tarif "Standard" est obligatoire et ne comporte qu'un montant m1.
+
+L'application fixe les règles pour chaque contrat du choix libre ou contraint du niveau de contrat et du tarif applicable.
+Ainsi une application peut par exemple:
+- laisser libre pour ses adhérents identifiés la création de contrat "Gratuit": (0 M 5c) un tarif à 0 pour les niveaux inférieurs ou égaux à M, et de 5c au-delà.
 - laisser un _Administrateur_ créer un par un des contrats "Contrôlé": un tarif à 0 pour des niveaux inférieurs ou égaux à M et un tarif moyen pour les niveaux supérieurs.
-- laisser libre la création de contrats "Standard", un tarif fort sans limite de niveau.
+- laisser libre la création de contrats "Standard", un tarif normal sans limite de niveau.
 
 ## Débits et crédits, solde
 La _facture_ d'un mois comporte une liste de _débits / crédits_: chacun a,
