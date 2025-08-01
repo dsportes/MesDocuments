@@ -6,39 +6,65 @@ title: Clés d'accès, l'application "KeyRing"
 # Principe d'authentification dans les applications
 
 Une application `app1` met en jeu deux parties:
-- `app1Srv` : un pool de serveurs au service de l'application et gérant ses données centrales persistantes.
-- `app1App` : une application terminale, typiquement une application Web dont le source est lisible et délivrée par un serveur statique / CDN.
+- `app1Srv` : un pool de serveurs au service de l'application gérant ses données centrales persistantes, ses opérations de mise à jour et ses extractions / synchronisations de données.
+- `app1App` : une application terminale, typiquement une application Web dont le source est lisible et délivré par un serveur statique / CDN.
 
 Les opérations exécutées par le serveur comme les données qu'il peut retourner à l'application qui l'a sollicité, sont soumise, sauf exception, à des **droits d'accès**: d'une manière ou d'une autre l'utilisateur derrière l'application terminale doit exhiber qu'il possède effectivement le droit pour lancer une opération ou obtenir des données centrales. Par exemple:
-- droit à lire les documents d'une personne ou d'un compte,
-- droit de gestion des accès à un groupe de comptes,
-- droit de modification tarifaire ...
+- `cpt` : droit à lire les documents d'un compte,
+- `mbr` : droit de gestion des accès des membres d'un groupe,
+- `trf` : droit de modification tarifaire ...
 
 ### Droit d'accès
-Un droit d'accès est matérialisé par trois données:
-- son `id` : son identifiant unique est géré par l'application et peut comporter aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire.
-- son couple de clés:
+Un droit d'accès est matérialisé par les données suivantes:
+- `type`, un identifiant caractérisant le droit d'accès `cpt, mbr, trf ...`
+- `target` : l'identifiant (géré par l'application) de sa _cible_ qui peut comporter aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire.
+- une liste de clés, en général d'un seul terme:
+  - `variant` : un code facultatif permettant de fournir plusieurs clés pour un même droit identifié par `type / target`.
   - `kv` : clé publique de **vérification**,
   - `ks` : clé privée de **signature**.
 
-Le serveur d'une application gère les droits et n'en connaît **QUE** le couple id `kv`, sous aucune condition il n'a jamais accès même temporaire à le clé `ks` correspondante.
+Le serveur d'une application gère les droits et n'en connaît **QUE** les couples `id kv` et n'a pas (sauf exception décrite ci-dessous) accès à le clé `ks` correspondante .
 
 ### Jetons d'accès
-Quand l'application terminale soumet une opération au serveur, elle fournit dans sa requête un jeton d'accès qui va réunir toutes les preuves que son utilisateur dispose des droits d'accès requis pour exécuter cette opération. Un jeton comporte:
-- `devAppId` : l'identification de l'application terminale s'exécutant sur un _device_. Cet id est unique, ne désigne qu'un seul couple _device / application_, à un instant donné une seule exécution peut s'en prévaloir.
-  - Remarque: un _hacker_ un peu entraîné peut obtenir cet identifiant en lançant en _debug_ l'application sur ce _device_.
+Quand l'application terminale soumet une opération au serveur, elle fournit dans sa requête un **jeton d'accès** qui réunit les preuves que son utilisateur dispose des droits d'accès requis pour exécuter cette opération. Un jeton comporte:
+- `devAppId` : l'identification de l'application terminale s'exécutant sur un _device_. Cet id ne désigne qu'un seul couple _device / application_, à un instant donné une seule exécution peut s'en prévaloir.
 - `time` : date-heure en milliseconde de la génération du jeton d'accès.
-- une liste de preuves de possession d'un droit d'accès constituée chacune d'un couple:
-  - `id` du droit,
+- une liste de preuves de possession des droits d'accès constituée chacune d'un triplet:
+  - `type` du droit,
+  - `target` du droit,
   - `signature` : signature du couple `devAppId, time` par la clé `ks` du droit correspondant.
 
-> L'application terminale à obtenu la clé `ks` en la demandant à l'utilisateur: celle-ci n'est restée disponible en mémoire que le temps d'effectuer l'opération de signature. Elle est certes lisible en _debug_ mais puisque c'est l'utilisateur qui la fournit on ne voit pas pourquoi il utiliserait un procédé compliqué pour lire une donnée qu'il a le droit de connaître et connaît.
+**Remarques**:
+- un _hacker_ un peu entraîné peut obtenir l'identifiant `devAppId` en lançant en _debug_ l'application sur ce _device_.
+- dans la liste des preuves, plusieurs pourraient concerner le même couple `type target`: il suffit que l'une d'elle soit reconnue comme valide pour que le droit le soit. Ceci permet de traiter les situations, temporaires ou non, où un même droit peut avoir plusieurs _variantes_ de signatures (une _ancienne_ et une _nouvelle_ ...).
+- un _jeton d'accès_ est crypté par la clé publique du serveur applicatif ciblé de sorte seul celui-ci puisse le lire.
 
-Quand le serveur traite une opération il va commencer par établir la liste des _droits d'accès_ validés depuis le jeton d'accès attaché à la requête. Le jeton présenté n'est acceptable que si son `time` _n'est pas trop vieux_ (quelques dizaines de secondes). Pour chaque _preuve_ de la liste du jeton,
-- obtention depuis la base de données de la clé `kv` associée à son id,
-- vérification que la `signature` (par `ks` das l'application terminale) du couple `devAppId, time` (utilisé comme _challenge_ cryptographique ne devant pas être présenté plus d'une fois) est bien validée par `kv`.
+#### Solution simplifiée
+L'application terminale obtient la clé `ks` en la demandant à l'utilisateur qui effectue une forme ou une autre de _copier / coller_ depuis un texte externe qu'il maîtrise sur son _device_.
 
-> La _vérification cryptographique_ répond ok si le texte `t` signé par `ks` est bien égal à la signature transmise.
+Si l'application terminale est une application _pirate_ qui a été lancée en déjouant la vigilance de l'utilisateur, elle dispose des clés que l'utilisateur lui a fourni et peut l'envoyer sur un serveur pirate: cette clé sera alors disponible par des pirates pour utiliser la _vraie_ application et lui transmettre cette clé _volée_.
+
+> Certes c'est de la faute de l'utilisateur qui a manqué de vigilance ... mais l'objectif est de disposer d'une solution qui résiste aux usurpations les plus simplistes.
+
+#### Solution par application externe _KeyRing_
+Une application Web ayant une URL indépendante des applications dont elle gère les clés pour ses adhérents est lancée dans un autre onglet:
+- c'est elle qui va obtenir de son serveur les clés de l'utilisateur.
+- l'utilisateur est authentifié par KeyRing : en cas d'utilisation d'une application KeyRing piratée il est impossible pour un pirate d'obtenir les clés faute de pouvoir les décrypter.
+
+Dans cette solution, l'application terminale ne demande pas la saisie _copié / collé_ des clés d'accès de l'utilisateur mais sollicite l'application KeyRing en cours d'exécution pour obtenir des _jetons d'accès_ encryptés pour transmission tel quel au serveur de l'application.
+
+> Dans cette solution les clés de signature ne transitent ni par l'application terminale ni par l'application serveur.  Si l'utilisateur a lancé par manque de vigilance Une application terminale _pirate_ au lieu de la _vraie_ application terminale, l'application pirate n'obtient de _KeyRing_ que des _jetons_ (qu'elle ne peut d'ailleurs pas décrypter) ne contenant que des _signatures_ mais pas les clés `ks` employées.
+
+### Validation d'un jeton par le serveur de l'application
+Quand le serveur de l'application traite une opération,
+- il obtient de la requête le jeton d'accès et le décrypte par sa clé privée.
+- le jeton présenté n'est acceptable que si son `time` _n'est pas trop vieux_ (quelques dizaines de secondes). Pour chaque _preuve_ de la liste du jeton,
+  - il obtient depuis la base de données la clé `kv` associée à son id,
+  - il vérifie que la `signature` du couple `devAppId, time` est bien validée par `kv`.
+
+> La _vérification cryptographique_ répond vrai si le texte `t` signé par `ks` est bien égal à la signature transmise.
+  
+> `devAppId, time` est utilisé comme _challenge_ cryptographique et ne devant pas être présenté plus d'une fois.
 
 **Remarques de performances:**
 - le serveur peut conserver en _cache_ pour chaque `id` d'un droit le dernier `ks` lu de la base. En cas d'échec de la vérification il relit la base de données pour s'assurer d'avoir bien la dernière version de `ks`, et cas de changement refait une vérification avant de valider / invalider le droit correspondant.
