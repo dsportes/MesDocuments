@@ -26,7 +26,7 @@ Le changement de version d'une application PWA est automatique: au lancement la 
 #### Application de type _mobile_
 L'utilisateur l'installe depuis le ou un des magasins d'application supportés par l'OS du mobile.
 
-Le changement de version est en général automatique mais peut être opérée manuellement.
+Le changement de version est en général automatique mais peut être opéré manuellement.
 
 > Il n'y a ensuite quasiment pas de différence perceptible par l'utilisateur à l'utilisation de l'application, il clique sur une icône pour l'ouvrir (la lancer).
 
@@ -168,12 +168,11 @@ En lui-même il n'est pas soumis à un protocole transactionnel (ACID): sa sécu
 
 Le Storage permet de disposer d'un volume pratiquement 10 fois plus importants à coût identique par rapport à la base de données: de nombreuses applications ont des données historiques / mortes ou d'évolutions sporadiques qui s’accommodent bien d'un support sur Storage.
 
-## LA base de données partagée par tous les prestataires
-Elle contient:
-- Le **répertoire des organisations par application** qui liste pour chaque application et chaque organisation le prestataire gestionnaire.
-- Le **répertoire des _profils_ des utilisateurs**.
+## Le répertoire des _organisations par application_
+**TODO** : reprendre en utilisant des CDN
 
-### Répertoire des _organisations par application_
+Il est stocké dans une base de données accessible par toutes les applications terminales.
+
 Toute application terminale détient la liste des _prestataires_ fournissant les services centraux, leur _code_ et leur _URL d'accès_. 
 - L'ajout ou le retrait d'un prestataire provoque une nouvelle version des applications concernées (l'installation est automatique).
 
@@ -187,20 +186,6 @@ Ce répertoire contient la liste des triplets `{ application, prestataire, organ
 - un **statut** : est-elle ouverte, restreinte en lecture seule (archive), fermée jusqu'à nouvel ordre.
 - une **courte liste de _news_** données par l'administrateur.
 - les applications terminales peuvent s'abonner aux modifications de ce document.
-
-### Le répertoire des _profils_ des utilisateurs
-Ce répertoire n'est accédé que par les applications terminales.
-
-Tout utilisateur peut s'y faire enregistrer son _profil_.
-- le profil est crypté, seul son utilisateur peut donner aux applications terminales les clés de décryptages qu'il est seul à connaître.
-- disposer d'un _profil_ n'est requis que pour un utilisateur souhaitant enregistrer un ou des _appareils favoris_ et de bénéficier des avantages associés (voir plus avant).
-
-Le _profil_ d'un utilisateur est identifié par un `userid`, un code généré aléatoirement à son inscription, et peut contenir les rubriques suivantes:
-- la liste de **ses _appareils favoris_** comportant des données cryptographiques.
-- la liste de **ses _préférences_**: données _pré-saisies_ souvent demandées par les applications ou choix simples (langue préférée, mode _sombre / clair_ ...).
-- la liste de **ses _sessions favorites_**. En choisissant une session favorite, un utilisateur se retrouve à l'ouverture d'une application avec le _desktop de l'application_ initialisé avec les documents visibles adaptés à son besoin et les _credentials_ correspondant.
-
-> Un _credential_ est une petite structure de données ayant un _type_ donné et donnant les autorisations d'accès pour un objet précis: par exemple le type `CRDCO` donne une autorisation à un _consommateur donné attaché à un point de livraison donné_ en citant ses initiales et son mot de passe. Les accès aux documents et le droit d'invoquer des opérations requièrent un ou des _credentials_.
 
 # Documents, fichiers et _fils_ traçant leurs évolutions
 
@@ -347,19 +332,6 @@ Chaque fil est une **trace** de l'évolution la plus récente des documents qui 
 Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui lui a été transmise, peut à réception d'un nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
 - _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé. De plus le filtrage s'effectuant sur la propriété indexée `version`, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents non modifiés.
 - _incrémentale_: seuls les documents ayant changé depuis la version connue de l'application terminale sont lus et transmis.
-
-### Fils et _credentials_
-Le _credential_ attaché à un fil gouverne le droit à en lire les documents et à s'y abonner. 
-
-Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
-
-Chaque _type de fil_ est associé à un _type de credential_:
-- les paramètres du credential sont mentionnées comme propriétés identifiantes du type de fil.
-- par exemple le fil `CMDGP` est identifié par `gp.livr`.
-- son _credential_ associé sera par exemple `CREDGP` identifié par `gp`.
-- pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
-
-> Des documents de ce fil, par exemple les _cartons_, apparaissent aussi dans un autre fil relatif au point-de-livraison (`CMDGC` identifié par `gc.gp.livr`). Ce second fil sera associé à un _credential_ `CREDGC` identifié par `gc`. Les _cartons_ seront donc accessibles soit en ayant un _credential_ `CMDGP`, soit un _credential_ `CMDGC`, avec en conséquence des notifications de deux ordres avec des autorisations différentes.
 
 ### Traitements dans un serveur: attachement / mise à jour d'un document dans un fil
 - récupération des `version` `vi` de tous les fils dans lequel le document est à insérer / mettre à jour.
@@ -1066,3 +1038,32 @@ Propriétés:
 - dernier mois facturé: pour déclencher le calcul de la facture
 - montant consommation (moyenne M M-1): 
 - indicateur de solde négatif
+
+# Bribes
+
+### Le répertoire des _profils_ des utilisateurs
+Ce répertoire n'est accédé que par les applications terminales.
+
+Tout utilisateur peut s'y faire enregistrer son _profil_.
+- le profil est crypté, seul son utilisateur peut donner aux applications terminales les clés de décryptages qu'il est seul à connaître.
+- disposer d'un _profil_ n'est requis que pour un utilisateur souhaitant enregistrer un ou des _appareils favoris_ et de bénéficier des avantages associés (voir plus avant).
+
+Le _profil_ d'un utilisateur est identifié par un `userid`, un code généré aléatoirement à son inscription, et peut contenir les rubriques suivantes:
+- la liste de **ses _appareils favoris_** comportant des données cryptographiques.
+- la liste de **ses _préférences_**: données _pré-saisies_ souvent demandées par les applications ou choix simples (langue préférée, mode _sombre / clair_ ...).
+- la liste de **ses _sessions favorites_**. En choisissant une session favorite, un utilisateur se retrouve à l'ouverture d'une application avec le _desktop de l'application_ initialisé avec les documents visibles adaptés à son besoin et les _credentials_ correspondant.
+
+> Un _credential_ est une petite structure de données ayant un _type_ donné et donnant les autorisations d'accès pour un objet précis: par exemple le type `CRDCO` donne une autorisation à un _consommateur donné attaché à un point de livraison donné_ en citant ses initiales et son mot de passe. Les accès aux documents et le droit d'invoquer des opérations requièrent un ou des _credentials_.
+
+### Fils et _credentials_
+Le _credential_ attaché à un fil gouverne le droit à en lire les documents et à s'y abonner. 
+
+Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
+
+Chaque _type de fil_ est associé à un _type de credential_:
+- les paramètres du credential sont mentionnées comme propriétés identifiantes du type de fil.
+- par exemple le fil `CMDGP` est identifié par `gp.livr`.
+- son _credential_ associé sera par exemple `CREDGP` identifié par `gp`.
+- pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
+
+> Des documents de ce fil, par exemple les _cartons_, apparaissent aussi dans un autre fil relatif au point-de-livraison (`CMDGC` identifié par `gc.gp.livr`). Ce second fil sera associé à un _credential_ `CREDGC` identifié par `gc`. Les _cartons_ seront donc accessibles soit en ayant un _credential_ `CMDGP`, soit un _credential_ `CMDGC`, avec en conséquence des notifications de deux ordres avec des autorisations différentes.
