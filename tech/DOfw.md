@@ -419,7 +419,7 @@ Ainsi la demande par une opération en phase 2 d'un document qui se trouve en _c
 - soit délivre le document s'il n'est pas exigé à être absolument dans sa version la plus récente mais tolère une _certaine ancienneté_,
 - soit s'assure que c'est bien la dernière version: si c'est le cas seul un index a été lu, sinon le document est lu et conservé en _cache_.
 
-Le module gère également une _mémoire cache de documents_ pour chaque opération en cours.
+Le module gère également une _mémoire cache de documents_ **pour chaque opération en cours**.
 - les documents lus y sont stockés dans leur forme _objet compilé_ (et non le format sérialisé de stockage en base).
 - les documents supprimés et créés y sont aussi stockés.
 
@@ -430,8 +430,8 @@ Quand une application terminale souhaite disposer des documents mis à jour pour
 - si la mise à jour peut être _incrémentale_ ou si elle doit être _intégrale_,
 - quels documents sont à retourner en fonction des versions détenues par l'application terminale.
 
-## Providers d'accès à la base de données
-Un provider présente un interface indépendant de la base de données gérée. 
+## Modules _providers_ d'accès à la base de données
+Un module _provider_ présente un interface indépendant de la base de données gérée. 
 - pour chacun des services de cet interface, il implémente l'accès effectif à la base qu'il gère:
   - mise en forme / sérialisation des documents,
   - cryptages / hachages éventuels des _data_ et propriétés indexées,
@@ -443,7 +443,7 @@ Un _provider_ d'accès à **LA** base commune hébergeant les répertoires des s
 
 > Typiquement en _test_ l'usage du provider _SQLIte_ simplifie le développement plutôt que ceux qui seront utilisés effectivement en production (_Postgresql_, _Firebase_...).
 
-## Providers d'accès au _storage_
+## Module _providers_ d'accès au _storage_
 Les quelques services généraux d'accès sont développés pour chaque type de storage souhaité (AWS-S3, GCP, File-system ...).
 
 ## Principe de _déclaration_ statique
@@ -456,423 +456,85 @@ Un module de cryptographie évite de gérer les subtilités du paramétrages des
 
 > Vis à vis des applications terminales, les serveurs ne connaissent **QUE** les concepts de documents et fils de documents: abonnements et mises à jour incrémentales. Le reste de la logique applicative passe par l'usage des opérations.
 
+# L'application _Safe_ 
+Cette application a pour objet de gérer des _coffres forts_ pour des utilisateurs.
+
+En lançant _Safe_ un utilisateur va lui indiquer quel est son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_ aux documents des applicationS.
+
+L'application _safe_ une fois lancée sur un appareil est en charge:
+- de gérer la liste des applications auxquelles l'utilisateur peut accéder, soit où il est connu, soit où il peut avoir un accès anonyme.
+- de stocker `ses droits` et les mettre à jour pour chaque application.
+- de stocker _divers objets_ pour chaque application, dont des objets transmis par un autre utilisateur disposant lui aussi d'un _safe_. Certains de ceux-ci peuvent être interprétés par l'application comme des _préférences / options_.
+- de gérer ses appareils _de confiance_.
+- de lancer les applications déclarées.
+
+> Le lancement d'applications par le _Safe_ évite le risque de lancement d'une application _piratée_ et permet de choisir le cas échéant des _options_ au lancement ouvrant la session dans un contexte déjà préfixé.
+
+> L'URL de lancement de _Safe_ doit être soigneusement vérifiée: le code de cette application est lisible dans le browser et il est possible de vérifier auprès de sites certificateurs que l'application est _fair_. Ceci évite d'avoir à le faire pour chaque application gérée par _Safe_, quoi que ce soit toujours possible. 
+
 # Un utilisateur, ses appareils et ses applications
 
-Un utilisateur qui veut utiliser une application (Web-PWA ou non) est placé devant deux cas de figure:
-- **soit l'appareil qu'il s'apprête à utiliser est _familier_**,
+## Appareils _de confiance_ d'un utilisateur
+Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
+- **soit il juge l'appareil _de confiance_**,
   - il l'utilise régulièrement, que se soit le sien ou celui d'un proche,
-  - c'est un appareil de confiance: il peut y laisser quelques informations cryptées et espérer raisonnablement les retrouver plus tard.
-- **soit l'appareil qu'il s'apprête à utiliser ne lui est pas familier**, il est partagé par des utilisateurs inconnus comme au cyber-café ou est celui d'une connaissance qui le lui a prêté temporairement:
-  - il ne doit pas y laisser quelques informations que ce soit, aucune trace de son utilisation de l'application,
-  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour raccourcir ses saisies.
+  - il peut y laisser quelques informations cryptées et espérer raisonnablement les retrouver plus tard.
+- **soit il n'a pas confiance dans cet appareil** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
+  - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
+  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
 
-### Appareil _favori_
-Pour un utilisateur lancer une application depuis un appareil _favori_ a plusieurs avantages:
-- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant de petites bases de données locales spécifiques du profil comme _cache_ de documents.
-- **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau.
-- **identification plus rapide**, mais sûr, par usage d'un code PIN.
+Pour un utilisateur lancer une application depuis un appareil _de confiance_ a plusieurs autres avantages:
+- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque application comme _cache_ de ses document: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
+- **disponibilité des droits** de l'utilisateur pour chaque application le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
+- **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
 
-Même _favori_ un appareil _peut_ être utilisé par d'autres que soi-même, même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
+> Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même, même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
 
-Le _login_ à un appareil est _protégé_ par un mot de passe ou tout autre dispositif que seuls des proches connaissent, à moins que l'appareil leur soit prêté déverrouillé.
+## Lancement d'une application
+Depuis son application _Safe_ qui gère son _coffre fort_, un utilisateur peut lancer ses applications:
+- **soit depuis un appareil _anonyme_:**
+  - soit normalement en laissant _Safe_ obtenir son contenu depuis le serveur _Safe_.
+  - soit en fournissant un _file / clé USB_ disposant de ce contenu (crypté).
+  - Les applications opèrent en mode _incognito_.
+- **soit depuis un appareil _de confiance_:**
+  - **soit en mode _avion_:** le contenu du _Safe_ est obtenu depuis le cache local crypté du _Safe_. Les applications opèrent en mode _avion_.
+  - **soit en mode _normal_:** le contenu du _Safe_ est obtenu depuis le serveur _Safe_ (mettant à jour un _cache_ local crypté). Les applications opèrent en mode _synchronisé_.
 
-#### Des _contextes personnels_ habituellement plus ou moins bien défendus
-Un browser comme Firefox a une notion d'utilisateur: on peut basculer d'un utilisateur à un autre (sans pour autant avoir changé de connexion au niveau de l'OS). Chacun a ses sites favoris, son historique de navigation et ses mots de passe enregistrés.
+Au lancement d'une application une page d'accueil est présentée:
+- elle peut être spécifique de l'option de lancement choisie;
+- elle peut être _pré-initialisée_ selon cette même option.
 
-Thunderbird, le gestionnaire de mails locaux, supporte de gérer plusieurs _profils_, chacun avec ses comptes mails.
+Au cours de l'exécution de l'application des droits peuvent être ajoutés / modifiés si l'application est en mode _synchronisé ou incognito_: ils sont répercutés sur le serveur _Safe_.
 
-Mais ce n'est pas parce qu'on partage un appareil avec un proche qu'on a envie de partager avec lui ses informations confidentielles.
-
-Or dans les cas cités ci-dessus, la confidentialité est plutôt _lâche_:
-- Thunderbird ne demande rien: on choisit son profil, sans mot de passe ou quoi que ce soit. Les boîtes mail sont de toutes les façons en clair dans le file-system, confidentialité _intra-familiale_ zéro.
-- Chrome s'ouvre sur le compte _courant_: si vous ne vous déconnectez pas **explicitement** avant de fermer le browser, il s'ouvre la fois suivante sur votre compte, ses mots de passe, ses historiques et ses favoris. Si vous vous déconnectez Chrome est strict sur la connexion et demandera même à votre mobile si c'est vraiment vous qui essayez de vous connecter: il suffit d'y répondre OUI et c'est bon. Même si vous vous êtes fait voler votre mobile en état déverrouillé, Google est content.
-
-#### Déclarer son ou ses _alias_ sur un appareil _favori_
-Un utilisateur déclare un appareil comme _favori_ en fixant,
-- un _alias_ par exemple _Bob sur le mobile d'Alice_.
-- un _code PIN_ d'au moins 8 signes. Voir le détail plus avant.
-- une phrase d'authentification de deux termes `s1 s2`.
-
-Si l'utilisateur était déjà enregistré par cette phrase dans le répertoire central des _profils_, un nouvel appareil favori sera ajouté à son _profil_.
-
-Si aucun utilisateur n'est enregistré par cette phrase dans le répertoire central des _profils_:
-- il lui est demandé de confirmer cette phrase.
-- il lui est attribué, 
-  - un `userid` aléatoirement,
-  - aléatoirement une clé de cryptage personnelle nommée par la suite `Kp` et enregistrée cryptée dans son _profil_.
-- son _profil_ est créé dans le répertoire avec son premier appareil _favori_:
-  - `s1` et `s2` ont au moins 16 signes.
-  - `s1` ne doit pas avoir été déclaré par un autre utilisateur ayant un profil enregistré dans le répertoire.
-  - `s1` et `s2` ne sont **PAS** lisibles dans le répertoire (voir plus loin comment ils sont stockés _hachés_).
-
-**Quelques informations sont aussi mémorisés sur l'appareil lui-même** dans une micro base de données `LocalProfiles` dont l'espace est gérée par le _browser_. Le contenu en est crypté, illisible en _debug_ et  même l'accès (malaisé) par le _file-system_ de l'OS ne permet pas à un _hacker_ d'accéder à son contenu.
-
-### Lancement d'une application depuis un appareil _favori_
-La liste des quelques profils enregistrés est présentée: l'utilisateur choisit le sien par exemple _Bob sur le mobile d'Alice_ et donne **son code PIN**.
-
-L'application ouvre sa page d'accueil où l'utilisateur peut choisir,
-- soit une de ses _sessions favorites_ donnant directement accès à des fils de documents dont les identifiants et _credentials_ sont enregistrés dans la _session favorite_.
-- soit d'accéder à ses données en donnant les identifications et _credentials_ requis (ce qu'il veut faire, ou, au nom de qui ...).
-
-En fermant l'application, l'utilisateur peut choisir:
+**En mode _synchronisé_** en fermant l'application, l'utilisateur peut choisir:
 - de laisser ses _fils de news_ activés: des notifications apparaîtront, même quand l'application sera fermée et même si ce n'est plus le même utilisateur qui dispose de l'appareil. Les _notifications_ ne font qu'annoncer des changements sans en donner les détails et évitent de délivrer des informations confidentielles. 
 - de fermer ses _fils de news_: aucune notification ne parviendra plus sur l'appareil relativement à cette application. L'utilisateur peut le prêter à quelqu'un d'autre sans risque ... mais lui-même ne recevra plus de notifications (il faut choisir).
 
-### Lancement d'une application EN MODE AVION sur un appareil _favori_
-La liste des quelques profils enregistrés est présentée: l'utilisateur choisit le sien et donne sa **phrase d'authentification de deux termes `s1 s2`**. 
-- Remarque: il ne donne **PAS** son code PIN qui doit être confronté aux données de son _profil_ dans le _répertoire des profils_ ce qui nécessite un accès Internet.
+**En mode _avion_**, il n'y a pas de réseau, pas de _fils de news_: les dossiers peuvent être consultés mais pas mis à jour. 
+- la base de données locale est cryptée par la clé `K` du _Safe_ de l'utilisateur. Elle contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
+- l'utilisateur peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations pourront être utilisées pour mettre à jour des documents quand le réseau sera à nouveau disponible en sécurité.
 
-L'application ouvre sa page d'accueil où l'utilisateur peut choisir une de ses sessions _favorites_ ouvrant directement accès à ses documents enregistrés au cours d'une session antérieure pas en mode _avion_.
-
-En mode avion, il n'y a pas de réseau, pas de _fils de news_: les dossiers peuvent être consultés mais pas mis à jour. L'utilisateur peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations sont cryptées dans le stockage local et pourront être utilisées pour mettre à jour des documents quand le réseau sera à nouveau disponible en sécurité.
-
-### Lancement d'une application sur un appareil _anonyme_
-L'utilisateur **PEUT** fournir une phrase d'authentification de deux termes `s1 s2`.
-
-Si l'utilisateur était déjà enregistré par cette phrase dans le répertoire central des _profils_, il bénéficie des données enregistrées dans son _profil_.
-
-Si aucun utilisateur n'est enregistré par cette phrase dans le répertoire central des _profils_, il lui est demandé de confirmer cette phrase et un _profil_ est créé pour lui dans le répertoire des profils avec la génération et l'enregistrement de son `userid` et de sa clé `Kp`.
-
-Si l'utilisateur n'avait pas de _profil_ enregistré, ou simplement pas souhaité saisir sa phrase `s1 s2`, l'application propose un _desktop_ où il devra indiquer:
-- son intention, avec quel rôle il souhaite accéder aux documents,
-- quels documents il souhaite accéder et fournir le ou les _credentials_ associés.
-- le cas échéant il choisira les _fils de news_ qui l'intéresse et donnera le cas échéant les _credentials_ associés.
-
-> Pour l'application, un utilisateur _sans profil_ a les mêmes possibilités qu'un utilisateur ayant un _profil enregistré_. Il doit saisir plus d'informations pour faire valoir ses droits d'accès, bref les données qui sont pré-remplies pour une session déclarée _favorite_ pour l'utilisateur.
-
-La fermeture de l'application ne laisse pas le choix sur un appareil _anonyme_: les abonnements aux _fils de news_ sont tous supprimés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
+**En mode _incognito_** la fermeture de l'application ne laisse pas le choix: les abonnements aux _fils de news_ sont tous supprimés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
 
 ### Mode _veille_
 Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'application se met en veille en cas de non utilisation pendant quelques minutes (fixés selon le degré de paranoïa de l'utilisateur). Pour sortir de la veille un code est nécessaire et au second échec l'application se ferme.
 
-### Accès d'un utilisateur à son _profil_
-Depuis n'importe quelle application terminale, après avoir fourni son code PIN (si c'est un appareil _favori_) ou sa phrase d'authentification `s1 s2`, l'utilisateur peut afficher en clair les rubriques de son _profil_.
-- en particulier il peut voir la liste de ses _appareils favoris_ avec leur alias et supprimer ceux jugés inutiles.
-- il peut effectuer des mises à jour de ses _préférences_.
-- il peut supprimer des _sessions favorites_.
-
 # Glossaire technique
 
-- **SH(s1, s2)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une longueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquemment utilisés.
-- **PP-x** : couples de clés publique / privée (Pub / Priv).
-- **K-x** : clés AES de 32 bytes.
-
-Soit `PP-S` le couple de clés généré par un serveur:
-- `Pub-S` est une clé publique: toutes les applications l'obtiennent librement par un simple GET au serveur.
-- `Priv-S` est la clé privée du serveur et fait partie des _secrets_ du logiciel serveur.
-
-Soit `PP-ti` un couple de clés généré par une application terminale `ti` pour une conversation donnée avec le serveur `S`:
-- `Pub-ti` est transmise dans les requêtes au serveur.
-- Le serveur peut générer une clé `K-S-ti` à partir du couple `Pub-ti / Priv-S`: il s'en sert pour crypter ses réponses à l'application terminale ou toute donnée dont il veut que seule `ti` puisse les lire.
-- L'application terminale peut générer une clé `K-ti-S` à partir du couple `Pub-S / Priv-ti`. Comme `K-ti-S` et `K-S-ti` sont égales, l'application terminale peut s'en servir pour décrypter les réponses / données cryptées pour elle par l'application serveur (et nul autre ne peut le faire).
-
-Les applications terminales connaissent la clé publique du serveur Pub-S. Quand l'une d'elle veut échanger des données confidentielles avec le serveur:
-- elle génère un couple PP-t,
-- elle envoie ses requêtes au serveur en fournissant Pub-t.
-- elle décryptera les réponses / données cryptées par le serveur par la clé Pub-S.
-
-### Les applications peuvent-elles utiliser le `userid` d'un profil d'utilisateur ?
-Une application terminale **à condition** que l'utilisateur se soit enregistré, dispose du _profil_ en clair de l'utilisateur, donc de son `userid`.
-- elle peut le communiquer dans un _credential_ à un serveur accompagné du `SH(s1, s2)` prouvant que l'utilisateur a bien fourni sa clé d'accès `(s1, s2)`.
-- à la première présentation de ce `userid`, typiquement à l'enregistrement de l'utilisateur, le serveur va conserver le couple `(userid, sha(SH(s1, s2))` dans la base de l'application.
-- les authentifications ultérieures se feront seulement à partir de la base du prestataire et non de la base commune à tous.
-- ultérieurement l'utilisateur peut aussi bien s'authentifier directement auprès du serveur à partir de `(s1, s2)` que d'un accès depuis un appareil favori et la saisie d'un code PIN.
-
-Les applications **peuvent** en conséquence utiliser le répertoire des profils des utilisateurs pour les authentifier **MAIS** ceci oblige les utilisateurs à enregistrer leur _profil_ dans ce répertoire pour utiliser l'application ce qui peut pose un problème déontologique car des liens logiques pourraient être établis entre elles.
-
-Une solution consiste à permettre à un utilisateur d'une application qui souhaite disposer d'un `userid`,
-- soit d'en créer un spécifique de l'application avec une authentification spécifique,
-- soit, au choix de l'utilisateur, d'utiliser son `userid` du répertoire des profils des utilisateurs, externe aux applications.
-
-# Détail d'un _profil_
-Il y a plusieurs rubriques dans le _profil_ d'un utilisateur:
-- des _préférences_,
-- des _sessions favorites_,
-- des _appareils favoris_.
-
-> Dans le répertoire des profils l'utilisateur est anonyme, inconnu des GAFAM, ne contient aucune information personnelle, ni nom, ni adresse e-mail, ni numéro de mobile (sauf à les avoir volontairement saisies en _préférences_ mais elles sont cryptées). Son enregistrement dans ce répertoire est inviolable, pour autant que les couples `s1 s2` en clés principales et de secours, qu'il a choisi soient respectueux d'un minimum de règles simples.
-
-### Propriétés racines
-Par sécurité un utilisateur _peut_ déclarer **deux** phrases d'authentification:
-- `s1 s2` : phrase _principale_, `sh11` est le SH(s1, s1), `sh12` est le SH(s1, s2)
-- `s1s s2s` : phrase de secours pouvant être invoquée en cas d'oubli de la première. `sh11s` est le SH(s1s, s1s), `sh12s` est le SH(s1s, s2s)
-
-- `userid` : code aléatoire généré à l'inscription.
-
-- `Kp` : clé personnelle de cryptage du _profil_ crypté dans le répertoire des profils par `sh12`.
-- `sha11`: SHA de `sh11`. C'est un index d'accès au _profil_ dans le répertoire des profils et permet de vérifier l'unicité de `s1`.
-- `s1s2` : couple `s1 s2`. Dans le répertoire des profils il est crypté par `Kp`.
-
-Symétriquement il est défini `Kps sha11s s1s2s` à partir de la phrase d'authentification de secours.
-
-> **Remarque:** pour pouvoir lire les phrases d'authentification `s1 s2` et `s1s s2s`, l'utilisateur devra soit avoir fourni l'une des deux, soit avoir fourni un code PIN depuis un appareil favori. Dans ces conditions l'utilisateur peut changer l'une ou l'autre de ses phrases d'authentification (après double saisie de vérification).
-
-### Préférences
-Une _préférence_ est une donnée nommée pour laquelle l'utilisateur a donné une ou des valeurs par défaut / préférées:
-- langue préférée,
-- mode sombre / clair,
-- nom, e-mail, adresses, numéros de téléphone ...
-- etc.
-
-Quand une application a besoin de l'une de ces informations, elle propose à l'utilisateur en pré-saisie la ou l'une des valeurs inscrites en _préférences_ si elle y en a. L'utilisateur peut en sélectionner une ou en saisir une autre (à enregistrer ou non en préférence).
-
-### _Sessions favorites_ d'un utilisateur
-Lorsqu'un utilisateur ouvre une application terminale il commence une _session_: en général il ne peut pas faire grand-chose avant d'avoir déclaré a minima, 
-- a) son intention, qu'est-ce qu'il veut y faire, 
-- b) un _credential_ démontrant son droit à accéder aux documents et aux actions associées.
-
-Un utilisateur peut aussi débuter une session avec plus de droits et un périmètre d'action plus large au cours de laquelle il aura:
-- a) un accès _consommateur_ dans le point-de-livraison où il est enregistré.
-- b) deux accès _point-de-livraison_ pour les deux organisations où il intervient pour aider à gérer des livraisons.
-- c) un accès _groupement_ parce qu'il est également l'assistant d'un groupement de producteur qui n'est pas autonome.
-
-> Exactement comme un utilisateur de Discord peut avoir accès à plusieurs _serveurs_ pour autant de sujets d'intérêt.
-
-En cours d'une session, l'utilisateur peut ouvrir de nouveaux accès pour de nouveaux rôles après avoir fourni le cas échéant de nouveaux _credentials_. Les paramètres de l'état courant de la session peuvent être enregistrés comme _session favorite_, une nouvelle ou en remplaçant une antérieure.
-
-Lors d'une prochaine ouverture de l'application, après avoir donné son code PIN (sur appareil favori) ou sa phrase d'authentification `s1 s2`, l'utilisateur n'a plus qu'à cliquer sur l'une de ses sessions favorites pour avoir à disposition tous les documents correspondants sans avoir eu à en citer d'identifiants ni à fournir de credentials.
-
-> Au lieu d'une logique organisée autour de l'identification de _personnes_ (plus ou moins virtuelles), c'est l'utilisateur qui sélectionne une _session_ où il a plusieurs rôles. Chaque _ensemble de  documents et actions associés_ est comme enfermé dans un coffre, tout utilisateur en connaissant la combinaison peut prétendre y accéder (avec la possibilité de gérer plusieurs combinaisons par coffres).
-
-#### Remarques techniques
-- l'application terminale lors de l'enregistrement d'un utilisateur allonge `s1` en `s1+` par un texte de remplissage quand sa longueur est inférieure au maximum mais supérieure au minimum (refus si inférieur à la longueur minimale). L'unicité du `SH(s1+, s1+)` est vérifiée.
-- l'application terminale d'enregistrement allonge `s2` en `s2+` de même, mais le texte de remplissage est généré en fonction de `s1`.
-- l'unicité de `s1` est vérifiée par l'enregistrement du `SHA(SH(s1+, s1+))`.
-- l'unicité de `s1 s2` est vérifiée par l'enregistrement du `SHA(SH(s1+, s2+))`.
-
-##### Accès par l'utilisateur à son _profil_
-Quand un utilisateur est enregistré, l'ouverture d'une application terminale lui propose de d'utiliser son _profil_: 
-- lui demande l'un de ses couples d'accès `s1 s2`. L'application en construit les couples `SH(s1+, s1+)` et `SH(s1+, s2+)`. 
-- l'application terminale soumet une requête à un serveur qui:
-  - peut par `SHA(SH(s1+, s1+))` accéder à l'entrée `userid` pour cet utilisateur,
-  - vérifier la validité de `SH(s1+, s2+)`. Dans ce cas il retourne le _profil_ crypté à l'application terminale.
-- l'application terminale peut décrypter la clé `Kp` cryptée par `s1 + s2` (ce que le serveur ne pouvait pas faire faute de connaître `s1` et `s2`) et décrypter toutes les données du _profil_.
-
-## Stockage local dans un appareil _favori_
-Une **micro base locale des alias** stocke quelques données relatives aux utilisateurs ayant déclaré l'appareil comme _favori_. Elle est hébergée / gérée par le browser dans un espace spécifique du _domaine_ de l'application terminale.
-
-La base a une table ayant une ligne par _alias_ d'utilisateur comportant:
-- `alias` : l'alias choisi par un des utilisateurs (par exemple _Bob sur le mobile d'Alice_).
-- `ka` : une clé de 32 bytes générée à la création de l'entrée. Elle est cryptée _mollement_ par une clé détenue dans le source de l'application terminale (donc lisible en debug avec un peu de fatigue).
-- `fp` : le _profil_ de l'utilisateur cryptée par sa clé `Kp`.
-- `ckp` : le couple de 2 cryptages de la clé `Kp` de l'utilisateur par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
-
-#### Déclarer un appareil comme favori
-La liste des _alias_ des utilisateurs ayant utilisé cet appareil comme favori est présentée: l'utilisateur peut ainsi déterminer s'il doit,
-- déclarer cet appareil comme favori.
-- si c'était déjà le cas, changer son code PIN.
-- supprimer les entrées des _alias_ qui ne l'inspirent pas.
-
-Pour déclarer l'appareil comme favori ou refixer son code PIN, l'utilisateur doit fournir,
-- l'alias de son choix, sélectionné dans la liste ou inventé à l'instant,
-- **un code PIN d'au moins 8 signes**,
-- une de ses deux clés longues `s1 s2` qui permet à l'application de retrouver son _profil_ dans le répertoire des profils.
-
-> Si l'alias avait déjà une entrée, l'application terminale va essayer le code PIN proposé: en cas d'échec, l'entrée de l'alias dans le _profil_ est supprimée.
-
-L'application terminale:
-- récupère depuis l'entrée de répertoire accessible par `(s1, s2)`,
-  - `fp` : le _profil_ de l'utilisateur crypté par la clé `Kp` de l'utilisateur. Disposant de `s1 s2`, l'application terminale,
-    - obtient `Kp`,
-    - décrypte le profil avec `Kp`.
-  - `ckp` : le couple des 2 cryptages de la clé `Kp` de l'utilisateur par respectivement les deux clés `(s1 + s2)`, la principale et celle de secours.
-- génère aléatoirement une clé `Ka` qui est identifiante de l'alias.
-- enregistre une entrée dans le _profil_:
-  - `aliasid` : identifiant : le SHA de `Ka`. Soit `x` le _SH(code PIN allongé, `Ka`)_.
-  - `shax` : le SHA de `x`.
-  - `kpx` : le cryptage de `Kp` par `x`.
-  - `err` : 0. Nombre de tentatives infructueuses d'accès au code PIN.
-  - `lm` : dernier mois d'accès, en l'occurrence le mois de création.
-
-In fine l'application terminale dispose en mémoire du _profil_ en clair de l'utilisateur, obtenue par la saisie de `(s1 s2)`.
-
-#### Ouverture d'une application par un code PIN
-L'utilisateur saisit son code PIN et désigne son _alias_ dans la liste des utilisateurs habituels de l'appareil obtenue en lisant la base locale des alias.
-
-L'application terminale:
-- dispose,
-  - du code de l'alias, 
-  - du code PIN, 
-  - de la clé `Ka` associée.
-  - de `x`, le _cryptage du code PIN (allongé) par `Ka`_
-- soumet une requête au serveur avec en arguments: `sha(x)` et `aliasid`: le `sha(Ka)`:
-  - la requête lit l'enregistrement `a` par l'index `aliasid` (sa clé primaire est `userid.aliasid`).
-  - enregistre dans `a.lm` le mois courant (si sa valeur a changé).
-  - compare `a.shax` et `sha(x)` reçu en argument:
-    - en cas d'inégalité, incrémente le compteur d'erreur `a.err` et s'il est supérieur à 1 supprime l'entrée `a` du _profil_ .
-    - en cas d'égalité, retourne le _profil_ (crypté) et `a.kpx`.
-- obtient `Kp` en décryptant `a.kpx` par `x`.
-- décrypte le profil par `Kp` et en extrait `ckp`.
-- stocke dans la base locale des alias de l'appareil, dans l'entrée correspondante de l'alias de l'utilisateur, `fp` (crypté) et `ckp` (ce qui les met à jour).
-
-> **Remarque**: la clé `Kp` n'a jamais été disponible en clair dans un serveur.
-
-In fine l'application terminale dispose en mémoire du _profil_ en clair de l'utilisateur, obtenue par la saisie du code PIN.
-
-L'utilisateur et l'application terminale se retrouvent dans les mêmes conditions que si l'utilisateur avait fourni un couple de clés longues `s1 s2`, le _profil_ est en clair en mémoire. Depuis un appareil favori, l'utilisateur a seulement saisi un code PIN plus court que `s1, s2` et désigné un alias local.
-
-> Le code PIN ne peut jamais être décrypté, ni avec seulement les données du _répertoire des alias_, ni seulement avec les données de la base locale de l'appareil.
-
-> L'alias est local et sert seulement à l'utilisateur à retrouver facilement sa ligne dans la liste présentée à so choix. Son texte peut être n'importe quoi.
-
-#### Sécurité de l'accès par _alias / code PIN_ sur un appareil favori
-L'entrée dans un _profil_ étant détruite par le serveur au second échec, aucune attaque par force brute n'est possible à distance.
-
-Les attaques possibles restent celles effectuées, depuis l'appareil, depuis le serveur ou depuis les deux conjointement.
-
-##### Attaque depuis l'appareil
-Le code PIN **N'EST PAS** stocké localement sur l'appareil: un voleur / hacker ne peut donc pas le retrouver. Le code PIN n'est présent que:
-- en clair dans la tête de l'utilisateur (qui certes doit éviter de l'inscrire au feutre sur son appareil),
-- dans son profil dans le _répertoire des profils_ par le sha de son cryptage par la clé `Ka`.
-
-> Le seul moyen d'attaque serait de casser un des deux couples de codes `(s1 s2)`, ce qui est impossible si `s1` et `s2` sont à peu près bien choisis. L'existence d'un code PIN ne fragilise pas l'attaque depuis un appareil.
-
-##### Par attaque depuis le serveur
-L'administrateur du serveur protège l'accès à la base de données contenant le _répertoire des profils_. Les données sont cryptées par une clé d'administration. Pour _décrypter les enregistrements de la base_ il faut,
-- a) avoir un accès en lecture à la base: remarque, le prestataire hébergeur de la base de données l'a.
-- b) avoir la clé de cryptage de l'administrateur: remarque, le prestataire hébergeur de la base de données ne l'a pas.
-
-En supposant que l'administrateur de la base de données dispose aussi de la clé de cryptage des données dans la base, le hacker peut tester par force brute des codes PIN `px`:
-- calcul de `x` son SH(`px`, `Ka`) et vérification que `x` décrypte `kpx`.
-- mais il n'a pas `Ka`, clé de 32 bytes tirée aléatoirement, donc inatteignable par force brute.
-
-##### Par emprunt de l'appareil déverrouillé + complicité de l'administrateur
-Cette fois la clé `Ka` est accessible, dans le debug de l'application terminale en exécution sur l'appareil. 
-
-Le hacker peut tester par force brute des codes PIN `px`:
-- calcul de `x` son SH(`px`, `Ka`) et vérification que `x` décrypte `kpx`.
-
-Avec un code PIN `1234` et autres vedettes des mots de passe friables, l'effort ne devrait pas durer longtemps.
-
-Toutefois UN SEUL essai d'un code demande un temps calcul important, le Strong Hash n'est _strong_ que parce qu'il exige du temps calcul non parallélisable et inapte à bénéficier de processeurs dits _graphiques_.
-
-Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique il va certes s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. mais il y a N façons de saisir `allons enfants de la pa`, avec ou sans séparateurs, des chiffres au milieu, des alternances de minuscules / majuscules. Il est difficilement concevable de coder l'inventivité des variantes, sans compter le nombre énorme de variantes possibles à exécuter à partir d'une seule _idée_ de texte de longueur inconnue.
-
-Pour casser un code PIN sur un appareil favori, un hacker doit:
-- connaître le login / mot de passe de l'appareil,
-- l'emprunter et y lancer l'application pour en obtenir les `Ka`.
-- avoir la complicité de l'administration technique du serveur,
-- avoir de gros moyens informatiques.
-
-Ces conditions constituent un handicap sérieux ... et demandent beaucoup d'argent et / ou l'usage de la force physique sur des humains. Si cette option est envisageable, il est moins coûteux de _persuader_ l'utilisateur de donner son code PIN (tant qu'il est vivant).
-
-> SI l'hypothèse d'une collusion possible entre, les administrateurs ET des voleurs capables de dérober un appareil et d'y ouvrir une session, est considérée comme plausible, **soit** il ne faut pas déclarer d'appareils favoris, renoncer au mode avion et alourdir ses sessions sur l'appareil, **soit** il faut choisir un code PIN _dur_ à plus de 15 signes (ce qui reste vivable) qui sera incassable.
-
-## Bases de données locale _cache_ sur un poste personnel
-Sur un poste _favori_, le profil `Bob sur le mobile d'Alice` détient une petite base de données locale **par application** portant le nom de l'application suivi d'un hash de la clé `Ka`. Elle contient:
-- des copies (forcément retardées par principe) de documents de l'application.
-- des copies également retardées de _fils de documents_.
-- trois index définissent à quels fils, chaque document est attaché.
-- les contenus des documents et des fils sont cryptés par la clé `Kp` de l'utilisateur.
-
-Quand une application est lancée elle va déterminer en fonction du souhait de l'utilisateur sur la page d'accueil, quels _fils de documents_ contiennent les documents à charger en mémoire:
-- pour chacun l'application lit le contenu du fil détenu dans la base locale et demande au serveur de lui retourner le dernier état s'il est plus récent que celui obtenu de la base locale.
-- l'application peut ainsi,
-  - a) charger depuis la base locale les documents actuellement déclarés attachés au fil,
-  - b) si nécessaire au vu des versions respectives, demander au serveur tous les documents attachés à ce fil de version postérieure.
-  - c) mette à jour dans la base locale, les documents et le fil.
-
-En effectuant cette opération pour tous les fils constituant le contexte de travail de la session, l'application,
-- a) dispose en mémoire des fils nécessaires et des documents attachés,
-- b) a mis à jour la base de données locales, qui pour cette session ouverte par l'utilisateur, est à jour.
-
-## Le mode _avion_
-Il est possible sur un poste _favori_ où l'utilisateur a ouvert récemment l'application et accédé à une de ses sessions favorites. Dans le _use-case circuitscourts_, par exemple pour un _consommateur_ ou le responsable des livraisons d'un groupement authentifiés par un identifiant et une clé d'autorisation (mot de passe pour simplifier).
-
-La base de données locale d'une application contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
-
-La base de données est cryptée par la clé `Kp` et l'application doit se la procurer:
-- l'accès par un code PIN est impossible, il n'y a pas de réseau pour obtenir la clé `Kp` cryptée par la clé `Ka` lisible localement.
-- l'application demande à l'utilisateur de saisir un de ses couples d'accès `(s1, s2)` et peut ainsi obtenir `Kp` depuis la base locale des alias.
-
-# Les _activités_ définies dans une application
-
-Dans une application terminale une _activité_ désigne un ensemble de tâches cohérentes qu'un utilisateur peut effectuer. Par exemple dans l'exemple _circuitscourts_:
-- l'activité _commande d'un consommateur_ où un consommateur peut déclarer les quantités qu'il souhaite recevoir pour les livraisons en cours.
-- l'activité _contrôle et réception des livraisons_ pour les animateurs d'un point-de-livraison visant à vérifier les commandes, réceptionner les camions et noter les quantités reçues.
-- l'activité _préparation d'une livraison_ pour un groupement de producteurs, gérant le calendrier de la livraison, rassemblant les cartons préparés par les producteurs pour effectuer une tournée auprès des points-de-livraison associés.
-
-Une _activité_ décrit à la fois:
-- sur quelles données elle doit opérer, quels documents doivent être rendus visibles aux utilisateurs ayant opté pour cette activité.
-- quels processus _suites d'actions élémentaires concourant à un objectif plus global_, un utilisateur peut engager dans le cadre de cette activité.
-- quels _credentials_ un utilisateur doit présenter pour avoir le droit de voir les données et d'exécuter les processus.
-
-### Une session d'une application pour un utilisateur peut avoir plusieurs activités ouvertes
-
-#### L'activité d'amorce
-Il est toujours possible de lancer une application sans avoir d'activité favorite enregistrée.
-La session doit présenter un minimum d'information à l'utilisateur:
-- pour qu'il puisse décider quelle activité il va choisir d'exercer.
-- saisir les _credentials_ requis.
-
-Pour ce faire l'utilisateur va souvent avoir besoin de voir quelques données: elles sont définies dans une activité bien identifiée _amorce_ qui peut présenter des informations non soumises à un _credential_.
-
-Le _desktop de l'application_ est affiché pour présenter ces choix.
-
-Ultérieurement plusieurs activités peuvent être ouvertes:
-- plusieurs du même type: assurer _le contrôle et réception des livraisons_ pour deux points-de-livraisons.
-- plusieurs de types différents: assurer _la commande d'un consommateur_ (pour lui-même) et contribuer à _la préparation d'une livraison_ à titre d'aide d'un groupement de producteurs ami.
-
-### Un _type d'activité_ a des paramètres et est associé à un ou plusieurs _types de credentials_
-Par exemple l'activité _commande d'un consommateur_ a pour paramètres,
-- `gc` : le code d'un point-de-livraison.
-- `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
-- `initials` d'un utilisateur,
-- `pwd` : mot de passe déclaré pour le couple `gc co` pour les `initiales` fournies.
-
-Ce type d'activité est associé à un ou plusieurs types de _credential_, ici par exemple `CREDCO` qui peut se construire à partir des paramètres de l'activité:
-- `gc co` : sont les identifiants d'un _credential_ `CREDCO` dont les autres propriétés sont `initals` et `pwd`.
-
-Le ou les _types de credentials_ déclarés associés à une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_: un _credential_ peut ainsi être généré depuis ceux-ci et sera délivré aux opérations qui le requièrent.
-
-## Choisir et exercer une activité dans une session d'une application terminale
-Le _desktop_ de l'application présente à l'utilisateur les _types d'activité_ qu'il peut choisir. 
-- Ce peut être une liste courte,
-- Ce peut être pour une application complexe une liste longue, avec une possibilité de sélection par mot clé et / ou une présentation arborescente.
-- Le paramétrage du _desktop_ déclare comment il apparaît et comment l'utilisateur peut sélectionner une activité.
-
-Quand l'utilisateur a choisi un type d'activité il doit saisir tous les paramètres de l'activité: par exemple un code `gc` et un code `co`, des `initials` et un `pwd`.
-
-Il a alors une _activité ouverte_, ce qui apparaît sur son _desktop_.
-
-Il peut en ouvrir d'autres, du même type ou non, chacune figurée par exemple par un onglet et / ou une icône et / ou un libellé.
-
-Depuis le _desktop_ l'utilisateur peut _basculer d'une activité à une autre_ par exemple en cliquant sur un onglet ou une icône, ou si l'application le permet en voir plus d'une affichée (une en haut, une en bas).
-
-### Enregistrement d'une _session favorite_ dans son _profil_
-Si l'utilisateur a un profil enregistré, à n'importe quel moment de sa session de travail en cours il peut:
-- sélectionner en les cochant certaines de ses activités en cours,
-- enregistrer cette sélection en lui donnant un libelle clair pour lui, comme _commandes Bob à JP_.
-
+### Strong Hash: `PBKDF`
+- **SH(s1, s2, SEP)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une longueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquemment utilisés. Le SEP est un caractère de séparation / remplissage qui allonge le couple `s1 + SEP + s2` à une taille minimale.
+
+### Clés asymétriques C / D : cryptage / décryptage
+Un couple de clés `Ca / Da` asymétriques généré par A:
+- `Ca` est une clé publique de **cryptage**: elle est utilisée par B pour crypter un objet qui ne pourra être décrypté que par A.
+- `Da` est la clé privée de **décryptage**: elle est utilisée par A pour décrypter un objet qui a été crypté par B en utilisant `Ca`.
+
+### Clés asymétriques S / V : signature / vérification
+Un couple de clés `Sa / Va` asymétriques généré par A:
+- `Va` est une clé publique de **vérification**: elle est utilisée par B pour _vérifier que la signature S d'un texte X_ a bien été générée par A en utilisant `Sa`.
+- `Sa` est la clé privée de **signature**: elle est utilisée par A pour _générer la signature S d'un texte challenge X_.
 
 -----------------------------------------------------------------------
-
-# Contributions diverses en attente
-
-### Désérialisation de la propriété `data` du document
-Elle consiste à retourner une _map_ nom, valeur des propriétés du document, dont celles d'identification et la version.
-
-La couche applicative est en charge de créer une instance de la classe appropriée depuis cette _map_ en utilisant le type du document et si nécessaire d'autres propriétés de _data_ pour des sous-classes héritant d'une classe racine correspondant au type de document.
-
-### Lecture d'un fichier
-Elle peut s'effectuer de deux manières:
-- en retournant le contenu binaire du fichier dans la couche applicative,
-- en retournant une URL d'accès sécurisé valable un certain temps, typiquement à transmettre à une application externe.
-
-### Cohérence _forte_ dans un fil, _faible_ entre fils
-L'état d'un fil retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
-
-Mais deux demandes faites pour deux fils, forcément à des moments différents, retourne deux états de fils qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre fils, un état qui globalement peut être fonctionnellement incohérent temporairement.
-
-> On pourrait certes grouper dans la même requête des demandes concernant plusieurs fils: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
-
-## Authentification _double_
-(questions, pertinence)
-
-Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigeant une confirmation sur un appareil #2 (favori ou non).
-- que se passe-t-il quand l'appareil #1 n'est déclaré _favori_ ?
-- et si l'utilisateur N'A PAS d'appareil #2 (au moins sous la main) ?
-- si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
 
 # Décompter les consommations
 
@@ -928,7 +590,7 @@ Décompter ces unités sur un mois (par exemple le volume des fichiers télécha
 #### Niveau des nombres d'unités
 Un _niveau_ est codifié par deux chiffres `ab`, la _valeur_ d'un niveau étant `a * 10**b`.
 
-Le niveau `10` vaut 1, `52` vaut 500, `73` vaut 7000, `99` vaut 9,000,000,000.
+Le niveau `10` vaut 1, `22` vaut 200, `52` vaut 500, `73` vaut 7000, `99` vaut 9,000,000,000.
 
 La donnée d'un _niveau_ permet de fixer un ordre de grandeur d'un seuil pour une unité donnée.
 
@@ -943,7 +605,7 @@ Pour les unités de _stock_: le maximum fixé ne peut pas être dépassé, l'op�
 - _sauf_ si le maximum est certes dépassé mais en baisse.
 - le **niveau d'alerte** est le pourcentage de dépassement au delà de 80% (0 en deçà).
 
-Pour les unités de _calcul_ c'est le nombre moyen d'unités accumulé 30 jours sur M et M-1:
+Pour les unités de _calcul_ c'est le nombre moyen d'unités accumulé en 30 jours sur M et M-1:
   - le 10 du mois, le compte pour M est affecté du coefficient 1/3, celui de M-1 pour 2/3.
 - le **niveau d'alerte** est le pourcentage de dépassement au delà de 80% (0 en deçà).
 - l'application calcule une **durée de ralentissement de l'opération** (d'attente) fonction du niveau d'alerte afin de freiner l'excès de calcul, voire de bloquer l'opération (si elle n'est pas _privilégiée_).
@@ -1004,6 +666,7 @@ L'application fixe sa politique vis à vis d'un _contrat_ présentant un solde _
 
 ## Authentification d'utilisateurs via leur contrat
 
+**OBSOLÈTE**
 Tout utilisateur rattaché à un contrat _peut_ y être associé à une ou plusieurs **passphrases** qui l'authentifient: 
 - une _passphrase_ donnée ne peut être associée qu'à un seul contrat à un instant donné et à un seul _utilisateur_ dans le contrat.
 - dans son contrat, un utilisateur peut avoir _plusieurs passphrases_ associées lui permettant autant de solutions d'authentification.
@@ -1027,8 +690,7 @@ En cours d'opération, les compteurs du mois courant sont mis à jour (si néces
 
 La fin d'une opération va, en général, enregistrer en base la mise à jour du _contrat_.
 
-Un _contrat_ a un mois de dernière mise à jour: un traitement périodique à partir du N d'un mois effectue a minima une opération sur chaque contrat dont le dernier mois de mise à jour 
-n'est pas le mois courant afin d'éviter de perdre des facturations sur les _contrats_ peu utilisés.
+Un _contrat_ a un mois de dernière mise à jour: un traitement périodique à partir du N d'un mois effectue a minima une opération sur chaque contrat dont le dernier mois de mise à jour n'est pas le mois courant afin d'éviter de perdre des facturations sur les _contrats_ peu utilisés.
 
 Un traitement périodique peut aussi collecter un historique sous forme de fichier CSV pour analyse externe.
 
@@ -1039,7 +701,34 @@ Propriétés:
 - montant consommation (moyenne M M-1): 
 - indicateur de solde négatif
 
-# Bribes
+--------------
+
+# Contributions diverses en attente
+
+### Désérialisation de la propriété `data` du document
+Elle consiste à retourner une _map_ nom, valeur des propriétés du document, dont celles d'identification et la version.
+
+La couche applicative est en charge de créer une instance de la classe appropriée depuis cette _map_ en utilisant le type du document et si nécessaire d'autres propriétés de _data_ pour des sous-classes héritant d'une classe racine correspondant au type de document.
+
+### Lecture d'un fichier
+Elle peut s'effectuer de deux manières:
+- en retournant le contenu binaire du fichier dans la couche applicative,
+- en retournant une URL d'accès sécurisé valable un certain temps, typiquement à transmettre à une application externe.
+
+### Cohérence _forte_ dans un fil, _faible_ entre fils
+L'état d'un fil retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
+
+Mais deux demandes faites pour deux fils, forcément à des moments différents, retourne deux états de fils qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre fils, un état qui globalement peut être fonctionnellement incohérent temporairement.
+
+> On pourrait certes grouper dans la même requête des demandes concernant plusieurs fils: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
+
+## Authentification _double_
+(questions, pertinence)
+
+Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigeant une confirmation sur un appareil #2 (favori ou non).
+- que se passe-t-il quand l'appareil #1 n'est déclaré _favori_ ?
+- et si l'utilisateur N'A PAS d'appareil #2 (au moins sous la main) ?
+- si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
 
 ### Le répertoire des _profils_ des utilisateurs
 Ce répertoire n'est accédé que par les applications terminales.
@@ -1067,3 +756,62 @@ Chaque _type de fil_ est associé à un _type de credential_:
 - pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
 
 > Des documents de ce fil, par exemple les _cartons_, apparaissent aussi dans un autre fil relatif au point-de-livraison (`CMDGC` identifié par `gc.gp.livr`). Ce second fil sera associé à un _credential_ `CREDGC` identifié par `gc`. Les _cartons_ seront donc accessibles soit en ayant un _credential_ `CMDGP`, soit un _credential_ `CMDGC`, avec en conséquence des notifications de deux ordres avec des autorisations différentes.
+
+## Les _activités_ définies dans une application
+
+Dans une application terminale une _activité_ désigne un ensemble de tâches cohérentes qu'un utilisateur peut effectuer. Par exemple dans l'exemple _circuitscourts_:
+- l'activité _commande d'un consommateur_ où un consommateur peut déclarer les quantités qu'il souhaite recevoir pour les livraisons en cours.
+- l'activité _contrôle et réception des livraisons_ pour les animateurs d'un point-de-livraison visant à vérifier les commandes, réceptionner les camions et noter les quantités reçues.
+- l'activité _préparation d'une livraison_ pour un groupement de producteurs, gérant le calendrier de la livraison, rassemblant les cartons préparés par les producteurs pour effectuer une tournée auprès des points-de-livraison associés.
+
+Une _activité_ décrit à la fois:
+- sur quelles données elle doit opérer, quels documents doivent être rendus visibles aux utilisateurs ayant opté pour cette activité.
+- quels processus _suites d'actions élémentaires concourant à un objectif plus global_, un utilisateur peut engager dans le cadre de cette activité.
+- quels _credentials_ un utilisateur doit présenter pour avoir le droit de voir les données et d'exécuter les processus.
+
+### Une session d'une application pour un utilisateur peut avoir plusieurs activités ouvertes
+
+#### L'activité d'amorce
+Il est toujours possible de lancer une application sans avoir d'activité favorite enregistrée.
+La session doit présenter un minimum d'information à l'utilisateur:
+- pour qu'il puisse décider quelle activité il va choisir d'exercer.
+- saisir les _credentials_ requis.
+
+Pour ce faire l'utilisateur va souvent avoir besoin de voir quelques données: elles sont définies dans une activité bien identifiée _amorce_ qui peut présenter des informations non soumises à un _credential_.
+
+Le _desktop de l'application_ est affiché pour présenter ces choix.
+
+Ultérieurement plusieurs activités peuvent être ouvertes:
+- plusieurs du même type: assurer _le contrôle et réception des livraisons_ pour deux points-de-livraisons.
+- plusieurs de types différents: assurer _la commande d'un consommateur_ (pour lui-même) et contribuer à _la préparation d'une livraison_ à titre d'aide d'un groupement de producteurs ami.
+
+### Un _type d'activité_ a des paramètres et est associé à un ou plusieurs _types de credentials_
+Par exemple l'activité _commande d'un consommateur_ a pour paramètres,
+- `gc` : le code d'un point-de-livraison.
+- `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
+- `initials` d'un utilisateur,
+- `pwd` : mot de passe déclaré pour le couple `gc co` pour les `initiales` fournies.
+
+Ce type d'activité est associé à un ou plusieurs types de _credential_, ici par exemple `CREDCO` qui peut se construire à partir des paramètres de l'activité:
+- `gc co` : sont les identifiants d'un _credential_ `CREDCO` dont les autres propriétés sont `initals` et `pwd`.
+
+Le ou les _types de credentials_ déclarés associés à une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_: un _credential_ peut ainsi être généré depuis ceux-ci et sera délivré aux opérations qui le requièrent.
+
+## Choisir et exercer une activité dans une session d'une application terminale
+Le _desktop_ de l'application présente à l'utilisateur les _types d'activité_ qu'il peut choisir. 
+- Ce peut être une liste courte,
+- Ce peut être pour une application complexe une liste longue, avec une possibilité de sélection par mot clé et / ou une présentation arborescente.
+- Le paramétrage du _desktop_ déclare comment il apparaît et comment l'utilisateur peut sélectionner une activité.
+
+Quand l'utilisateur a choisi un type d'activité il doit saisir tous les paramètres de l'activité: par exemple un code `gc` et un code `co`, des `initials` et un `pwd`.
+
+Il a alors une _activité ouverte_, ce qui apparaît sur son _desktop_.
+
+Il peut en ouvrir d'autres, du même type ou non, chacune figurée par exemple par un onglet et / ou une icône et / ou un libellé.
+
+Depuis le _desktop_ l'utilisateur peut _basculer d'une activité à une autre_ par exemple en cliquant sur un onglet ou une icône, ou si l'application le permet en voir plus d'une affichée (une en haut, une en bas).
+
+### Enregistrement d'une _session favorite_ dans son _profil_
+Si l'utilisateur a un profil enregistré, à n'importe quel moment de sa session de travail en cours il peut:
+- sélectionner en les cochant certaines de ses activités en cours,
+- enregistrer cette sélection en lui donnant un libelle clair pour lui, comme _commandes Bob à JP_.

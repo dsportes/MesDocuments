@@ -193,13 +193,14 @@ Il comporte les parties suivantes:
     - puis par la clé K du _safe_.
   - la clé est un hash de `appId, type, target`.
 - **devices de confiance**: cette section est décrite ci-après.
-- **objets reçus** : c'est une map d'items de clés `hash(obj)` et de valeurs `{ exp_C, obj }` où,
+- **objets reçus** : pour chaque application, c'est une map d'items de clés `hash(obj)` et de valeurs `{ exp_C, obj }` où,
   - `exp_C` est la clé publique de cryptage de l'expéditeur.
+  - `type` : code du _type_ de l'objet (par exemple `DROIT`).
   - `obj` est un objet crypté par la clé `C` du _safe_ (son identifiant).
     - `obj` a une propriété `about` donnant une explication _humaine_ à propos de l'objet transmis.
 - **liste noire**: c'est une map d'items:
-  - clé: hash de la clé publique d'un _safe_ dont on ne veut plus recevoir d'objets.
-  - valeur: texte crypté par la clé K du _safe_ rappelant à son propriétaire qui il a mis en liste noire et pourquoi.
+  - _clé_: hash de la clé publique d'un _safe_ dont le _safe_ n'accepte plus de recevoir d'objets.
+  - _valeur_: texte crypté par la clé K du _safe_ rappelant à son propriétaire qui il a mis en liste noire et pourquoi.
 
 Le propriétaire d'un _safe_ A peut envoyer un _objet_ confidentiel au propriétaire d'un _safe_ B:
 - la structure de l'objet dépend de son objectif, typiquement ce peut être,
@@ -260,7 +261,8 @@ Au lancement d'une application il doit être en mesure de lui communiquer ses dr
 - si c'est un appareil _de confiance_ il peut le faire en saisissant seulement un `code PIN` (d'au moins 8 signes) ce qui est plus rapide. L'identifiant du _Safe_ est stocké localement dans l'appareil.
 
 Pour un utilisateur lancer une application depuis un appareil _de confiance_ a plusieurs autres avantages:
-- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) comme _cache_ de documents de l'application: ceux connus et à jour n'auront pas besoin d'être demandés au serveur.
+- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque application comme _cache_ de ses document: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
+- **disponibilité des droits** de l'utilisateur pour chaque application le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
 - **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
 
 > Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même, même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
@@ -413,3 +415,8 @@ Ce procédé général _d'export / import_ demande à résoudre les points suiva
 - quelle sécurité cet échange a-t-il, peut-il être _écouté / intercepté_ au milieu, comment s'assurer que seule P2 pourra en faire usage ?
 
 > Quand P1 et P2 sont inscrit sur le _Safe_ et que P1 connaît l'identifiant du _safe_ de P2, elle peut transmettre le droit dans un _objet_ accessible par P2 dans ses _objets reçus_.
+
+# TODO
+- passer le _module_ en application.
+- déclarer les applications _favorites / utilisables_.
+- langue / mode sombre
