@@ -459,7 +459,7 @@ Un module de cryptographie évite de gérer les subtilités du paramétrages des
 # L'application _Safe_ 
 Cette application a pour objet de gérer des _coffres forts_ pour des utilisateurs.
 
-En lançant _Safe_ un utilisateur va lui indiquer quel est son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_ aux documents des applicationS.
+En lançant _Safe_ un utilisateur va lui indiquer quel est son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_ aux documents des applications.
 
 L'application _safe_ une fois lancée sur un appareil est en charge:
 - de gérer la liste des applications auxquelles l'utilisateur peut accéder, soit où il est connu, soit où il peut avoir un accès anonyme.
