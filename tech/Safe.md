@@ -122,43 +122,40 @@ Pour chaque application lancée, l'application _Safe terminale_ peut:
 
 ## Stockage des _safes_
 
-### Le serveur _Safe_
+### Par le serveur _Safe_
 Ce serveur et sa base de données sont le lieu de stockage _par défaut_ des _safes_.
 
-L'accès par l'application terminale à un _safe_ se fait par deux procédés:
-- la donnée du SH(p0, (p1 ou p2)) où p0 p1 p2 sont des _phrases_ longues connues uniquement du détenteur du _safe_.
-- la donnée d'un triplet `(devName, E, cx SH(PIN, cy))` si l'appareil est _de confiance_, où:
-  - `devName` : nom identifiant le device pour le _Safe_.
-  - `E` est l'identifiant du _safe_,
-  - `cx` et `cy` deux challenges obtenus lors de la déclaration de confiance d'appareil,
-  - `PIN` est un code PIN court (au moins 8 signes) enregistré à la déclaration de confiance de l'appareil.
-  - `devName, E, cx cy` étant mémorisé sur l'appareil _de confiance_ lui-même lors de la déclaration de confiance, E peut être cliqué dans une liste courte et PIN doit être saisi.
+L'accès par l'application terminale au _safe_ de l'utilisateur se fait par deux procédés:
+- depuis tout appareil, la donnée des phrases _longues_ `p0` et (`p1` ou `p2`) connues uniquement du détenteur du _safe_.
+- depuis un appareil _de confiance_ la donnée d'un code PIN (au moins 8 signes)
 
-Après avoir identifié en sécurité le _safe_ de l'utilisateur, l'application terminale _Safe_ peut disposer du contenu du _safe_ en mémoire et communiquer les données souhaitées aux applications lancées sur l'appareil.
+Après avoir identifié en sécurité le _safe_ de l'utilisateur, l'application terminale _Safe_ le demande au serveur et dispose ainsi de son contenu en mémoire: elle peut communiquer les données qui les concernent aux applications lancées sur l'appareil.
 
 La mise à jour du _safe_ se répercute directement sur le serveur.
 
-### Un _fichier_ JSON crypté
+### Par un _fichier_ JSON crypté
 Au lieu d'obtenir le contenu du _safe_ par l'application _Safe serveur_, l'application _Safe terminale_ peut demander à l'utilisateur de lui fournir un fichier `safe.json` (gzippé et crypté).
 
-Le cryptage est assurée par une _phrase longue_ connue de l'utilisateur.
+Le cryptage est assuré par une _phrase longue_ connue seulement de l'utilisateur.
 
-Après lecture et décryptage, l'application fonctionne comme avec son serveur avec les différences suivantes:
-- les mises à jour sont cumulées en mémoire mais pas transmises au serveur.
-- c'est à l'utilisateur de demander la _sauvegarde_ (après compression et cryptage) de ce fichier et de gérer sa communication éventuelle par le cloud ou des clés USB ...
+Après lecture et décryptage, l'application fonctionne comme si le contenu avait été obtenu de son serveur avec les différences suivantes:
+- les mises à jour sont accumulées en mémoire mais pas transmises au serveur.
+- c'est à l'utilisateur de demander la _sauvegarde_ (après compression et cryptage) dans un fichier et de gérer sa communication éventuelle par le cloud ou des clés USB ...
 
-> L'application _Safe_ ne gère pas à proprement parler des _utilisateurs_ mais leurs coffres forts: rien n'empêche un _utilisateur_ (une personne) de posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
+> L'application _Safe_ ne gère pas à proprement parler des _utilisateurs_ mais leurs _coffres forts_: rien n'empêche un _utilisateur_ (une personne) de posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
+
+> Sur un appareil donné, à un instant donné **il n'y a qu'une seule application _Safe_ active** et elle ne sert **qu'un seul _safe_**, celui désigné par l'utilisateur lors du lancement de l'application.
 
 ## Organisation générale en base de données
 La base de données a un _document_ par _safe_.
 
 ### Création d'un _safe_ par un utilisateur
-Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer.
+Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
 
-Une couple de clés `C / D` asymétriques:
+Un couple de clés `C / D` asymétriques est générée:
 - `C` est en clair : c'est l'identifiant du _safe_
 - `D_K` est le cryptage de `D` par `K`.
-- `C_KH` est le SHA du cryptage de `C` par `K`. Cette donnée permet au _safe_ serveur de s'assurer qu'une requête a été issue d'une application terminale détenant la clé `K`.
+- `C_KH` est le SHA du cryptage de `C` par `K`. Cette donnée permet au _safe serveur_ de s'assurer en traitant une requête qu'elle a bien été issue d'une application terminale détenant la clé `K`.
 
 L'utilisateur donne:
 - une _phrase_ `p0` qui de facto ne pourra plus être changée.
@@ -168,44 +165,132 @@ L'utilisateur donne:
 - une _phrase_ `p2`:
   - elle pourra être changée,
   - `p2_H` est le SHA du `SH(p0, p2)`. Index unique du _safe_.
-- un pseudo court comme `Alice` facultatif à ce moment et pourra être donné plus tard lors de la première déclaration d'un appareil de confiance.
-  - il est immuable, ne pourra plus être changé après avoir été fixé,
-  - il est stocké _crypté par la clé K_ `pseudo_K`.
 
-Les _phrases_ sont _longues_ d'au moins 16 signes pour `p0` et 24 pour `p1` et `p2`. Pour accéder à son _safe_ après création, son propriétaire doit fournir:
+Les _phrases_ sont _longues_, au moins 16 signes pour `p0` et 24 pour `p1` et `p2`. Pour accéder à son _safe_ après création, son propriétaire doit fournir:
 - sa phrase `p0`,
 - l'une de ses deux phrases `p1` OU `p2`.
 
 La clé `K` du safe est stockée en base en `K1` et `K2` cryptages respectifs par  `SH(p0, p1, SEP)` et `SH(p0, p2, SEP)`.
 
 Après avoir identifié son _safe_ son propriétaire peut:
-- voir _en clair_ son `pseudo` court.
 - changer `p1` ou `p2` à condition de fournir `p1` ou `p2` actuel.
-- de facto il n'est pas possible de changer p0, bien que non stocké dans le _safe_ sous aucune forme.
-
-> A aucun moment `p0 p1 p2` ne sont stockés nulle part ni transmis _en clair_. Ils ne figurent _en clair_ que très temporairement à la saisie par l'utilisateur dans le module _Safe_ terminal et y sont effacés dès la fin de la saisie.
+- de facto il n'est pas possible de changer `p0`, bien que non stockée directement dans le _safe_ sous aucune forme.
 
 #### Remarques:
-- l'existence de deux phrases `p1` et `p2` autorise l'oubli de l'une des deux. 
-- en revanche le propriétaire ne doit pas oublier `p0`: il peut donner une adresse _e-mail, son état civil, etc._ Ce texte N'EST JAMAIS exposé extérieurement et même si un hacker essayait la bonne phrase en tablant sur la banalité d'une adresse email, il n'aurait aucune chance de trouver `p1` ou `p2` avant la fin du monde (si un minimum de règles de choix est respecté).
-- le _pseudo_ sert à l'utilisateur déclarant un _device_ de confiance d'y être repéré parmi les quelques autres utilisateurs ayant déclaré ce même _device_ comme étant aussi _de confiance pour eux_. Le pseudo s'affiche suivi du début de l'identifiant du _safe_.
+- A aucun moment les phrases `p0 p1 p2` ne sont stockés nulle part ni transmis _en clair_. Elles ne figurent _en clair_ que très temporairement à la saisie par l'utilisateur dans l'application _Safe terminale_ et y sont effacées dès la fin de la saisie.
+- L'existence de deux phrases `p1` et `p2` autorise l'oubli de l'une des deux. En revanche le propriétaire du _safe_ ne doit pas oublier `p0`: il peut donner une adresse _e-mail, son état civil, etc._ Ce texte N'EST JAMAIS exposé extérieurement et même si un hacker essayait la bonne phrase en tablant sur la banalité d'une adresse email, il n'aurait aucune chance de trouver `p1` ou `p2` avant la fin du monde (si un minimum de règles de choix est respecté).
 
-### Structure du document _Safe_
+### Structure du document _safe_
 Il comporte les parties suivantes:
 - **entête** : ce sont les propriétés décrites ci-avant:
-  - `E D_K C_KH K1 K2 p1_H p2_H pseudo_K`
+  - `C D_K C_KH K1 K2 p1_H p2_H`
   - `lastAccess` : numéro du dernier mois d'utilisation du _safe_ afin de pouvoir procéder périodiquement à une _purge_ des _safe_ obsolètes / fantômes.
-- **droits des applications**. C'est une map avec une entrée par _code d'application_ donnant une _map de droits_. 
-  - chaque _valeur_ est un objet ayant les propriétés `{appId, type, about, target, S}`. Cette valeur est cryptée,
+- **devices de confiance**: map avec une entrée par `devId`, identifiant aléatoire d'un device lors de sa déclaration _de confiance_. Voir ci-après **Déclaration d'un device de confiance**.
+- **applications**: map avec une entrée par `appId`, identifiant d'une application que l'utilisateur peut lancer.
+
+### Déclaration d'un device de confiance
+Quand l'application _Safe terminale_ déclare, sur demande de l'utilisateur, son device _de confiance_:
+- un identifiant aléatoire `devId` est généré.
+- un libellé court `devName` est saisi par l'utilisateur, par exemple `PC d'Alice` qui lui permettra ultérieurement de retirer sa confiance à ce device.
+- un pseudo court est saisi par l'utilisateur, par exemple `Bob`, distinctif des autres utilisateurs ayant également déclaré ce device de confiance.
+- un code PIN est saisi par l'utilisateur: il pourra utiliser, sur ce device seulement, ce code pour identifier son _safe_ plutôt que `p0` et (`p1` ou `p2`).
+- un challenge `cx` aléatoire est généré. 
+
+#### Sur le device
+Une entrée du _localStorage_ est créé sous le nom `Bob@Ktux...`
+- `Bob` est le pseudo court qui vient d'être saisi,
+- `Ktux...` est l'identifiant du _safe_ (sa clé `C`).
+
+Cette entrée est un objet portant les propriétés suivantes:
+- `devId` : identifiant du device venant d'être généré.
+- `K1 K2 Kp` : cryptages de la clé `K` du _safe_ respectivement par `SH(p0, p1, SEP)`, `SH(p0, p2, SEP)` et `SH(PIN + cx, cz, SEP)`.
+- `cx` : le challenge généré.
+
+Le contenu de cette entrée est cryptée par la clé publique `C` de l'application _Safe terminale_ afin de ne pas apparaître en clair en _debug_. Cette sécurité est un peu illusoire, la clé privée D de décryptage figurant dans le source d'application _Safe terminale_ (et donc accessible avec un peu d'effort en _debug_).
+
+#### Dans le document _safe_ géré par _Safe serveur_
+Dans la map **devices de confiance** de ce document un item est ajouté sous la clé devId avec les propriétés suivantes:
+- `devName`: le libellé du device pour l'utilisateur.
+- `Kp Va cy sign nbe`: ces données ont été initialisées par l'application _Safe terminale_ et envoyées à _Safe serveur_ pour ajout dans la map.
+
+Un couple `Sa Va` de clés asymétriques signature / vérification est généré.
+
+Un challenge `cy` est tiré aléatoirement et `nbe` (le nombre d'échecs) est initialisé à 0.
+
+L'application _Safe terminale_ a obtenu la clé `K` de cryptage du _safe_ par la donnée par l'utilisateur de `p0` et (`p1` ou `p2`) au moment de la déclaration d'un device comme _de confiance_:
+- elle calcule `Kp` comme étant le cryptage de la clé K par le `SH(PIN + cx, cy, SEP)`.
+- elle génère dans `sign` la signature par `Sa` du `SH(PIN, cx)`.
+
+Après ce calcul,
+- le _safe_ est mis à jour par _Safe serveur_ avec un nouvel item **devices de confiance**,
+- l'item du _localeStorage_ `Bob@Ktux...` est enregistré. 
+
+#### Obtention d'un _safe_ sur un device de confiance de `Bob` par code PIN
+A l'ouverture de _Safe terminale_, la liste des utilisateurs ayant déclaré ce device _de confiance_ est obtenue en scannant les entrées du _localStorage_. On y trouve par exemple `Bob@Ktux...` et `Alice@QxYg...`:
+- Bob clique sur l'entrée `Bob`, ce qui donne à l'application `Ktux...` l'identifiant de son _Safe_.
+- l'application _Safe terminale_ lit et décrypte l'tem.
+- l'utilisateur saisit un PIN et l'application _Safe terminale_ interroge son serveur en lui passant en paramètres:
+  - `Ktux...` l'identifiant de son _Safe_ (sa clé `C`).
+  - `devId` trouvé dans l'item.
+  - `SH(PIN, cx)` où `cx` est le challenge trouvé dans l'item et `PIN` le code PIN saisi par l'utilisateur.
+- l'application _Safe_ serveur:
+  - accède au _Safe_ pour l'identifiant `Ktux...`.
+  - vérifie que `devId` est bien la clé d'une entrée `e` de la map des devices de confiance du _safe_.
+  - vérifie par `e.Va` que `e.sign` est bien la signature de `SH(PIN, cx)`.
+  - en cas de succès, il met à 0 `e.nbe` s'il ne l'était pas déjà.
+  - retourne `e.cy, e.Kp` et le contenu du _safe_.
+
+Ayant le code `PIN` par saisie, `cx` dans l'item lu du _localStorage_ et `cy` retourné par le serveur, l'application _Safe terminale_ peut désormais décrypter `Kp` et en obtenir la clé `K` du _safe_ de `Bob`:
+- **elle peut décrypter tous les contenus du _safe_ qui sont cryptés par K**.
+
+#### Échecs
+- (1) si le `devId` reçu de _Safe terminale_ n'est pas dans la map détenue dans le serveur, c'est que cet appareil N'EST PAS / PLUS de confiance.
+- (2) si la signature `sign` n'est pas vérifiée par `Va`, c'est que le code PIN n'est pas le bon. `Va` correspond au `Sa` qui a été utilisé à sa signature, `cx` était bien celui fixé à la déclaration. **Le nombre d'erreurs `nbe` est incrémenté**.
+  - si ce nombre est égal à 2, il y présomption de recherche d'un code PIN par succession d'essais, l'entrée `devId` de la map _devices de confiance_ est supprimée. L'utilisateur devra refaire une déclaration de _confiance_ avec un code PIN (ce qui exigera une authentification _forte_ par `p0` et (`p1` ou `p2`)).
+
+En cas de réussite, le nombre d'échecs `nbe` est remis à 0 s'il ne l'était pas déjà.
+
+#### Remarques sur la _sécurité_ du protocole
+- le **code PIN** n'est jamais stocké ni passé en clair sur le réseau au _Safe serveur_: 
+  - il ne peut pas être détourné ou être lu depuis la base de données.
+  - il ne figure que temporairement en mémoire de l'application _Safe terminale_ durant la phase d'authentification du _safe_ de `Bob`.
+- pour tenter depuis les données du _Safe serveur_ d'obtenir le code PIN par force brute, il faut effectuer une vérification de `sign` avec le _challenge_ `SH(PIN, cx)` mais `sign` est crypté par la clé `Kms` du module _Safe_ serveur.
+
+Pour que cette dernière attaque pour trouver le PIN de `Bob` par force brute ait des chances de succès, il faut que le hacker ait obtenu frauduleusement:
+- (1) le contenu en clair de l'objet _safe_ en base et pour cela il lui faut conjointement,
+  - avoir accès à la base en lecture ce qui requiert, soit une complicité auprès du fournisseur de la base de donnée, soit **la complicité de l'administrateur technique**.
+  - avoir la clé de décryptage des contenus de celle-ci (la clé `Kms`) inscrite dans la configuration de déploiement des serveurs. Ceci suppose la **complicité de l'administrateur technique** effectuant ces déploiements.
+- (2) le terme `cx` lisible en _debug_ (et un peu d'effort) dans le _localStorage_ d'un appareil de confiance **débloqué** (session utilisateur ouverte) de Bob.
+  - sur un mobile avoir le mobile _déverrouillé_,
+  - sur un PC avoir une session ouverte. 
+
+> Ce double _piratage / complicité_ donne accès à la clé `K` du _safe_ de `Bob`, donc au contenu du _safe_, dont les clés d'accès. Toutefois les phrases `p0 p1 p2` restent inviolées et non modifiables par le hacker, puisque ne résidant que dans la mémoire de Bob.
+
+> Cracker le code PIN de Bob sur un device ne compromet en rien, NI les codes PIN de Bob sur d'autres devices, NI le code PIN d'Alice sur ce device.
+
+> Pour cracker **tous** les codes PIN, il faudrait pouvoir accéder à tous les appareils de confiance **déverrouillés / sessions ouvertes** et casser par force brute le PIN de _chaque safe pour chaque device_. 
+
+#### Durcir (un peu) le code PIN
+Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique il va certes s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. Mais de nombreux styles de saisie mènent au code PIN depuis la phrase `allons enfants de la patrie`: avec ou sans séparateurs, des chiffres au milieu, des alternances de mots en minuscules / majuscules, un mot sur deux, etc. La seule _bonne intuition_ d'un texte est loin de donner le code PIN correspondant.
+
+> Un _login_ des appareils un peu conséquent et un code PIN _un peu durci_ constituent en pratique une barrière **très coûteuse** à casser. Tant qu'à être un _délinquant_ une forte pression directe sur Bob devrait permettre de lui extorquer ses phrases / PIN à moindre coût.
+
+### La section _applications_ d'un _safe_
+C'est une map avec une entrée par `appId`, identifiant d'une application que l'utilisateur peut lancer. C'est sa clé publique de cryptage C. La clé privée de décryptage D figure dans l'application distribuée où elle est, avec un peu d'efforts, possible à lire en _debug_.
+
+Chaque entrée de cette map comporte trois sections:
+- **droits**. C'est une map:
+  - _valeur_: objet ayant les propriétés `{type, about, target, S}`. Cette valeur est cryptée,
     - par la clé publique de cryptage de l'application,
     - puis par la clé K du _safe_.
-  - la clé est un hash de `appId, type, target`.
-- **devices de confiance**: cette section est décrite ci-après.
-- **objets reçus** : pour chaque application, c'est une map d'items de clés `hash(obj)` et de valeurs `{ exp_C, obj }` où,
-  - `exp_C` est la clé publique de cryptage de l'expéditeur.
-  - `type` : code du _type_ de l'objet (par exemple `DROIT`).
-  - `obj` est un objet crypté par la clé `C` du _safe_ (son identifiant).
-    - `obj` a une propriété `about` donnant une explication _humaine_ à propos de l'objet transmis.
+  - _clé_: hash de `type, target`.
+- **objets**: C'est une map:
+  - _clé_: `hash(obj)` 
+  - _valeur_:  `{ exp_C, obj }` cryptée par la clé `C` de l'application où,
+    - `exp_C` est la clé publique de cryptage de l'expéditeur.
+    - `type` : code du _type_ de l'objet (par exemple `DROIT`).
+    - `obj` est un objet crypté par la clé `C` du _safe_ (son identifiant).
+      - `obj` a une propriété `about` donnant une explication _humaine_ à propos de l'objet transmis.
 - **liste noire**: c'est une map d'items:
   - _clé_: hash de la clé publique d'un _safe_ dont le _safe_ n'accepte plus de recevoir d'objets.
   - _valeur_: texte crypté par la clé K du _safe_ rappelant à son propriétaire qui il a mis en liste noire et pourquoi.
@@ -316,58 +401,7 @@ Cet objet **crypté par la clé de configuration `Kms` du module _Safe_ serveur.
 - `Kp` : clé `K` du _Safe_ cryptée par `SH(PIN + cy, cz, SEP)`.
 - `nbe` : nombre d'échecs de proposition de code PIN.
 
-### Accès au _Safe_ par code PIN depuis un appareil déjà déclaré de confiance par Bob
-L'objectif est d'obtenir l'accès au _Safe_ de `Bob` à l'ouverture d'une application.
-- accès à l'item `Bob@Ktux...`: l'utilisateur a sélectionné `Bob` dans la liste proposée ce qui lui donne `Ktux...` l'identifiant de son _Safe_.
-- l'utilisateur saisit un PIN et le module _Safe_ terminal interroge le _Safe_ serveur en lui passant en paramètres:
-  - `appi` le code de l'application.
-  - `sha(devName)` le nom de l'appareil généré à sa déclaration de confiance.
-  - `Ktux...` l'identifiant de son _Safe_ (sa clé `E`).
-  - `cx` challenge `x` trouvé dans l'item (_version_ de la déclaration du code PIN).
-  - `SH(PIN, cy)` où `cy` est le challenge `y` trouvé dans l'item et `PIN` le code PIN saisi par l'utilisateur.
-- le module _Safe_ serveur:
-  - accède au _Safe_ pour l'identifiant `Ktux...`.
-  - vérifie que `sha(devName)` est bien une clé de la map `mdev` du _safe_.
-  - vérifie que `cx` reçu en paramètre est égal à `cx` du _Safe_.
-  - vérifie par `Va` que `signcy` est bien la signature de `sha(PIN + cy)`.
-  - en cas de succès, il met à 0 `nbe` s'il ne l'était pas déjà.
-  - retourne `cz, K1, K2, Kp ` et la liste des _droits_ pour l'application de code `appi` (chacun est doublement crypté par `K` et la clé de cryptage de `appi`).
 
-Ayant le code `PIN` par saisie, `cy` dans l'item lu du _localStorage_ et `cz` retourné par le serveur, le module _Safe_ terminal peut désormais décrypter `Kp` et en obtenir la clé `K` du _Safe_ de `Bob`:
-- **il peut décrypter les droits reçus**, chacun étant doublement crypté par,
-  - la clé `K` qu'il vient d'obtenir,
-  - la clé de cryptage de `appi` dont l'application a dans son code la clé privée de décryptage.
-
-##### Échecs
-- (1) si le `devName` reçu du _Safe_ terminal n'est pas dans la liste détenue dans le _Safe_ serveur, c'est que cet appareil N'EST PAS / PLUS de confiance.
-- (2) si le challenge `cx` détenu en _localStorage_ ne correspond pas au `cx` enregistré dans le _Safe_, le module _Safe_ serveur considère le _localStorage_ de l'appareil pour `Bob` est basé sur une déclaration _ancienne_ du code PIN.
-- (3) si la signature `signcy` n'est pas vérifiée par `Va`, c'est que le code PIN n'est pas le bon. Ayant passé l'étape (2), `Va` correspond bien au `Sa` qui a été utilisé à sa signature, `cy` était bien celui fixé à la déclaration. **Le nombre d'erreurs `nbe` est incrémenté**.
-  - si ce nombre est égal à 2, il y présomption de recherche d'un code PIN par succession d'essais. Les données de la section _appareils de confiance_ sont supprimées à l'exception de la liste `mdev`. L'utilisateur devra redéclarer un code PIN (ce qui exigera une authentification _forte_ par `p0` et (`p1` ou `p2`)).
-
-En cas de réussite, le nombre d'échecs `nbe` est remis à 0 s'il ne l'était pas déjà.
-
-#### Remarques sur la _sécurité_ du protocole
-- le **code PIN** n'est jamais stocké ni passé en clair sur le réseau au module _Safe_ serveur: 
-  - il ne peut pas être détourné ou être lu depuis la base de données.
-  - il ne figure que temporairement en mémoire de _Safe_ terminal durant la phase d'authentification du _Safe_ de `Bob`.
-- pour tenter depuis les données du _Safe_ serveur d'obtenir le code PIN par force brute, il faut effectuer une vérification de `signcy` avec le _challenge_ `SH(PIN, cy)` mais `signcy` est crypté par la clé `Kms` du module _Safe_ serveur.
-
-Pour que cette dernière attaque pour trouver le PIN de `Bob` par force brute ait des chances de succès, il faut que le hacker ait obtenu frauduleusement:
-- (1) le contenu en clair de l'objet _safe_ en base et pour cela il lui faut conjointement,
-  - avoir accès à la base en lecture ce qui requiert, soit une complicité auprès du fournisseur de la base de donnée, soit **la complicité de l'administrateur technique**.
-  - avoir la clé de décryptage des contenus de celle-ci (la clé `Kms`) inscrite dans la configuration de déploiement des serveurs. Ceci suppose la **complicité de l'administrateur technique** effectuant ces déploiements.
-- (2) le terme `cy` lisible en _debug_ (et un peu d'effort) dans le _localStorage_ d'un appareil de confiance **débloqué** (session utilisateur ouverte) de Bob.
-  - sur un mobile avoir le mobile _déverrouillé_,
-  - sur un PC avoir une session ouverte. 
-
-> Ce double _piratage / complicité_ donne accès à la clé `K` du _Safe_ de `Bob`, donc à toutes ses clés. Toutefois les phrases `p0 p1 p2` restent inviolées et non modifiables par le hacker, puisque ne résidant que dans la mémoire de Bob.
-
-> Pour cracker **tous** les codes PIN, il faudrait pouvoir accéder à tous les appareils de confiance **déverrouillés / sessions ouvertes** et casser par force brute le PIN de chaque _Safe_. Si Alice n'a pas déclaré comme appareil _de confiance_ l'un de ceux déclarés par Bob, son _safe_ reste inviolé. Chaque _casse_ reste ponctuel et les utilisateurs n'ayant déclaré aucun appareil de confiance sont à l'abri. 
-
-#### Durcir (un peu) le code PIN
-Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels des _dictionnaires_ il est quasi incassable dans des délais humains: pour être mnémotechnique il va certes s'appuyer sur des textes intelligibles, vers de poésie, paroles de chansons etc. Mais de nombreux styles de saisie mènent au code PIN depuis la phrase `allons enfants de la patrie`: avec ou sans séparateurs, des chiffres au milieu, des alternances de mots en minuscules / majuscules, un mot sur deux, etc. La seule _bonne intuition_ d'un texte est loin de donner le code PIN correspondant.
-
-> Un _login_ des appareils un peu conséquent et un code PIN _un peu durci_ constituent en pratique une barrière **très coûteuse** à casser. Tant qu'à être un _délinquant_ une forte pression directe sur Bob devrait permettre de lui extorquer ses phrases / PIN à moindre coût.
 
 ### Déclaration d'un nouvel appareil de confiance
 Depuis l'appareil Bob doit:
