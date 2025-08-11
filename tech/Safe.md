@@ -19,7 +19,7 @@ Un _droit_ d'une application est matérialisé par les données suivantes:
 - `type`, un code correspondant à sa _classe / catégorie_ `cpt, mbr, trf ...`
 - `target` : l'identifiant dans l'application de sa _cible_ qui peut comporter aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire. Par exemple pour un droit `cpt` l'identifiant du compte.
 - une _liste de clés_, souvent d'un seul terme:
-  - `variant` : un code (vide par défaut) permettant de caractériser plusieurs clés pour un même droit identifié par `type / target`.
+  - `var` : un code (vide par défaut) permettant de disposer de plusieurs clés pour un même droit identifié par `type / target`.
   - `S` : clé privée de **signature** (environ 400 bytes).
   - `V` : clé publique de **vérification** (environ 100 bytes).
 
@@ -28,7 +28,7 @@ Le serveur d'une application gère les _droits d'accès_ mais n'en connaît **QU
 - elle _signe_ ce _challenge_ par sa clé `S` et transmet au serveur le couple du challenge et de sa signature.
 - le serveur utilise sa clé `V` correspondante à la clé `S` utilisée à la signature et peut vérifier que la signature reçue est bien celle du challenge transmis.
 
-> Cette technique permet au serveur de s'assurer de la validité d'un droit sans jamais avoir eu en mémoire la clé `S` de signature: c'est un avantage de confiance par rapport aux solutions basées sur un mot de passe qui, à un moment ou à un autre, a besoin d'être présent dans la mémoire du serveur, même si un hachage fort des mots de passe limite le risque.
+> Cette technique permet au serveur de s'assurer de la validité d'un droit sans jamais avoir eu en mémoire la clé `S` de signature: c'est un avantage de confiance par rapport aux solutions basées sur un mot de passe qui, à un moment ou à un autre, a besoin d'être présent dans la mémoire du serveur, même si un hachage fort de mots de passe longs limite le risque.
 
 ### Jetons d'accès
 Quand l'application terminale soumet une opération au serveur, elle fournit dans sa requête un **jeton d'accès** qui réunit les preuves que son utilisateur dispose des _droits_ requis pour exécuter cette opération. Un jeton comporte:
@@ -37,7 +37,7 @@ Quand l'application terminale soumet une opération au serveur, elle fournit dan
 - une liste de preuves de possession des droits constituée chacune d'un triplet:
   - `type` : du droit,
   - `target` : cible à laquelle le droit s'applique,
-  - `signature` : signature du couple `hash(devAppToken), time` par la clé `S` du droit correspondant.
+  - `signatures` : liste de signatures `{var1: sig1, ...}` du couple `hash(devAppToken), time` par chaque variante `var1` de la clé `S` du droit correspondant.
 
 **Remarques**:
 - un _hacker_ un peu entraîné peut obtenir l'identifiant `devAppToken` en lançant en _debug_ l'application sur ce _device_.
@@ -45,13 +45,13 @@ Quand l'application terminale soumet une opération au serveur, elle fournit dan
 - un _jeton d'accès_ est crypté par la clé publique d'encryption du serveur applicatif ciblé de sorte que seul celui-ci puisse le lire. Cette clé fait partie de la _configuration_ du serveur que son administrateur technique délivre lors du déploiement et qu'il doit conserver confidentiellement.
 
 #### Solutions: simpliste versus _Safe_
-Quand l'application terminale doit soumettre une opération requérant un _droit_ donné (par exemple `cpt` pour un compte `1234`), elle pourrait en obtenir la clé `S` par un module la demandant à l'utilisateur. 
+Quand l'application terminale doit soumettre une opération requérant un _droit_ donné (par exemple `cpt` pour un compte `1234`), elle pourrait en obtenir la clé `S` en la demandant à l'utilisateur. 
 
 Ce dernier effectue une forme ou une autre de _copier / coller_ depuis par exemple un fichier de texte externe détenu sur son _device_ et lui affichant sur une ligne la clé `S` pour le compte `1234`.
 
 Cette solution _simpliste_ est difficile à gérer dans la pratique:
 - comment l'utilisateur gère la disponibilité sur plusieurs appareils ?
-- risque d'écrasement partiel ou perte du fichier lors d'une mise à jour ?
+- comment éviter l'écrasement partiel ou perte du fichier lors d'une mise à jour ?
 - comment _sécuriser_ un tel fichier contre le vol ?
 
 Un autre solution est de faire gérer le stockage de ces _droits_ par une application _Safe_ en charge de résoudre les questions ci-dessus et de rendre accessible les _droits_ aux applications qu'ils concernent.
@@ -61,7 +61,7 @@ Si l'application terminale est une application _pirate_ qui a été lancée en d
 
 Elle peut les envoyer sur un serveur pirate où elles seront à disposition de pirates pour utilisation dans la _vraie_ application et lui transmettre ces clés _usurpées_.
 
-L'application _légitime_ a dans son code _sa clé de décryptage privée_ qui lui permet de décrypter les droits: mais en exécution en mode _debug_ un hacker un peu habile peut la retrouver. Cette _sécurité_ plus symbolique qu'effective.
+L'application _légitime_ a dans son code _sa clé de décryptage privée_ qui lui permet de décrypter les droits: mais en exécution en mode _debug_ un hacker un peu habile peut la retrouver. Cette _sécurité_ est plus symbolique qu'effective.
 
 Il n'existe aucun procédé logiciel qui permette de connaître l'origine d'une application, de quelle _source_ elle vient, si elle est _légitime_ ou _pirate_. Depuis un browser _sain_, l'appel d'une URL en HTTPS reste le procédé le _plus fiable_, encore faut-il,
 - lui avoir transmis la bonne URL et non celle de l'application pirate,
@@ -69,47 +69,47 @@ Il n'existe aucun procédé logiciel qui permette de connaître l'origine d'une 
 - avoir obtenu d'un expert indépendant l'assurance que ce code est bien légitime et ne redistribue pas les clés d'accès,
 - avoir vérifié son certificat.
 
-L'utilisation de l'application _Safe_ pour lancer les applications _légitimes_ sans risque d'usage d'une URL _pirate_ réduit les risques: l'utilisateur n'a plus qu'é s'assurer qu'une seule application (8safe_) est légitime au lieu de surveiller _toutes_ les URLs des applications.
+L'utilisation de l'application _Safe_ pour lancer les applications _légitimes_ sans risque d'usage d'une URL _pirate_ réduit les risques: l'utilisateur n'a plus qu'é s'assurer qu'une seule application (_Safe_) est légitime au lieu de surveiller _toutes_ les URLs des applications.
 
 ### Demandes de droits par une application terminale
 En supposant que l'application terminale ait obtenu, en sécurité, la **liste des droits** de l'utilisateur, lorsque celle-ci recherche la clé `S` d'un _droit_, plusieurs situations se présentent:
 - (1) pour le `type` fixé (par exemple `DRTARIF` : _droit à effectuer une modification tarifaire_), il n'existe qu'une clé unique, `target` est vide. Un seul terme de la liste des droits peut s'appliquer.
-- (2) le `type` est fixé ET la valeur de `target` (par exemple `LOGIN, 1234` : _droit de l'utilisateur 1234 à se connecter_) est fixé par l'application. Une seul terme _au plus_ de la liste des droits peut s'appliquer.
+- (2) le `type` ET la valeur de `target` sont fixées (par exemple `LOGIN, 1234` : _droit de l'utilisateur 1234 à se connecter_) par l'application. Une seul terme _au plus_ de la liste des droits peut s'appliquer.
 - (3) le `type` est fixé MAIS PAS la valeur de `target` (par exemple `LOGIN`):  l'application recherche **à la fois une cible et sa clé**. Plusieurs droits de la liste peuvent être candidats et l'utilisateur devra **désigner** le login qu'il choisit: dans ce cas un commentaire `about` attaché à chaque droit lui est utile (par exemple en donnant un nom en clair plutôt qu'un code).
 
 ### Validation des _droits_ d'un jeton par le serveur de l'application
 Quand le serveur de l'application traite une opération,
 - il obtient de la requête le jeton d'accès et le décrypte par sa clé privée de décryptage.
 - le jeton présenté n'est acceptable que si son `time` _n'est pas trop vieux_ (quelques dizaines de secondes). Pour chaque _droit_ de la liste du jeton,
-  - il obtient depuis la base de données la clé `V` de vérification associée à sa cible,
-  - il vérifie que la `signature` du couple `hash(devAppToken), time` est bien validée par `V`, ce qui prouve que l'application terminale en détient effectivement la clé de signature `S` correspondante.
+  - il obtient depuis la base de données la map dés clés acceptées `{var1: V1, var2:v2 ...}` de vérification associée à sa cible,
+  - il vérifie que la `signature` du couple `hash(devAppToken), time` est bien validée par la variante `var1` de `V`, ce qui prouve que l'application terminale en détient effectivement la clé de signature `S` correspondante.
 
 > `hash(devAppToken), time` est utilisé comme _challenge_ cryptographique et n'est pas présenté plus d'une fois pour une application donnée.
 
 **Remarques de performances:**
-- le serveur peut conserver en _cache_ pour chaque `target` d'un `type` de droit le dernier `V` lu de la base. En cas d'échec de la vérification il relit la base de données pour s'assurer d'avoir bien la dernière version de `V`, et cas de changement refait une vérification avant de valider / invalider le droit correspondant.
+- le serveur peut conserver en _cache_ pour chaque `target` d'un `type` de droit la dernière map dés clés acceptées `{var1: V1, var2:v2 ...}` lu de la base. En cas d'échec de la vérification il relit la base de données pour s'assurer d'avoir bien la dernière version de `{var1: V1, var2:v2 ...}`, et en cas de changement refait une vérification avant de valider / invalider le droit correspondant.
 - le serveur conserve en cache pour chaque `hash(devAppToken)` le dernier `time` présenté en vérification: l'application terminale doit présenter des _time_ toujours croissants afin d'éviter un éventuel vol de _vieilles_ signatures qui seraient présentées à nouveau par un hacker.
 
 > En cas de soumissions de nombreuses requêtes d'une application depuis un device requérant les mêmes droits, leur _validation_ ne requiert qu'un calcul en mémoire sans accès à la base pour obtenir les clés de vérification.
 
 ### "Un" droit, "plusieurs" clés
-Le serveur _peut_ mémoriser pour un droit non pas une clé `V` mais une liste de clés `[V1, v2 ...]`: pour être validé, un droit d'un jeton d'accès doit fournir une signature qui a été établie par **UNE DES** clés `Si` correspondantes.
+Le serveur _peut_ mémoriser pour un droit non pas une clé `V` mais une liste de clés `{var1:V1, var2:v2 ...}`: pour être validé, un droit d'un jeton d'accès doit fournir une signature qui a été établie par la clé `Si` correspondant à la variante acceptée. 
+- Si la variante acceptée ne figure pas dans le jeton d'accès, c'est que l'application terminale N'A PLUS ACCÈS au droit qui a été changé par l'application serveur et n'a pas jugé pertinent de retransmettre cette information à l'utilisateur pour qu'il la stocke dans ses droits.
+- Si la variante figure mais que la vérification échoue, c'est une tentative de fraude.
 
-La logique applicative peut ainsi prévoir de distribuer plusieurs _variantes_ de clés à des détenteurs différents selon ses propres critères (par exemple un _pseudo court_ du détenteur): elle peut aussi au cours du temps en _désactiver_ certaines variantes dans le serveur et inhiber ainsi les détenteurs qui les possédaient.
+La logique applicative peut ainsi prévoir de distribuer plusieurs _variantes_ de clés à des détenteurs différents selon ses propres critères (par exemple un _pseudo court_ du détenteur): elle peut aussi au cours du temps _désactiver_ certaines variantes dans le serveur et inhiber ainsi les détenteurs qui les possédaient.
 
-Dans un jeton généré par l'application, s'il existe pour un droit donné _plusieurs_ clés possibles, au lieu d'une signature c'est une liste de signatures (une par clé potentielle) qui est générée. Il suffit que l'une d'entre elles _matche_ avec la ou une des clés `Vi` de la liste détenue par le serveur pour que le droit soit validé.
-
-> Ce dispositif permet aussi de gérer un _changement de clé_ pour un droit lorsqu'il a été attribué trop généreusement ou pour un temps limité. La création d'une nouvelle clé peut être faite et sa distribution restreinte aux seuls détenteurs souhaitables dans le futur: après un certain temps où les deux peuvent être admises, _l'ancienne_ peut être supprimée.
+> Ce dispositif permet aussi de gérer un _changement de clé_ pour un droit lorsqu'il a été attribué trop généreusement ou pour un temps limité. La création d'une nouvelle clé peut être faite et sa distribution restreinte aux seuls détenteurs souhaitables dans le futur, le cas échéant après un certain temps où les deux peuvent être admises, _l'ancienne_ peut être supprimée.
 
 # L'application _Safe_
 
-Cette application a pour objet de gérer des _coffres forts_ pour des utilisateurs.
+Cette application a pour objet de gérer le (ou les) _coffres forts_ des utilisateurs.
 
 Après avoir lancé l'application _Safe terminale_ depuis son appareil, un utilisateur lui indique quel est son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_.
 
 Une fois ainsi initialisée, l'application _Safe terminale_ peut:
 - gérer ses appareils _de confiance_.
-- gérer la liste des applications auxquelles l'utilisateur peut accéder,
+- gérer les données sensibles _droits, préférences ..._ de chaque application que l'utilisateur peut utiliser,
 - lancer une de celles-ci.
 
 Pour chaque application lancée, l'application _Safe terminale_ peut:
@@ -118,7 +118,31 @@ Pour chaque application lancée, l'application _Safe terminale_ peut:
 
 > Le lancement d'applications par le _Safe_ évite le risque de lancement d'une application _piratée_ et permet de choisir le cas échéant une des des _options_ au lancement ouvrant la session dans un contexte déjà pré-fixé.
 
-> L'URL de lancement de _Safe_ doit être soigneusement vérifiée: le code de cette application est lisible dans le browser et il est possible de vérifier auprès de sites certificateurs que l'application est _fair_. Ceci évite d'avoir à le faire pour chaque application gérée par _Safe_, quoi que ce soit toujours possible.
+> L'URL de lancement de _Safe_ doit être soigneusement vérifiée: le code de cette application est lisible dans le browser et il est possible de vérifier auprès de sites certificateurs que l'application est _fair_ évitant ainsi à le faire pour chaque application gérée par _Safe_ (bien que ce soit toujours possible).
+
+> L'application _Safe_ ne gère pas à proprement parler des _utilisateurs_ mais leurs _coffres forts_: rien n'empêche un _utilisateur_ (une personne) de posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
+
+> Sur un appareil donné, à un instant donné **il n'y a qu'une seule application _Safe_ active** et elle ne sert **qu'un seul _safe_**, celui désigné par l'utilisateur lors du lancement de l'application.
+
+## Appareils déclarés _de confiance_ d'un utilisateur
+Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
+- **soit il juge l'appareil _de confiance_**,
+  - il l'utilise régulièrement, que se soit le sien ou celui d'un proche: il en a le _login_ ou a minima quelqu'un accepte de lui prêter l'appareil _session ouverte_.
+  - il peut y laisser quelques informations cryptées et espérer raisonnablement les retrouver plus tard.
+- **soit il n'a pas confiance dans cet appareil** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
+  - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
+  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
+
+Au lancement de l'application _Safe terminale_ il doit être en mesure d'identifier son _safe_.
+- il peut toujours le faire en saisissant des phrases _longues_ `p0` et `p1` (ou `p2`).
+- si c'est un appareil _de confiance_ ayant accès à Internet, il peut le faire en saisissant seulement un `code PIN` (d'au moins 8 signes) ce qui est plus rapide.
+
+Pour un utilisateur lancer une application depuis un appareil _de confiance_ a plusieurs autres avantages:
+- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque application comme _cache_ de ses documents: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
+- **disponibilité des droits** de l'utilisateur pour chaque application le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
+- **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
+
+> Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même, même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
 
 ## Stockage des _safes_
 
@@ -126,28 +150,25 @@ Pour chaque application lancée, l'application _Safe terminale_ peut:
 Ce serveur et sa base de données sont le lieu de stockage _par défaut_ des _safes_.
 
 L'accès par l'application terminale au _safe_ de l'utilisateur se fait par deux procédés:
-- depuis tout appareil, la donnée des phrases _longues_ `p0` et (`p1` ou `p2`) connues uniquement du détenteur du _safe_.
+- depuis tout appareil, la donnée des phrases _longues_ `p0` et `p1` (ou `p2`) connues uniquement du détenteur du _safe_.
 - depuis un appareil _de confiance_ la donnée d'un code PIN (au moins 8 signes)
 
-Après avoir identifié en sécurité le _safe_ de l'utilisateur, l'application terminale _Safe_ le demande au serveur et dispose ainsi de son contenu en mémoire: elle peut communiquer les données qui les concernent aux applications lancées sur l'appareil.
+Après avoir identifié en sécurité le _safe_ de l'utilisateur, l'application _Safe terminale_ demande à son serveur son contenu et le charge en mémoire. Elle peut désormais communiquer les données qui les concernent aux applications lancées sur l'appareil.
 
 La mise à jour du _safe_ se répercute directement sur le serveur.
 
-### Par un _fichier_ JSON crypté
-Au lieu d'obtenir le contenu du _safe_ par l'application _Safe serveur_, l'application _Safe terminale_ peut demander à l'utilisateur de lui fournir un fichier `safe.json` (gzippé et crypté).
+> En mode _avion_, le contenu du _safe_ de chaque utilisateur ayant déclaré l'appareil _de confiance_ est lu depuis une micro base de données locale cryptée pour n'être lisible que par son détenteur. Celle-ci a été mise à jour lors de sa dernière utilisation connectée à Internet.
+
+### Par un fichier `safe.json` crypté
+Au lieu d'obtenir le contenu du _safe_ de son serveur, l'application _Safe terminale_ peut demander à l'utilisateur de lui fournir un fichier `safe.json` (gzippé et crypté).
 
 Le cryptage est assuré par une _phrase longue_ connue seulement de l'utilisateur.
 
 Après lecture et décryptage, l'application fonctionne comme si le contenu avait été obtenu de son serveur avec les différences suivantes:
 - les mises à jour sont accumulées en mémoire mais pas transmises au serveur.
-- c'est à l'utilisateur de demander la _sauvegarde_ (après compression et cryptage) dans un fichier et de gérer sa communication éventuelle par le cloud ou des clés USB ...
+- c'est à l'utilisateur de demander la _sauvegarde_ (après compression et cryptage) dans un fichier externe et de gérer sa communication éventuelle par le cloud ou des clés USB ...
 
-> L'application _Safe_ ne gère pas à proprement parler des _utilisateurs_ mais leurs _coffres forts_: rien n'empêche un _utilisateur_ (une personne) de posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
-
-> Sur un appareil donné, à un instant donné **il n'y a qu'une seule application _Safe_ active** et elle ne sert **qu'un seul _safe_**, celui désigné par l'utilisateur lors du lancement de l'application.
-
-## Organisation générale en base de données
-La base de données a un _document_ par _safe_.
+## Organisation d'un document _safe_
 
 ### Création d'un _safe_ par un utilisateur
 Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
@@ -155,7 +176,7 @@ Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas chang
 Un couple de clés `C / D` asymétriques est générée:
 - `C` est en clair : c'est l'identifiant du _safe_
 - `D_K` est le cryptage de `D` par `K`.
-- `C_KH` est le SHA du cryptage de `C` par `K`. Cette donnée permet au _safe serveur_ de s'assurer en traitant une requête qu'elle a bien été issue d'une application terminale détenant la clé `K`.
+- `C_KH` est le SHA du cryptage de `C` par `K`. Cette donnée permet au _Safe serveur_ de s'assurer en traitant une requête qu'elle a bien été issue d'une application _Safe terminale_ détenant la clé `K`.
 
 L'utilisateur donne:
 - une _phrase_ `p0` qui de facto ne pourra plus être changée.
@@ -165,12 +186,15 @@ L'utilisateur donne:
 - une _phrase_ `p2`:
   - elle pourra être changée,
   - `p2_H` est le SHA du `SH(p0, p2)`. Index unique du _safe_.
+- `pseudo_K` un pseudo _court_ comme `Jules César` stocké crypté par la clé `K` et qui sera immuable. Il sert principalement à l'affichage sur un appareil qui peut être partagé par plusieurs utilisateurs leur permettant de lever un doute sur l'utilisateur ayant ouvert l'application.
+
+> Question: enregistrer un `SH(pseudo)` afin d'interdire les doublons ?
 
 Les _phrases_ sont _longues_, au moins 16 signes pour `p0` et 24 pour `p1` et `p2`. Pour accéder à son _safe_ après création, son propriétaire doit fournir:
 - sa phrase `p0`,
 - l'une de ses deux phrases `p1` OU `p2`.
 
-La clé `K` du safe est stockée en base en `K1` et `K2` cryptages respectifs par  `SH(p0, p1, SEP)` et `SH(p0, p2, SEP)`.
+La clé `K` du safe est stockée dans les propriétés `K1` et `K2` cryptages respectifs par  `SH(p0, p1, SEP)` et `SH(p0, p2, SEP)`.
 
 Après avoir identifié son _safe_ son propriétaire peut:
 - changer `p1` ou `p2` à condition de fournir `p1` ou `p2` actuel.
@@ -183,65 +207,82 @@ Après avoir identifié son _safe_ son propriétaire peut:
 ### Structure du document _safe_
 Il comporte les parties suivantes:
 - **entête** : ce sont les propriétés décrites ci-avant:
-  - `C D_K C_KH K1 K2 p1_H p2_H`
+  - `C D_K C_KH K1 K2 p1_H p2_H pseudo_K`
   - `lastAccess` : numéro du dernier mois d'utilisation du _safe_ afin de pouvoir procéder périodiquement à une _purge_ des _safe_ obsolètes / fantômes.
-- **devices de confiance**: map avec une entrée par `devId`, identifiant aléatoire d'un device lors de sa déclaration _de confiance_. Voir ci-après **Déclaration d'un device de confiance**.
-- **applications**: map avec une entrée par `appId`, identifiant d'une application que l'utilisateur peut lancer.
+- **devices** de confiance: map avec une entrée par `devId`, identifiant aléatoire d'un device lors de sa déclaration _de confiance_. Voir ci-après **Déclaration d'un device de confiance**.
+- **applications**: map avec une entrée par `appId`, identifiant d'une application pour laquelle des données spécifiques sont accumulées.
 
-### Déclaration d'un device de confiance
+### Ouverture d'un _safe_ sur tout appareil
+L'utilisateur saisit `p0` et `p1` (ou `p2`).
+
+L'application _Safe_ accède au _safe_ par la clé d'index `p1_H` (ou `p2_H`).
+
+L'application _Safe_ décode `K1` (ou `K2`) par `SH(p0, p1 (ou p2), SEP)`, et dispose ainsi de la clé `K` requise pour décrypter les items des sections `devices` et `applications`.
+
+### Déclaration d'un _device de confiance_
 Quand l'application _Safe terminale_ déclare, sur demande de l'utilisateur, son device _de confiance_:
 - un identifiant aléatoire `devId` est généré.
 - un libellé court `devName` est saisi par l'utilisateur, par exemple `PC d'Alice` qui lui permettra ultérieurement de retirer sa confiance à ce device.
-- un pseudo court est saisi par l'utilisateur, par exemple `Bob`, distinctif des autres utilisateurs ayant également déclaré ce device de confiance.
-- un code PIN est saisi par l'utilisateur: il pourra utiliser, sur ce device seulement, ce code pour identifier son _safe_ plutôt que `p0` et (`p1` ou `p2`).
+- un code PIN est saisi par l'utilisateur: il pourra utiliser, sur ce device seulement, pour identifier son _safe_.
 - un challenge `cx` aléatoire est généré. 
 
 #### Sur le device
-Une entrée du _localStorage_ est créé sous le nom `Bob@Ktux...`
-- `Bob` est le pseudo court qui vient d'être saisi,
-- `Ktux...` est l'identifiant du _safe_ (sa clé `C`).
+Une entrée du _localStorage_ `safes` est créé, si elle ne l'était pas déjà, contenant la liste des identifiants comme `['Bob@Ktux...', 'Alice@Qxc6...'` des _safes_ dont le device est _de confiance_
+- `Bob` est le pseudo court du _safe_,
+- `Ktux...` est son'identifiant (sa clé `C`).
 
-Cette entrée est un objet portant les propriétés suivantes:
+Une micro base de données _IndexedDB_ `Ktux...@safe.idb` existe pour chaque _safe_ listé dans le localStorage `safes`. 
+
+Cette base de données a:
+- un row singleton `header` crypté par la clé de l'application _Safe terminale_.
+_ une collection de rows `application` ayant deux propriétés:
+  - `id` : code l'application.
+  - `data` : données du row cryptées,
+  _ - par la clé publique C de cryptage de l'application,
+    - puis par la clé K du _safe_.
+
+#### Row `header`
+Il porte les propriétés suivantes:
 - `devId` : identifiant du device venant d'être généré.
 - `K1 K2 Kp` : cryptages de la clé `K` du _safe_ respectivement par `SH(p0, p1, SEP)`, `SH(p0, p2, SEP)` et `SH(PIN + cx, cz, SEP)`.
-- `cx` : le challenge généré.
+- `cx` : le challenge généré sur le device à la déclaration de confiance.
 
-Le contenu de cette entrée est cryptée par la clé publique `C` de l'application _Safe terminale_ afin de ne pas apparaître en clair en _debug_. Cette sécurité est un peu illusoire, la clé privée D de décryptage figurant dans le source d'application _Safe terminale_ (et donc accessible avec un peu d'effort en _debug_).
+> `header` est crypté par la clé publique `C` de l'application _Safe terminale_ afin de ne pas apparaître en clair en _debug_. Cette sécurité est un peu illusoire, la clé privée D de décryptage figurant dans le source d'application _Safe terminale_ (et donc accessible avec un peu d'effort en _debug_).
 
 #### Dans le document _safe_ géré par _Safe serveur_
-Dans la map **devices de confiance** de ce document un item est ajouté sous la clé devId avec les propriétés suivantes:
-- `devName`: le libellé du device pour l'utilisateur.
-- `Kp Va cy sign nbe`: ces données ont été initialisées par l'application _Safe terminale_ et envoyées à _Safe serveur_ pour ajout dans la map.
+Dans la map **devices** de confiance de ce document un item est ajouté sous la clé `devId` avec les propriétés suivantes:
+- `devName`: le libellé du device donné par l'utilisateur à la déclaration de confiance.
+- `Kp Va cy sign nbe`: ces données ont été initialisées à la déclaration de confiance par l'application _Safe terminale_ et envoyées à _Safe serveur_ pour ajout dans la map.
 
-Un couple `Sa Va` de clés asymétriques signature / vérification est généré.
-
-Un challenge `cy` est tiré aléatoirement et `nbe` (le nombre d'échecs) est initialisé à 0.
-
-L'application _Safe terminale_ a obtenu la clé `K` de cryptage du _safe_ par la donnée par l'utilisateur de `p0` et (`p1` ou `p2`) au moment de la déclaration d'un device comme _de confiance_:
-- elle calcule `Kp` comme étant le cryptage de la clé K par le `SH(PIN + cx, cy, SEP)`.
-- elle génère dans `sign` la signature par `Sa` du `SH(PIN, cx)`.
+A la déclaration de confiance par l'application _Safe terminale_:
+- génère un couple `Sa Va` de clés asymétriques signature / vérification est généré.
+- génère Un challenge `cy` est tiré aléatoirement.
+- initialise `nbe`, le nombre d'échecs, à 0.
+- disposant de la clé `K` de cryptage du _safe_ par la donnée par l'utilisateur de `p0` et `p1` (ou `p2`) 
+  - calcule `Kp`, cryptage de la clé K par le `SH(PIN + cx, cy, SEP)`.
+  - génère dans `sign` la signature par `Sa` du `SH(PIN, cx)`.
 
 Après ce calcul,
 - le _safe_ est mis à jour par _Safe serveur_ avec un nouvel item **devices de confiance**,
-- l'item du _localeStorage_ `Bob@Ktux...` est enregistré. 
+- le `header` de la micro base de données locale `Ktux...@safe.idb` est enregistré. 
 
-#### Obtention d'un _safe_ sur un device de confiance de `Bob` par code PIN
-A l'ouverture de _Safe terminale_, la liste des utilisateurs ayant déclaré ce device _de confiance_ est obtenue en scannant les entrées du _localStorage_. On y trouve par exemple `Bob@Ktux...` et `Alice@QxYg...`:
+### Obtention d'un _safe_ sur un device de confiance de `Bob` par code PIN
+A l'ouverture de _Safe terminale_, la liste des utilisateurs ayant déclaré ce device _de confiance_ est obtenue en scannant l'entrée du _localStorage_ `safes`. On y trouve par exemple `Bob@Ktux...` et `Alice@QxYg...`:
 - Bob clique sur l'entrée `Bob`, ce qui donne à l'application `Ktux...` l'identifiant de son _Safe_.
-- l'application _Safe terminale_ lit et décrypte l'tem.
+- l'application _Safe terminale_ ouvre `Ktux...@safe.idb` lit et décrypte le row `header`.
 - l'utilisateur saisit un PIN et l'application _Safe terminale_ interroge son serveur en lui passant en paramètres:
   - `Ktux...` l'identifiant de son _Safe_ (sa clé `C`).
-  - `devId` trouvé dans l'item.
-  - `SH(PIN, cx)` où `cx` est le challenge trouvé dans l'item et `PIN` le code PIN saisi par l'utilisateur.
+  - `devId` trouvé dans `header`.
+  - `SH(PIN, cx)` où `cx` est le challenge trouvé dans `header` et `PIN` le code PIN saisi par l'utilisateur.
 - l'application _Safe_ serveur:
   - accède au _Safe_ pour l'identifiant `Ktux...`.
   - vérifie que `devId` est bien la clé d'une entrée `e` de la map des devices de confiance du _safe_.
   - vérifie par `e.Va` que `e.sign` est bien la signature de `SH(PIN, cx)`.
   - en cas de succès, il met à 0 `e.nbe` s'il ne l'était pas déjà.
-  - retourne `e.cy, e.Kp` et le contenu du _safe_.
+  - retourne `e.cy, e.Kp` et la section `applications` du _safe_.
 
-Ayant le code `PIN` par saisie, `cx` dans l'item lu du _localStorage_ et `cy` retourné par le serveur, l'application _Safe terminale_ peut désormais décrypter `Kp` et en obtenir la clé `K` du _safe_ de `Bob`:
-- **elle peut décrypter tous les contenus du _safe_ qui sont cryptés par K**.
+Ayant le code `PIN` par saisie, `cx` dans le `header` et `cy` retourné par le serveur, l'application _Safe terminale_ peut désormais décrypter `Kp` du `header` et en obtenir la clé `K` du _safe_ de `Bob`:
+- **elle décrypte tous les items de la section `applications` du _safe_ qui sont cryptés par K**.
 
 #### Échecs
 - (1) si le `devId` reçu de _Safe terminale_ n'est pas dans la map détenue dans le serveur, c'est que cet appareil N'EST PAS / PLUS de confiance.
@@ -254,12 +295,12 @@ En cas de réussite, le nombre d'échecs `nbe` est remis à 0 s'il ne l'était p
 - le **code PIN** n'est jamais stocké ni passé en clair sur le réseau au _Safe serveur_: 
   - il ne peut pas être détourné ou être lu depuis la base de données.
   - il ne figure que temporairement en mémoire de l'application _Safe terminale_ durant la phase d'authentification du _safe_ de `Bob`.
-- pour tenter depuis les données du _Safe serveur_ d'obtenir le code PIN par force brute, il faut effectuer une vérification de `sign` avec le _challenge_ `SH(PIN, cx)` mais `sign` est crypté par la clé `Kms` du module _Safe_ serveur.
+- pour tenter depuis les données du _Safe serveur_ d'obtenir le code PIN par force brute, il faut effectuer une vérification de `sign` avec le _challenge_ `SH(PIN, cx)` mais `sign` est crypté par la clé privée de cryptage général de l'application _Safe serveur_.
 
 Pour que cette dernière attaque pour trouver le PIN de `Bob` par force brute ait des chances de succès, il faut que le hacker ait obtenu frauduleusement:
 - (1) le contenu en clair de l'objet _safe_ en base et pour cela il lui faut conjointement,
   - avoir accès à la base en lecture ce qui requiert, soit une complicité auprès du fournisseur de la base de donnée, soit **la complicité de l'administrateur technique**.
-  - avoir la clé de décryptage des contenus de celle-ci (la clé `Kms`) inscrite dans la configuration de déploiement des serveurs. Ceci suppose la **complicité de l'administrateur technique** effectuant ces déploiements.
+  - avoir la clé de décryptage des contenus de celle-ci inscrite dans la configuration de déploiement des serveurs. Ceci suppose la **complicité de l'administrateur technique** effectuant ces déploiements.
 - (2) le terme `cx` lisible en _debug_ (et un peu d'effort) dans le _localStorage_ d'un appareil de confiance **débloqué** (session utilisateur ouverte) de Bob.
   - sur un mobile avoir le mobile _déverrouillé_,
   - sur un PC avoir une session ouverte. 
@@ -281,134 +322,65 @@ C'est une map avec une entrée par `appId`, identifiant d'une application que l'
 Chaque entrée de cette map comporte trois sections:
 - **droits**. C'est une map:
   - _valeur_: objet ayant les propriétés `{type, about, target, S}`. Cette valeur est cryptée,
-    - par la clé publique de cryptage de l'application,
+    - par la clé publique C de cryptage de l'application,
     - puis par la clé K du _safe_.
   - _clé_: hash de `type, target`.
 - **objets**: C'est une map:
-  - _clé_: `hash(obj)` 
-  - _valeur_:  `{ exp_C, obj }` cryptée par la clé `C` de l'application où,
-    - `exp_C` est la clé publique de cryptage de l'expéditeur.
-    - `type` : code du _type_ de l'objet (par exemple `DROIT`).
-    - `obj` est un objet crypté par la clé `C` du _safe_ (son identifiant).
-      - `obj` a une propriété `about` donnant une explication _humaine_ à propos de l'objet transmis.
+  - _clé_: `hash(from + type + obj.id)`.
+  - _valeur_:  `{ from, type, about, obj }`.
+    - `from` est la clé publique de cryptage de l'expéditeur / déclarant. Si vide, cet objet est originaire d'une application opérant sous contrôle du _safe_ lui-même.
+    - `type` : de l'objet `obj` (par exemple `PREF` ou `DROIT`).
+    - `about` donne une explication _humaine_ à propos de `obj`.
+    - `obj` est un objet crypté par la clé publique `C` de cryptage de l'application, puis par la clé `K` du _safe_ si `from` est vide.
 - **liste noire**: c'est une map d'items:
   - _clé_: hash de la clé publique d'un _safe_ dont le _safe_ n'accepte plus de recevoir d'objets.
-  - _valeur_: texte crypté par la clé K du _safe_ rappelant à son propriétaire qui il a mis en liste noire et pourquoi.
+  - _valeur_: texte crypté par la clé `K` du _safe_ rappelant à son propriétaire qui il a mis en liste noire et pourquoi.
 
 Le propriétaire d'un _safe_ A peut envoyer un _objet_ confidentiel au propriétaire d'un _safe_ B:
 - la structure de l'objet dépend de son objectif, typiquement ce peut être,
   - un simple message textuel,
-  - un _droit_ transmis de A à B.
-- l'objet a toujours une propriété `about` fournissant un commentaire textuel court de A à l'intention de B.
-- A peut s'envoyer un objet à lui-même, comme dans un _presse-papier_, confidentiel et persistant.
+  - un _droit_ transmis de A à B que B pourra intégrer à ses droits.
+- l'objet est accompagnée d'une propriété `about` fournissant un commentaire textuel court de A à l'intention de B.
+- A peut s'envoyer un objet à lui-même, comme dans un _presse-papier_, confidentiel et persistant (la propriété `from` est absente dans ce cas).
 
-### Opérations du module `Safe` serveur
+## Opérations de l'application _Safe serveur_
 
-#### Création d'un nouveau _Safe_
+#### Création d'un nouveau _safe_
 Afin d'éviter une inflation incontrôlable de création de _safes_ fantômes, un utilisateur ne peut créer un _safe_ qu'après avoir reçu de la part d'une application un _code_ de validité limitée.
 
 La base de données détient une liste des `SH(c)` des codes `c` en cours de validité avec leur date-heure limite de validité.
 
 L'utilisateur est invité à saisir `code, p0, p1, p2, pseudo`.
 
-Le module _Safe_ terminal génère les clé `K C D` et calcule les arguments suivants:
+L'application _Safe terminale_ génère les clé `K C D` et calcule les arguments suivants:
 - `SH(code)` : code d'autorisation délivré par une application.
 - `K1, K2, D_K, C_KH` 
 - `SH(p0, p1), SH(p0, p2)`
-- `pseudo_K`
+- `pseudo_K`, `SH(pseudo) ?`
 
 Exceptions:
 - `p0` déjà utilisée pour un Safe existant.
+- `pseudo` déjà utilisé.
 
 #### Suppression d'un _Safe_
 Arguments:
-- soit `SH(p0, p1 OU p2)`
-- soit `E E_K` : l'identifiant du _safe_ et son cryptage par la clé K comme preuve de la détention de K acquis par exemple par le PIN.
+- soit `SH(p0, p1 (OU p2))`
+- soit `C C_K` : l'identifiant du _safe_ et son cryptage par la clé K comme preuve de la détention de K acquis par exemple par le PIN.
 
 Exceptions:
 - Safe inexistant
 
 #### Mise à jour / consultation d'un _Safe_
-Le _safe_ est identifié, soit par `SH(p0, p1 OU p2)`, soit par son `E E_K`. Les actions possibles sont:
-- lecture du pseudo.
-- obtention d'UN ou de tous les droits d'une application (export).
-- création, modification, suppression d'UN ou plusieurs droits d'une application (import).
+Le _safe_ est identifié, soit par `SH(p0, p1 (OU p2))`, soit par son `C C_K`. Les actions possibles sont:
+- obtention de la section applications du _safe_.
+- création, modification, suppression d'un ou plusieurs droits d'une application (import).
 - suppression de tous les droits d'une application.
 - modification de `p1` ou `p2` en donnant la valeur actuelle de `p0` et (`p1` ou `p2`).
+- création, modification, suppression d'un objet d'une application (éventuellement issu d'un autre safe).
 
-> Le module _Safe_ serveur N'A JAMAIS ACCÈS à aucune des clés de cryptage _en clair_: c'est un module de _stockage opaque_ incapable d'interpréter son contenu.
+> L'application _Safe serveur_ N'A JAMAIS ACCÈS à aucune des clés de cryptage _en clair_: c'est un module de _stockage opaque_.
 
 > Le module _Safe_ terminal est en charge des cryptages / décryptages et des interprétations: il est disponible en _source_ dans un browser en exécution et la validité de son source est vérifiable publiquement.
-
-## Appareils _de confiance_ d'un utilisateur
-Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
-- **soit il juge l'appareil _de confiance_**,
-  - il l'utilise régulièrement, que se soit le sien ou celui d'un proche,
-  - il peut y laisser quelques informations cryptées et espérer raisonnablement les retrouver plus tard.
-- **soit il n'a pas confiance dans cet appareil** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
-  - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
-  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
-
-Au lancement d'une application il doit être en mesure de lui communiquer ses droits d'accès, en particulier lui donner accès à son _safe_.
-- il peut toujours le faire en saisissant ses phrases `p0` et, `p1` ou `p2`.
-- si c'est un appareil _de confiance_ il peut le faire en saisissant seulement un `code PIN` (d'au moins 8 signes) ce qui est plus rapide. L'identifiant du _Safe_ est stocké localement dans l'appareil.
-
-Pour un utilisateur lancer une application depuis un appareil _de confiance_ a plusieurs autres avantages:
-- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque application comme _cache_ de ses document: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
-- **disponibilité des droits** de l'utilisateur pour chaque application le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
-- **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
-
-> Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même, même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
-
-#### Accès au _Safe_ de l'utilisateur
-Le _login_ à un appareil de confiance étant _protégé_ par un mot de passe théoriquement connu seulement de quelques personnes de confiance : empreinte digitale ou mot de passe sur un mobile, login / mot de passe sur un PC. Dans ce cas l'accès à son _Safe_ d'un utilisateur peut être allégé:
-- il peut se désigner lui-même dans la la courte liste des _pseudos_ des utilisateurs ayant déclaré cet appareil de confiance ce qui désignera l'identifiant de son _safe_.
-- l'authentification par un code PIN (d'au moins 8 signes) est alors jugée _suffisante_,
-  - parce que le _login_ de l'appareil a, normalement, déjà écarté l'essentiel des personnes indésirables,
-  - parce que **le droit à l'erreur sur la saisie du code PIN est limité à 1 ou 2 échecs**: au delà l'authentification par le couple `p0` et (`p1` ou `p2`) devient requis (le code PIN est invalidé dans le _safe_).
-
-### Storage local d'un _safe_ dans un appareil _de confiance_
-Le _localStorage_ de l'appareil été ayant déclaré _de confiance_ pour un _safe_ est un item de clé `Bob@Ktux...` contenant quelques données spécifiques du _Safe_: 
-- son identifiant `E` est `Ktux...` et dont son `pseudo` est `Bob`.
-- pour chacune des applications `app1` ayant été accédée par `Bob`, une base de données IDB nommée `$Ktux...@appi.idb` est la mémoire _cache_ (cryptée par la clé `K` du _Safe_) des documents de l'application `app1` pour `Bob`.
-
-> En _debug_ il est simple d'effacer ces données sélectivement: en revanche la lecture des contenus des items et des bases IDB est plus problématique. Les données sont soit codées, soit cryptées.
-
-#### Propriétés de l'item `Bob@Ktux...` du _localStorage_
-Par principe l'item est crypté par une clé `sha(E + X)`. C'est une _pseudo_ sécurité car malheureusement X est lisible (sans trop de difficulté) en debug de _Safe_ terminal.
-
-C'est un objet ayant les propriétés suivantes:
-- `devName` : nom identifiant le device pour le _Safe_ de `Bob`, par exemple `PC d'Alice`.
-- `K1 K2 Kp` : cryptages de la clé `K` du _Safe_ respectivement par `SH(p0, p1, SEP)`, `SH(p0, p2, SEP)` et `SH(PIN + cy, cz, SEP)`.
-- `cx` : challenge x aléatoire généré à la déclaration de confiance.
-- `cy` : challenge y aléatoire généré à la déclaration de confiance.
-
-En désérialisant un tel item, un hacker n'obtient rien de directement utilisable. Il ne peut pas obtenir la clé `K` du _Safe_ sans connaître `p0` et (`p1` ou `p2`), ou `PIN` et `cz`:
-- à la limite il peut _deviner_ `p0`, mais ni `p1` ni `p2` ne sont accessibles par force brute en raison de leur longueur.
-- tenter de cracker par force brute `Kp` est voué à l'échec: `PIN` est court mais `cz` est long.
-
-### Section _devices de confiance_ d'un _Safe_
-Cet objet **crypté par la clé de configuration `Kms` du module _Safe_ serveur.** a les propriétés suivantes:
-- `mdev` : map des appareils déclarés _de confiance_ pour ce _Safe_. 
-  - clés: `sha(devName)`
-  - valeur : `devName` crypté par la clé `K`.
-  - cette map facilite la suppression d'un appareil de confiance par le propriétaire du _Safe_.
-- `cx` : challenge x aléatoire généré à la déclaration de confiance.
-- `cy_K` : challenge y aléatoire généré à la déclaration de confiance, crypté par la clé `K` du _Safe_.
-- `cz` : challenge z aléatoire généré à la déclaration de confiance.
-- `Va` : clé de vérification de `signcy` générée (conjointement avec `Sa`) à la déclaration de confiance.
-- `signcy` : signature par `Sa` du _challenge_ `SH(PIN, cy)`.
-- `Kp` : clé `K` du _Safe_ cryptée par `SH(PIN + cy, cz, SEP)`.
-- `nbe` : nombre d'échecs de proposition de code PIN.
-
-
-
-### Déclaration d'un nouvel appareil de confiance
-Depuis l'appareil Bob doit:
-- identifier son _safe_ par `p0` et (`p1` ou `p2`).
-- donner un nom à cet appareil comme `mobile d'Alice`.
-- déclarer son pseudo si aucun n'a jamais encore été déclaré.
-- donner le code PIN déjà déclaré pour d'autres appareils, soit en inventer un.
 
 ### Changer le code PIN des appareils de confiance
 Depuis l'appareil Bob doit:
@@ -429,8 +401,7 @@ Dans cette situation c'est l'application terminale qui génère le _droit_.
 
 L'exemple pris ici est _la création d'un compte dans l'application_:
 - l'application terminale a généré l'`id` du compte ou l'a obtenu de son serveur et a généré un couple de clés `S / V`.
-  - soit elle fait enregistrer par le _safe_ de l'utilisateur le couple `id, S`, 
-  - soit elle affiche ce couple à l'utilisateur pour qu'il l'inscrive dans son fichier CSV de droits.
+  - elle fait enregistrer par le _safe_ de l'utilisateur le couple `id, S`,
 - ENFIN elle _valide_ la création du compte auprès du serveur de l'application pour qu'il enregistre en base le couple `id / V`.
 
 ### Obtention par l'application terminale d'un droit stocké dans le serveur
@@ -459,6 +430,4 @@ Ce procédé général _d'export / import_ demande à résoudre les points suiva
 > Quand P1 et P2 sont inscrit sur le _Safe_ et que P1 connaît l'identifiant du _safe_ de P2, elle peut transmettre le droit dans un _objet_ accessible par P2 dans ses _objets reçus_.
 
 # TODO
-- passer le _module_ en application.
-- déclarer les applications _favorites / utilisables_.
-- langue / mode sombre
+-lancement par _Safe_ d'une application, préférence, langue / mode sombre
