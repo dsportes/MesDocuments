@@ -149,6 +149,8 @@ Le prestataire dispose de deux stockages dédiés:
 - une base de données,
 - un _storage_ de fichiers.
 
+Les stockages sont _partitionnés_ par _organisation_, une partition pour chaque organisation hébergée par ce service.
+
 ### La base de données
 Elle gère les documents et les fils de documents selon un mode _transactionnel_ (ACID).
 
@@ -168,24 +170,28 @@ En lui-même il n'est pas soumis à un protocole transactionnel (ACID): sa sécu
 
 Le Storage permet de disposer d'un volume pratiquement 10 fois plus importants à coût identique par rapport à la base de données: de nombreuses applications ont des données historiques / mortes ou d'évolutions sporadiques qui s’accommodent bien d'un support sur Storage.
 
-## Le répertoire des _organisations par application_
-**TODO** : reprendre en utilisant des CDN
+# Le répertoire des _organisations par application_
 
-Il est stocké dans une base de données accessible par toutes les applications terminales.
+Toute _application_ terminale détient, en tant que ressource statique, la liste des _prestataires_ fournissant les services centraux, avec pour chacun:
+- leur _code_,
+- leur _URL d'accès_.
+- la liste des _organisations_ hébergées.
 
-Toute application terminale détient la liste des _prestataires_ fournissant les services centraux, leur _code_ et leur _URL d'accès_. 
-- L'ajout ou le retrait d'un prestataire provoque une nouvelle version des applications concernées (l'installation est automatique).
+L'ajout / retrait d'un prestataire et / ou d'une organisations  demande de générer une nouvelle version de l'application concernée. Toutefois une organisation pas encore _statiquement répertoriée_ peut être référencée par un utilisateur en indiquant le code du service qui l'héberge.
 
-Une session d'une application terminale peut concerner plusieurs organisations, à l'instar du randonneur faisant partie de plusieurs associations selon l'endroit où il randonne. Pour chaque organisation concernée  elle obtient de ce répertoire le prestataire gestionnaire.
+Une session d'une application terminale peut concerner plusieurs organisations, à l'instar du randonneur faisant partie de plusieurs associations selon l'endroit où il randonne. Pour chaque organisation concernée elle obtient de ce répertoire le prestataire gestionnaire et son URL d'accès.
 
-Ce répertoire contient la liste des triplets `{ application, prestataire, organisation }` déclarés par les prestataires:
-- ils peuvent en exporter des listes sélectives, en particulier pour une application / prestataire, la liste des organisations gérées. 
-- une application terminale peut faire appel à n'importe quel prestataire afin de récupérer le prestataire traitant une organisation donnée.
+Chaque service peut ensuite gérer **dans _sa_ base de données**,
+- un document unique concernant toutes les organisations,
+- un document relatif à chaque organisation.
 
-**Remarque** : chaque prestataire peut ensuite gérer **dans _sa_ base de données**, un document relatif à l'organisation comportant:
-- un **statut** : est-elle ouverte, restreinte en lecture seule (archive), fermée jusqu'à nouvel ordre.
-- une **courte liste de _news_** données par l'administrateur.
-- les applications terminales peuvent s'abonner aux modifications de ce document.
+Ces documents peuvent comporter:
+- un **statut récapitulatif** : ouverture, restriction en lecture seule (archive), fermeture jusqu'à nouvel ordre.
+- une **courte liste des dernières _news_ ayant modifié ce statut** données par l'administrateur.
+
+Les applications terminales peuvent s'abonner aux modifications de ces documents et ainsi afficher pour la ou les organisations référencées dans leur session,
+- son statut d'accessibilité, globalement et pour chaque organisation spécifiquement,
+- les _news_ récentes ayant modifié ce statut.
 
 # Documents, fichiers et _fils_ traçant leurs évolutions
 
@@ -224,7 +230,7 @@ On peut définir des **regroupements** de propriétés identifiantes dont une va
 
 La propriété `version` du document est un numéro d'ordre de mise à jour: la numérotation est _chronologique_ mais pas _continue_.
 
-La propriété `del` contient le jour de suppression quand la document est en état  _zombi_, supprimé logiquement mais pas purgé physiquement.
+La propriété `zombi` contient le jour de suppression _logique_ quand la document n'a été encore purgé physiquement.
 
 ### Stockage d'un document d'un type donné
 Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifique du type de document.
@@ -234,7 +240,7 @@ Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifiq
 En base de données, les propriétés **visibles de la base de données** sont:
 - `id` : clé primaire ou path.
 - `version`.
-- `del`.
+- `zombi`.
 - `_data_`.
 - `z1 z2 ...` : les _regroupements_ de propriétés identifiantes (s'il y en a).
 - `p1 p2 ...` : les _propriétés_ indexables (s'il y en a).
@@ -329,7 +335,7 @@ Chaque fil est une **trace** de l'évolution la plus récente des documents qui 
 - le fait que la version d'un fil s'incrémente à chaque mise à jour d'un de ses documents fait du fil un événement _notifiable_.
 - dans cette _notification_, une application terminale peut retrouver pour chaque type de document (UN document si c'est un singleton dans le fil, sinon une collection des documents) si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
 
-Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui lui a été transmise, peut à réception d'un nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
+Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui a été transmise, peut à réception d'un nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
 - _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé. De plus le filtrage s'effectuant sur la propriété indexée `version`, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents non modifiés.
 - _incrémentale_: seuls les documents ayant changé depuis la version connue de l'application terminale sont lus et transmis.
 
@@ -341,12 +347,12 @@ Une application terminale qui a gardé en mémoire la dernière image d'un fil q
   - dans `_data_` la `version` pour le type du document est mise à `v`.
 
 ### Traitement des _suppressions_
-Pour que la mise à jour soit incrémentale dans une sous-collection d'un type de documents, un document ne peut pas être simplement _supprimé_: en demandant la liste des documents ayant changé il n'apparaîtrait pas, serait considéré comme inchangé et sa suppression non détectée.
+Pour que la mise à jour soit incrémentale dans une sous-collection d'un type de documents, un document ne peut pas être simplement _purgé_: en demandant la liste des documents ayant changé il n'apparaîtrait pas, serait considéré comme inchangé et sa suppression non détectée.
 
-Le document supprimé va être traité comme une mise jour particulière:
+Le document _supprimé_ va être traité comme une mise jour particulière:
 - sa `version` est mise jour (comme pour une mise jour normale).
 - ses propriétés indexables sont mises à null.
-- sa propriété `del` donne le jour de suppression.
+- sa propriété `zombi` donne le jour de suppression.
 - son _data_ est mis à null.
 
 Le document est en état _zombi_, supprimé logiquement.
@@ -355,15 +361,15 @@ Le document est en état _zombi_, supprimé logiquement.
 
 La possibilité d'obtention d'une mise à jour incrémentale depuis un état détenu à la date `d` est bornée par la possibilité de disposer des suppressions.
 - si elles sont gardées, même _zombi_ avec une taille minimale, sans limite de temps, la base peut être encombrée de zombis.
-- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants. C'est à l'application terminale de déterminer, si besoin est, les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet.
+- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants et non plus _incrémentale_. C'est à l'application terminale de déterminer, si besoin est, les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet reçu.
 
-Le serveur va à l'occasion d'une suppression d'un document regarder les `cleandate` du ou des fils auxquels est rattaché le document: si ces dates ont plus de 18 mois, il va purger effectivement les documents zombis depuis plus d'an de ces fils (en testant leur propriété `del`). Il mettra à jour la ou les `cleandate` du ou de ces fils.
+Le serveur va à l'occasion d'une suppression d'un document regarder les `cleandate` du ou des fils auxquels est rattaché le document: si ces dates ont plus de 18 mois, il va purger effectivement les documents zombis depuis plus d'an de ces fils (en testant leur propriété `zombi`). Il mettra à jour la ou les `cleandate` du ou de ces fils.
 
 De cette façon les documents supprimés sont purgés au fil du temps mais avec des opérations distantes de six mois au moins.
 
 # Abonnements d'une application à des _fils_
 
-**Un _fil_ fait aussi office de _news_, d'alerte:** quand un document change (un bon de commande), le ou les fils auxquels il est attaché (la livraison de samedi)sont informés et le fil a noté qu'un bon de commande a changé. 
+**Un _fil_ fait aussi office de _news_, d'alerte:** quand un document change (un bon de commande), le ou les fils auxquels il est attaché (la livraison de samedi) sont informés et le fil a noté qu'un bon de commande a changé. 
 
 **Si des applications s'étaient abonnées à ce fil**, leurs utilisateurs vont voir apparaître sur leurs écrans une _notification_ indiquant _qu'un bon de commande a changé pour la livraison de samedi_. Si l'application d'un utilisateur était lancée et que la page courante montrait cette livraison, l'application est allé chercher les bons de commande attachés au fil de la livraison de samedi ayant une version plus récente que celle que l'application a en mémoire: la page est mise à jour à l'écran sans intervention de l'utilisateur.
 
@@ -373,7 +379,7 @@ Suivant ce paradigme, une application présente à son utilisateur trois concept
 - des **_rapports_**: ce sont vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
 
 **Les documents synchronisés dans une application** le restent a minima tant que l'application est **au premier plan**:
-- l'application peut décider de ne plus maintenir cette synchronisation quand elle passe **en arrière plan**: c'est une économie de ressources et comme en pratique l'utilisateur ne voit d'une application en arrière plan que les _popups_ de notification, maintenir à jour un volume important de documents synchronisés n'a pas forcément d'intérêt.
+- l'application **peut** décider de ne plus maintenir cette synchronisation quand elle passe **en arrière plan**: c'est une économie de ressources et comme en pratique l'utilisateur ne voit d'une application en arrière plan que les _popups_ de notification, maintenir à jour un volume important de documents synchronisés n'a pas forcément d'intérêt.
 - en repassant au premier plan, l'application demande aux services de lui fournir les mises à jour survenues sur les fils synchronisés depuis le dernier état synchronisé qui était détenu dans l'application.
 
 ### Quand l'application n'est plus en exécution
@@ -410,7 +416,7 @@ Ces modules forment une couche logicielle offrant un certain nombre de services 
   - **phase 4:** la phase 2 a produit une liste de fils de documents mis à jour. Cette phase identifie les abonnements à ces fils et génèrent les _notifications_ aux applications abonnées.
 - **retourne le résultat à l'application appelante,**
   - construit en phase 2,
-  - ainsi que les fils déterminés en phase 4 auxquels l'application appelante était abonnés.
+  - ainsi que les fils déterminés en phase 4 auxquels l'application appelante était abonné.
 
 ## Gestion des documents
 Un module gère une _mémoire cache_ des documents les plus récemment demandés et mis à jour, du moins pour les types de documents spécifiés. 
@@ -431,15 +437,12 @@ Quand une application terminale souhaite disposer des documents mis à jour pour
 - quels documents sont à retourner en fonction des versions détenues par l'application terminale.
 
 ## Modules _providers_ d'accès à la base de données
-Un module _provider_ présente un interface indépendant de la base de données gérée. 
-- pour chacun des services de cet interface, il implémente l'accès effectif à la base qu'il gère:
-  - mise en forme / sérialisation des documents,
-  - cryptages / hachages éventuels des _data_ et propriétés indexées,
-  - gestion des transactions commit / rollback.
+Un module _provider_ présente un interface indépendant de la base de données gérée. Pour chacun des services de cet interface, il implémente l'accès effectif à la base qu'il gère:
+- mise en forme / sérialisation des documents,
+- cryptages / hachages éventuels des _data_ et propriétés indexées,
+- gestion des transactions commit / rollback.
 
-Pour un serveur donné, le (ou les ?) _providers_ requis sont importés.
-
-Un _provider_ d'accès à **LA** base commune hébergeant les répertoires des services est disponible afin de masquer la technologie effective utilisée dans cette base.
+Pour un serveur donné, seul le _provider_ requis est importé.
 
 > Typiquement en _test_ l'usage du provider _SQLIte_ simplifie le développement plutôt que ceux qui seront utilisés effectivement en production (_Postgresql_, _Firebase_...).
 
@@ -459,14 +462,17 @@ Un module de cryptographie évite de gérer les subtilités du paramétrages des
 # L'application _Safe_ 
 Cette application a pour objet de gérer des _coffres forts_ pour des utilisateurs.
 
-En lançant _Safe_ un utilisateur va lui indiquer quel est son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_ aux documents des applications.
+En lançant _Safe_ un utilisateur donne les éléments d'identification de son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver les diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_ aux documents des applications.
 
-L'application _safe_ une fois lancée sur un appareil est en charge:
-- de gérer la liste des applications auxquelles l'utilisateur peut accéder, soit où il est connu, soit où il peut avoir un accès anonyme.
-- de stocker `ses droits` et les mettre à jour pour chaque application.
-- de stocker _divers objets_ pour chaque application, dont des objets transmis par un autre utilisateur disposant lui aussi d'un _safe_. Certains de ceux-ci peuvent être interprétés par l'application comme des _préférences / options_.
+L'application _Safe_ une fois initialisé sur un appareil est en charge:
 - de gérer ses appareils _de confiance_.
-- de lancer les applications déclarées.
+- pour chaque application:
+  - de stocker `ses droits` et les mettre à jour.
+  - de stocker _divers objets_:
+    - des objets transmis par un autre utilisateur disposant lui aussi d'un _safe_. 
+    - des objets interprétés comme des _options de lancement_.
+    - des objets interprétés par l'application comme des _préférences_.
+  - de lancer l'application, le cas échéant selon _l'option de lancement_ que l'utilisateur a sélectionnée.
 
 > Le lancement d'applications par le _Safe_ évite le risque de lancement d'une application _piratée_ et permet de choisir le cas échéant des _options_ au lancement ouvrant la session dans un contexte déjà préfixé.
 
@@ -483,8 +489,8 @@ Un utilisateur qui veut utiliser une application depuis un _device_ est placé d
   - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
   - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
 
-Pour un utilisateur lancer une application depuis un appareil _de confiance_ a plusieurs autres avantages:
-- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque application comme _cache_ de ses document: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
+Lancer une application depuis un appareil _de confiance_ a plusieurs autres avantages:
+- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque application comme _cache_ de ses documents: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
 - **disponibilité des droits** de l'utilisateur pour chaque application le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
 - **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
 
@@ -495,14 +501,14 @@ Depuis son application _Safe_ qui gère son _coffre fort_, un utilisateur peut l
 - **soit depuis un appareil _anonyme_:**
   - soit normalement en laissant _Safe_ obtenir son contenu depuis le serveur _Safe_.
   - soit en fournissant un _file / clé USB_ disposant de ce contenu (crypté).
-  - Les applications opèrent en mode _incognito_.
+  - Les applications opèrent en mode **_incognito_**.
 - **soit depuis un appareil _de confiance_:**
-  - **soit en mode _avion_:** le contenu du _Safe_ est obtenu depuis le cache local crypté du _Safe_. Les applications opèrent en mode _avion_.
-  - **soit en mode _normal_:** le contenu du _Safe_ est obtenu depuis le serveur _Safe_ (mettant à jour un _cache_ local crypté). Les applications opèrent en mode _synchronisé_.
+  - **soit en mode _avion_:** le contenu du _Safe_ est obtenu depuis le cache local crypté du _Safe_. Les applications opèrent en mode **_avion_**.
+  - **soit en mode _normal_:** le contenu du _Safe_ est obtenu depuis le serveur _Safe_ (mettant à jour un _cache_ local crypté). Les applications opèrent en mode **_synchronisé_**.
 
 Au lancement d'une application une page d'accueil est présentée:
 - elle peut être spécifique de l'option de lancement choisie;
-- elle peut être _pré-initialisée_ selon cette même option.
+- elle peut être _pré-initialisée_ selon cette même option, voire tout _objet_ stocké dans son _safe_ par l'utilisateur.
 
 Au cours de l'exécution de l'application des droits peuvent être ajoutés / modifiés si l'application est en mode _synchronisé ou incognito_: ils sont répercutés sur le serveur _Safe_.
 
@@ -522,7 +528,7 @@ Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'ap
 # Glossaire technique
 
 ### Strong Hash: `PBKDF`
-- **SH(s1, s2, SEP)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une longueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquemment utilisés. Le SEP est un caractère de séparation / remplissage qui allonge le couple `s1 + SEP + s2` à une taille minimale.
+- **SH(s1, s2, SEP)** (Strong Hash): le SH s'applique à un couple de textes `s1 s2`, typiquement un login / mot de passe, mais aussi aux _passphrase_ en une ou deux parties. Il a une longueur de 32 bytes et est unique pour chaque couple de textes `s1 s2`. Il est _strong_ parce qu'incassable par force brute dès lors que le couple de textes ne fait pas partie des _dictionnaires_ des codes fréquemment utilisés. `SEP` est un caractère de séparation / remplissage qui allonge le couple `s1 + SEP + s2` à une taille minimale.
 
 ### Clés asymétriques C / D : cryptage / décryptage
 Un couple de clés `Ca / Da` asymétriques généré par A:
