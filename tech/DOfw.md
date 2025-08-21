@@ -238,15 +238,15 @@ Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifiq
 **L'ensemble des propriétés** est sérialisé dans un champ dénommé `_data_`: ce contenu est désérialisable dans les applications terminales et les serveurs.
 
 En base de données, les propriétés **visibles de la base de données** sont:
-- `id` : clé primaire ou path.
-- `version`.
-- `zombi`.
-- `_data_`.
-- `z1 z2 ...` : les _regroupements_ de propriétés identifiantes (s'il y en a).
-- `p1 p2 ...` : les _propriétés_ indexables (s'il y en a).
+- `pk` : clé primaire ou path.
+- `v` : version.
+- `z` : jour de suppression logique.
+- `data`.
+- `sk1 sk2 ...` : les _regroupements_ de propriétés identifiantes, clés secondaires, (s'il y en a).
+- `i1 i2 ...` : les _propriétés_ indexables (s'il y en a).
 
 Le contenu structuré complexe du document `_data_` est crypté et en conséquence _opaque_ pour la base de données (et crypté pour la plupart des types de documents).
-- les propriétés identifiantes _peuvent_ être remplacées par leur _hash_ si on ne veut pas que leurs valeurs soient lisibles dans la base. Les propriétés `pi` quand elles sont utilisées par test d'égalité peuvent être _hachées_ mais pas quand elles interviennent dans des filtres _d'ordre_ (les algorithmes de _hash_ ne préservent pas les relations d'ordres de leurs sources).
+- les propriétés identifiantes _peuvent_ être remplacées par leur _hash_ si on ne veut pas que leurs valeurs soient lisibles dans la base. Les propriétés `ii` quand elles sont utilisées par test d'égalité peuvent être _hachées_ mais pas quand elles interviennent dans des filtres _d'ordre_ (les algorithmes de _hash_ ne préservent pas les relations d'ordres de leurs sources).
 
 ### Fichiers attachés à un document
 Un fichier est stocké en deux parties:
@@ -333,39 +333,51 @@ Un _type de fil_ définit de facto un critère de sélection s'appliquant à un 
 ### Utilisation des _fils_
 Chaque fil est une **trace** de l'évolution la plus récente des documents qui lui sont attachés: 
 - le fait que la version d'un fil s'incrémente à chaque mise à jour d'un de ses documents fait du fil un événement _notifiable_.
-- dans cette _notification_, une application terminale peut retrouver pour chaque type de document (UN document si c'est un singleton dans le fil, sinon une collection des documents) si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
+- dans cette _notification_, une application terminale peut retrouver pour chaque type de document,
+  - le nombre de documents _existants_ attachés,
+  - si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
 
 Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui a été transmise, peut à réception d'un nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
-- _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé. De plus le filtrage s'effectuant sur la propriété indexée `version`, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents non modifiés.
+- _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé et a encore des documents. Le filtrage s'effectuant sur la propriété indexée `v`, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents modifiés / supprimés (zombifiés).
 - _incrémentale_: seuls les documents ayant changé depuis la version connue de l'application terminale sont lus et transmis.
 
-### Traitements dans un serveur: attachement / mise à jour d'un document dans un fil
-- récupération des `version` `vi` de tous les fils dans lequel le document est à insérer / mettre à jour.
-- la version du document `v` est le maximum des `vi` + 1.
-- dans chacun de ces fils:
-  - la `version` est mise à `v`.
-  - dans `_data_` la `version` pour le type du document est mise à `v`.
+#### Propriété d'un fil
+- `_class`: c'est le nom de la classe du **Fil** commençant arbitrairement par `DT`. 
+- `pk` : c'est un array de strings donnant la clé primaire du fil.
+- `v` : version du fil.
+- `z` : jour de suppression du fil.
+- `versions` est une map avec une entrée pour chaque classe de document donnant `[nb, vmax]`,
+  - `nb`: le nombre de documents **existants** (non _zombi_),
+  - `vmax`: le numéro de version du document de la collection _le plus récemment créé / mis à jour / supprimé_ .
 
-### Traitement des _suppressions_
-Pour que la mise à jour soit incrémentale dans une sous-collection d'un type de documents, un document ne peut pas être simplement _purgé_: en demandant la liste des documents ayant changé il n'apparaîtrait pas, serait considéré comme inchangé et sa suppression non détectée.
+La classe `DThread` est _finale_ (pas de sous-classe).
 
-Le document _supprimé_ va être traité comme une mise jour particulière:
-- sa `version` est mise jour (comme pour une mise jour normale).
-- ses propriétés indexables sont mises à null.
-- sa propriété `zombi` donne le jour de suppression.
-- son _data_ est mis à null.
+#### Règles de gestion
+Un fil est créé par la création du premier document devant y être attaché de par sa classe et ses propriétés de sa clé secondaire correspondant au fil.
+- il est ensuite mis à jour à chaque création / mise à jour / suppression d'un document lui étant rattaché ou devant lui être rattaché (en cas de création).
+- il devient _zombi_ quand le nombre total de documents _existant_ rattachés est nul. Il sera _purgé_ quelques mois plus tard (si non recréé d'ici là) quand sa synchronisation incrémentale sera transformée en synchronisation intégrale
 
-Le document est en état _zombi_, supprimé logiquement.
+A la création / mise à jour / suppression d'un document de classe C, récupération des fils auxquels le document est attaché. 
+- La nouvelle `v` du document est calculée comme le maximum des `v` des fils trouvés + 1.
 
-> _Remarque_: rien ne l'empêche de renaître plus tard.
+**Création** : pour chaque fil auquel le document doit être attaché:
+- s'il n'existe pas, créer le fil avec,
+  - l'élément `versions.C` mis à `[1, v]`
+  - les autres éléments `versions.x` sont initialisés à `[0, 0]`
+  - si le fil avait une propriété `z`, elle est supprimée (cas de _renaissance_ d'un fil qui était _zombi_).
+- s'il existe dans l'élément `versions.C`, le nombre de documents est incrémenté et la version est mise à `v`.
+- la nouvelle `v` du fil est mis à la nouvelle `v` du document.
 
-La possibilité d'obtention d'une mise à jour incrémentale depuis un état détenu à la date `d` est bornée par la possibilité de disposer des suppressions.
-- si elles sont gardées, même _zombi_ avec une taille minimale, sans limite de temps, la base peut être encombrée de zombis.
-- en fixant un délai d'un an par exemple, les mises à jour depuis un état de plus d'an sont traitées comme une demande _intégrale_ avec la fourniture de tous les documents existants et non plus _incrémentale_. C'est à l'application terminale de déterminer, si besoin est, les suppressions de documents depuis l'état à la date `d` qu'elle connaît et le nouvel état complet reçu.
+**Mise à jour** : pour chaque fil auquel le document est attaché:
+- dans l'élément `versions.C` le nombre de documents `nb` est inchangé et la version `vmax` est mise à `v`.
+- la nouvelle `v` du fil est mis à la nouvelle `v` du document.
 
-Le serveur va à l'occasion d'une suppression d'un document regarder les `cleandate` du ou des fils auxquels est rattaché le document: si ces dates ont plus de 18 mois, il va purger effectivement les documents zombis depuis plus d'an de ces fils (en testant leur propriété `zombi`). Il mettra à jour la ou les `cleandate` du ou de ces fils.
-
-De cette façon les documents supprimés sont purgés au fil du temps mais avec des opérations distantes de six mois au moins.
+**Suppression** : pour chaque fil auquel le document est attaché:
+- dans l'élément `versions.C`,
+  - si le nombre de documents `nb` est > 1, il est décrémenté de 1 et la version `vmax` est mise à `v`.
+  - sinon l'élément est mis `[0, 0]`
+- la nouvelle `v` du fil est mis à la nouvelle `v` du document.
+- si tous les éléments de `versions.X` ont un nombre de documents `nb` à 0, le fil devient _zombi_: sa propriété `z` est mis à la date du jour.
 
 # Abonnements d'une application à des _fils_
 
