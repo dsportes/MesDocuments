@@ -565,15 +565,15 @@ La mise en œuvre de **contrats** permet,
 - d'en gérer des limites,
 - si souhaité d'établir des _factures / paiements / régularisations_.
 
-## Contrats et utilisateurs
+## Contrats et utilisateurs, leurs consommations
 
 Un _utilisateur_ est identifié par l'application et tout utilisateur est toujours rattaché **à un instant donné** à un _contrat_. Au cours de sa vie un _utilisateur_ peut être détaché de son contrat précédent et être rattaché à un autre.
 
-Un _contrat_ est un document d'identifiant aléatoire généré à sa création visant à suivre et gérer les consommations des utilisateurs qui lui sont rattachés: les consommations sont décomptées pour le mois _courant_ et le mois précédent (immuable par principe).
+Un _contrat_ est un document d'identifiant généré à sa création par l'application visant à suivre et gérer les consommations des utilisateurs qui lui sont rattachés: les consommations sont décomptées pour le mois _courant_ et le mois précédent (immuable par principe).
 
 > Dans le cas général un _contrat_ concerne un _petit collectif d'utilisateurs_ une famille, une équipe, une petite association ... mais éventuellement un seul utilisateur.
 
-Le décompte des consommations peut entraîner des contraintes, par exemple:
+Le décompte des consommations sur un contrat peut entraîner des contraintes applicatives, par exemple:
 - rejet d'opération pour dépassement de certains seuils,
 - ralentissement en cas de dépassement,
 - blocage éventuel de certaines opérations pour certains utilisateurs.
@@ -591,41 +591,49 @@ Les unités sont décomptées,
 ### Unités de _stock_
 Leur existence a un coût par le seul effet du temps qui passe. Par exemple:
 - S1: nombre de commandes en cours.
-- S2: `volume en Mo` de fichiers stockés.
+- S2: volume en Mo de fichiers stockés.
 
 Elles sont décomptées par _mois d'existence_, mais leur nombre pouvant varier à tout instant une moyenne pondérée du temps passé (à la milliseconde) est calculée. _Exemple_: 
-- 30 commandes en cours pendant 10 jours (300),
-- puis 10 commandes en cours pendant 20 jours (200),
-- correspondent à 16,6 commandes par mois ((300 + 200) / 30).
+- 30 commandes en cours pendant 10 jours du mois précédent (300),
+- puis 10 commandes en cours pendant 20 jours du mois courant (200),
+- correspondent à 16,6 commandes par mois en moyenne ((300 + 200) / 30).
+- par convention le nombre de jours pris _le mois précédent_ est celui nécessaire pour effectuer une moyenne au moins sur 28 jours.
 
 ### Unités de _calcul / travail_
 Elles _coûtent_ effectivement lorsqu'elles sont sollicitées. Par exemple:
 - C3: **nombre** de lecture de documents D1 et D2.
 - C4: **volume en Mo** des fichiers de type F1 téléchargés.
 
-Décompter ces unités sur un mois (par exemple le volume des fichiers téléchargés) revient à faire leur **somme** sur un mois (somme des téléchargements exécutés dans le mois).
+Décompter ces unités sur un mois (par exemple le volume des fichiers téléchargés) revient à faire leur **somme** sur un mois (par exemple des téléchargements exécutés dans le mois).
 
 #### Niveau des nombres d'unités
-Un _niveau_ est codifié par deux chiffres `ab`, la _valeur_ d'un niveau étant `a * 10**b`.
+Un _niveau_ est codifié par deux chiffres `en`, la _valeur_ d'un niveau étant `(10**e) * n`.
 
-Le niveau `10` vaut 1, `22` vaut 200, `52` vaut 500, `73` vaut 7000, `99` vaut 9,000,000,000.
+      3 => 3
+     14 => 40
+     25 => 500
+     37 => 7000 - Kilo
+     67 => 7,000,000 - Mega
+     99 => 9,000,000,000 - Giga
+    125 => 5,000,000,000,000 - Tera
+    155 => 5,000,000,000,000,000 - Peta
 
 La donnée d'un _niveau_ permet de fixer un ordre de grandeur d'un seuil pour une unité donnée.
 
 ## Maximum applicables à un contrat
 
 Pour chaque UC déclarée, le contrat définit un _niveau maximum_, par exemple:
-- S1-nombre de commandes en cours : `32` (soit 300)
-- C4-volume en Mo des fichiers de type F1 téléchargés : `56` (soit 5000000 en l'occurrence 5Go).
+- S1-nombre de commandes en cours : `23` (soit 300)
+- C4-volume en Mo des fichiers de type F1 téléchargés : `65` (soit 5000000 en l'occurrence 5Mo).
 
 Pour les unités de _stock_: le maximum fixé ne peut pas être dépassé, l'opération demanderesse tombe en exception.
 - _sauf_ si l'opération est marquée _privilégiée_,
 - _sauf_ si le maximum est certes dépassé mais en baisse.
-- le **niveau d'alerte** est le pourcentage de dépassement au delà de 80% (0 en deçà).
+- le **niveau d'alerte** est le pourcentage de dépassement (au plus 999%) au delà de 80% (0 en deçà).
 
 Pour les unités de _calcul_ c'est le nombre moyen d'unités accumulé en 30 jours sur M et M-1:
   - le 10 du mois, le compte pour M est affecté du coefficient 1/3, celui de M-1 pour 2/3.
-- le **niveau d'alerte** est le pourcentage de dépassement au delà de 80% (0 en deçà).
+- le **niveau d'alerte** est le pourcentage de dépassement (au plus 999%) au delà de 80% (0 en deçà).
 - l'application calcule une **durée de ralentissement de l'opération** (d'attente) fonction du niveau d'alerte afin de freiner l'excès de calcul, voire de bloquer l'opération (si elle n'est pas _privilégiée_).
 
 ### Au niveau de chaque _utilisateur_
@@ -640,18 +648,18 @@ Le décompte est établi en nombre pour toutes les unités effectivement consomm
 
 > A la fin de chaque mois un arrêté mensuel est calculé et mémorisé comme _mois précédent_ désormais invariant: l'application peut archiver les factures sur la profondeur d'historique de son choix avec un format adapté au traitement statistique.
 
-**Pour chaque UC le décompte exact est _forfaitisé_**, converti / arrondi au _niveau_ le plus proche supérieur. Par exemple, la valeur 6542 est convertie en 7000 (code `73`), le _niveau forfaitaire_ immédiatement supérieur.
+**Pour chaque UC le décompte exact est _forfaitisé_**, converti / arrondi au _niveau_ le plus proche supérieur. Par exemple, la valeur 6542 est convertie en 7000 (code `37`), le _niveau forfaitaire_ immédiatement supérieur.
 
-**Un historique sur N mois** des décomptes _forfaitisés_ par UC est conservé.
+**Un historique sur N mois** des décomptes _forfaitisés_ par UC est conservé. (???)
 
 ### Tarif: prix unitaire pour chaque UC
-Un _tarif_ donne le prix unitaire pour chaque UC.
+Un _tarif_ donne un _prix unitaire_ pour chaque UC.
 
-L'application du tarif à tous les décomptes _arrondis_ des UC au mois courant et au mois précédent donne un montant monétaire:
+L'application du tarif à tous les décomptes _arrondis_ des UC au mois courant et au mois précédent donne un _montant monétaire_:
 - _provisoire_ pour le mois courant,
 - _définitif_ pour le mois précédent.
 
-> Quand un _contrat_ est utilisé d'une manière assez stable dans le temps, les factures ont des chances d'être identiques d'un mois sur l'autre.
+> Quand un _contrat_ est utilisé d'une manière assez stable dans le temps, les _factures_ ont des chances d'être identiques d'un mois sur l'autre.
 
 ## Débits et crédits, solde
 La _facture_ d'un mois comporte une liste de _débits / crédits_: chacun a,
@@ -684,18 +692,33 @@ L'application fixe sa politique vis à vis d'un _contrat_ présentant un solde _
 
 ## Authentification d'utilisateurs via leur contrat
 
-**OBSOLÈTE**
-Tout utilisateur rattaché à un contrat _peut_ y être associé à une ou plusieurs **passphrases** qui l'authentifient: 
+Tout utilisateur rattaché à un contrat _peut_ y être associé à une ou plusieurs **passphrases**: 
 - une _passphrase_ donnée ne peut être associée qu'à un seul contrat à un instant donné et à un seul _utilisateur_ dans le contrat.
-- dans son contrat, un utilisateur peut avoir _plusieurs passphrases_ associées lui permettant autant de solutions d'authentification.
+- dans son contrat, une map associe chaque à un _objet d'authentification_ de l'utilisateur.
 
-> Une seule action est dans ce cas nécessaire pour authentifier un _utilisateur_ d'identifiant inconnu (mais en fournissant une de ses passphrases) et obtenir son _contrat_.
+#### Exemple 1: authentification par clés de _signature / vérification_
+- un _objet d'authentification_ d'un utilisateur `id` est formé d'un couple `[hkp, kv]`
+  - `kv` est la _clé de vérification_ de signature.
+  - `hkp` est le hash court de la _clé de signature_ et est listé comme _passphrase du contrat_.
+- une opération dispose dans ses _jetons d'accès_ d'un couple `[hkp, sign]`. La méthode d'authentification,
+  - recherche un _contrat_ ayant la passphrase `hhp`,
+  - dans ce contrat récupère `id kv` de l'utilisateur et vérifie la signature reçue par la `kv` enregistrée.
 
-Hormis le cas ci-dessus, on accède à un contrat par son identifiant et on peut y retrouver tous ses utilisateurs enregistrés par leur identifiant.
+#### Exemple 2: authentification par _phrase secrète_ de l'utilisateur
+- un _objet d'authentification_ d'un utilisateur `id` est formé d'un couple `[lhps, shps]`
+  - `lhps` est un hash _long et fort_ comme le PBKDF d'une phrase secrète connue du seul utilisateur.
+  - `shps` est un hash _court_ de la phrase secrète et est listé comme _passphrase du contrat_.
+- une opération dispose dans ses _jetons d'accès_d'un couple `[lhps, shps]`. La méthode d'authentification,
+  - recherche un _contrat_ ayant la passphrase `shps`,
+  - dans ce contrat récupère `id lhps` de l'utilisateur et vérifie que le `lhps` reçu correspond au `lhps` enregistré.
+
+> Dans ces deux exemples une seule action identifie et authentifie un _utilisateur_ et retourne son _contrat_.
+
+> Un contrat est aussi accessible par son identifiant et contient tous ses utilisateurs enregistrés par leur identifiant.
 
 ### Suivi des consommations dans les opérations
 
-Sauf exception toute opération du serveur commence par fixer un _contrat par défaut de l'opération_ à qui imputer ses consommations d'UC. 
+Si l'application enregistre les _consommations_, sauf exception toute opération du serveur commence par récupérer un _contrat par défaut de l'opération_ à qui imputer ses consommations d'UC. 
 
 Au cours de l'opération, d'autres _contrats_ peuvent être cités à qui imputer certaines consommations spécifiques selon la logique de l'application. Par exemple le stockage et l'utilisation de documents partagés par un **groupe** d'utilisateurs peut être imputé au _contrat du groupe_ plutôt qu'aux _contrats_ des utilisateurs eux-mêmes.
 
@@ -719,14 +742,11 @@ Propriétés:
 - montant consommation (moyenne M M-1): 
 - indicateur de solde négatif
 
+**TODO**
+
 --------------
 
 # Contributions diverses en attente
-
-### Désérialisation de la propriété `data` du document
-Elle consiste à retourner une _map_ nom, valeur des propriétés du document, dont celles d'identification et la version.
-
-La couche applicative est en charge de créer une instance de la classe appropriée depuis cette _map_ en utilisant le type du document et si nécessaire d'autres propriétés de _data_ pour des sous-classes héritant d'une classe racine correspondant au type de document.
 
 ### Lecture d'un fichier
 Elle peut s'effectuer de deux manières:
@@ -748,27 +768,15 @@ Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigean
 - et si l'utilisateur N'A PAS d'appareil #2 (au moins sous la main) ?
 - si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
 
-### Le répertoire des _profils_ des utilisateurs
-Ce répertoire n'est accédé que par les applications terminales.
-
-Tout utilisateur peut s'y faire enregistrer son _profil_.
-- le profil est crypté, seul son utilisateur peut donner aux applications terminales les clés de décryptages qu'il est seul à connaître.
-- disposer d'un _profil_ n'est requis que pour un utilisateur souhaitant enregistrer un ou des _appareils favoris_ et de bénéficier des avantages associés (voir plus avant).
-
-Le _profil_ d'un utilisateur est identifié par un `userid`, un code généré aléatoirement à son inscription, et peut contenir les rubriques suivantes:
-- la liste de **ses _appareils favoris_** comportant des données cryptographiques.
-- la liste de **ses _préférences_**: données _pré-saisies_ souvent demandées par les applications ou choix simples (langue préférée, mode _sombre / clair_ ...).
-- la liste de **ses _sessions favorites_**. En choisissant une session favorite, un utilisateur se retrouve à l'ouverture d'une application avec le _desktop de l'application_ initialisé avec les documents visibles adaptés à son besoin et les _credentials_ correspondant.
-
-> Un _credential_ est une petite structure de données ayant un _type_ donné et donnant les autorisations d'accès pour un objet précis: par exemple le type `CRDCO` donne une autorisation à un _consommateur donné attaché à un point de livraison donné_ en citant ses initiales et son mot de passe. Les accès aux documents et le droit d'invoquer des opérations requièrent un ou des _credentials_.
-
-### Fils et _credentials_
-Le _credential_ attaché à un fil gouverne le droit à en lire les documents et à s'y abonner. 
+### Attacher des _credentials_ aux _fils_
+Le _credential_ attaché à un fil gouverne le droit à,
+- en lire les documents,
+- à s'y abonner. L'id d'un _fil_ est quasi publique. Le fait de pouvoir recevoir une notification quand un _fil_ évolue, bref _d'espionner_ quand un fil évolue, est une information qui doit être soumise à autorisation.
 
 Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
 
 Chaque _type de fil_ est associé à un _type de credential_:
-- les paramètres du credential sont mentionnées comme propriétés identifiantes du type de fil.
+- les propriétés identifiantes du credential doivent toutes figurer dans les propriétés identifiantes du type de fil.
 - par exemple le fil `CMDGP` est identifié par `gp.livr`.
 - son _credential_ associé sera par exemple `CREDGP` identifié par `gp`.
 - pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
@@ -815,7 +823,7 @@ Ce type d'activité est associé à un ou plusieurs types de _credential_, ici p
 
 Le ou les _types de credentials_ déclarés associés à une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_: un _credential_ peut ainsi être généré depuis ceux-ci et sera délivré aux opérations qui le requièrent.
 
-## Choisir et exercer une activité dans une session d'une application terminale
+### Choisir et exercer une activité dans une session d'une application terminale
 Le _desktop_ de l'application présente à l'utilisateur les _types d'activité_ qu'il peut choisir. 
 - Ce peut être une liste courte,
 - Ce peut être pour une application complexe une liste longue, avec une possibilité de sélection par mot clé et / ou une présentation arborescente.
