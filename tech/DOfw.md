@@ -588,26 +588,36 @@ Les unités sont décomptées,
 - pour chaque _utilisateur_.
 - globalement pour le _contrat_ (somme des valeurs pour chaque utilisateur).
 
-### Unités de _stock_
+### Unités de _stock /volume_
 Leur existence a un coût par le seul effet du temps qui passe. Par exemple:
 - S1: nombre de commandes en cours.
 - S2: volume en Mo de fichiers stockés.
 
-Elles sont décomptées par _mois d'existence_, mais leur nombre pouvant varier à tout instant une moyenne pondérée du temps passé (à la milliseconde) est calculée. _Exemple_: 
-- 30 commandes en cours pendant 10 jours du mois précédent (300),
-- puis 10 commandes en cours pendant 20 jours du mois courant (200),
-- correspondent à 16,6 commandes par mois en moyenne ((300 + 200) / 30).
-- par convention le nombre de jours pris _le mois précédent_ est celui nécessaire pour effectuer une moyenne au moins sur 28 jours.
+Le contrat conserve pour chaque unité:
+- le valeur _courante_, c'est à dire la dernière valeur attribuée,
+- la moyenne sur le mois en cours,
+- la moyenne sur le mois précédent.
+
+La moyenne est calculée au prorata du temps passé (à la milliseconde) à chaque valeur.
 
 ### Unités de _calcul / travail_
 Elles _coûtent_ effectivement lorsqu'elles sont sollicitées. Par exemple:
 - C3: **nombre** de lecture de documents D1 et D2.
 - C4: **volume en Mo** des fichiers de type F1 téléchargés.
 
-Décompter ces unités sur un mois (par exemple le volume des fichiers téléchargés) revient à faire leur **somme** sur un mois (par exemple des téléchargements exécutés dans le mois).
+Le contrat conserve pour chaque unité:
+- la valeur _courante_.
+- la somme des consommations pour le mois en cours,
+- la somme des consommations pour le mois précédent,
 
-#### Niveau des nombres d'unités
-Un _niveau_ est codifié par deux chiffres `en`, la _valeur_ d'un niveau étant `(10**e) * n`.
+Le nombre _courant_ est une **valeur moyenne journalière récente** lissée sur au moins 20 jours:
+- après le 20 du mois c'est le total du mois en cours ramené à 24h.
+- avant le 20 du mois, par exemple le 5, c'est la somme,
+  - de 5/20 fois le total du mois en cours ramené à 24h.
+  - de 15/20 fois le total du mois précédent ramené à 24h,
+
+#### _Quotas_
+Un _quota_ est codifié par deux chiffres `en`, sa valeur étant `(10**e) * n`.
 
       3 => 3
      14 => 40
@@ -618,26 +628,25 @@ Un _niveau_ est codifié par deux chiffres `en`, la _valeur_ d'un niveau étant 
     125 => 5,000,000,000,000 - Tera
     155 => 5,000,000,000,000,000 - Peta
 
-La donnée d'un _niveau_ permet de fixer un ordre de grandeur d'un seuil pour une unité donnée.
+Un _quota_ permet d'exprimer sur un entier très court (un byte),
+- soit un _seuil maximum_,
+- soit un ordre de grandeur _forfaitaire_ d'une quantité. Par exemple la quantité 5342 correspond au _quota_ 36 (le plus petit supérieur à sa valeur).
 
-## Maximum applicables à un contrat
+## Quotas applicables à un contrat
 
-Pour chaque UC déclarée, le contrat définit un _niveau maximum_, par exemple:
-- S1-nombre de commandes en cours : `23` (soit 300)
-- C4-volume en Mo des fichiers de type F1 téléchargés : `65` (soit 5000000 en l'occurrence 5Mo).
+Pour chaque UC déclarée, le contrat définit un _quota_ à rapprocher de la valeur courante correspondante. Par exemple:
+- S1-nombre de commandes en cours :  un quota de `23` correspond à 300 documents
+- C4-volume en Mo des fichiers de type F1 téléchargés : un quota de `65` correspond à 5000000, soit 5Mo par jour (lissé sur 20 jours).
 
-Pour les unités de _stock_: le maximum fixé ne peut pas être dépassé, l'opération demanderesse tombe en exception.
+**Pour les unités de _stock_, le _quota_ ne peut pas être dépassé**, l'opération demanderesse tombe en exception.
 - _sauf_ si l'opération est marquée _privilégiée_,
 - _sauf_ si le maximum est certes dépassé mais en baisse.
 - le **niveau d'alerte** est le pourcentage de dépassement (au plus 999%) au delà de 80% (0 en deçà).
 
-Pour les unités de _calcul_ c'est le nombre moyen d'unités accumulé en 30 jours sur M et M-1:
-  - le 10 du mois, le compte pour M est affecté du coefficient 1/3, celui de M-1 pour 2/3.
-- le **niveau d'alerte** est le pourcentage de dépassement (au plus 999%) au delà de 80% (0 en deçà).
-- l'application calcule une **durée de ralentissement de l'opération** (d'attente) fonction du niveau d'alerte afin de freiner l'excès de calcul, voire de bloquer l'opération (si elle n'est pas _privilégiée_).
+**Pour les unités de _calcul_ le dépassement du quota provoque un ralentissement de l'opération**, un temps d'attente fonction du taux de dépassement afin de _dissuader l'usage d'opérations coûteuses_, voire pour les grands dépassements de faire tomber l'opération en exception (si elle n'est pas _privilégiée_).
 
-### Au niveau de chaque _utilisateur_
-Un niveau par UC est également fixé par _utilisateur_: 
+### Pour chaque _utilisateur_
+Des _quotas_ par UC sont également fixés par _utilisateur_: 
 - l'action de blocage / ralentissement et le niveau d'alerte sont les plus restrictifs des deux _utilisateur / contrat_.
 
 ## Décompte continu des unités sur un contrat: arrêté mensuel
@@ -648,53 +657,52 @@ Le décompte est établi en nombre pour toutes les unités effectivement consomm
 
 > A la fin de chaque mois un arrêté mensuel est calculé et mémorisé comme _mois précédent_ désormais invariant: l'application peut archiver les factures sur la profondeur d'historique de son choix avec un format adapté au traitement statistique.
 
-**Pour chaque UC le décompte exact est _forfaitisé_**, converti / arrondi au _niveau_ le plus proche supérieur. Par exemple, la valeur 6542 est convertie en 7000 (code `37`), le _niveau forfaitaire_ immédiatement supérieur.
-
-**Un historique sur N mois** des décomptes _forfaitisés_ par UC est conservé. (???)
+## Historique des _quotas_ sur N mois
+On conserve après l'arrêté mensuel, pour chaque compteur, sa valeur **forfaitisé** ramené au quota immédiatement supérieur.
 
 ### Tarif: prix unitaire pour chaque UC
 Un _tarif_ donne un _prix unitaire_ pour chaque UC.
 
-L'application du tarif à tous les décomptes _arrondis_ des UC au mois courant et au mois précédent donne un _montant monétaire_:
+L'application du tarif à tous les compteurs courants _forfaitisés_ donne un _montant monétaire_:
 - _provisoire_ pour le mois courant,
 - _définitif_ pour le mois précédent.
 
-> Quand un _contrat_ est utilisé d'une manière assez stable dans le temps, les _factures_ ont des chances d'être identiques d'un mois sur l'autre.
+> Quand un _contrat_ est utilisé d'une manière assez stable dans le temps, ces montants ont des chances d'être identiques d'un mois sur l'autre.
 
 ## Débits et crédits, solde
-La _facture_ d'un mois comporte une liste de _débits / crédits_: chacun a,
+La _facture mensuelle d'un contrat_ comporte une liste de _débits / crédits_: chacun a,
 - un _code_ qui indique sa nature: par exemple _paiement reçu_,
 - une _référence_ ou _commentaire_ permettant d'en savoir plus dans l'application.
 - un montant positif ou négatif.
 
-La première ligne est un _débit_ correspondant à la consommation effective du _contrat_.
+La première ligne est un _débit_ correspondant à la consommation du _contrat_ dans le mois.
 
 ### Ajustement global de l'application
 Une fois la consommation ainsi calculée, l'application peut introduire une ligne finale d'ajustement, au débit ou au crédit:
 - remise sur volume,
 - remise / pénalité selon le type de contrat,
-- le cas échéant **remise égale au montant de la consommation** ce qui revient à de la gratuité. 
+- le cas échéant **la remise peut être égale au montant de la consommation** ce qui revient à de la gratuité. 
 
-Le _solde_ en fin de mois correspond au solde en fin du mois précédent, plus les crédits, moins les débits.
+La _balance_ en fin de mois correspond à la balance en fin du mois précédent, plus les crédits, moins les débits.
 
-En cours de mois un _solde provisoire_ est calculable simplement:
-- depuis le solde au mois précédent,
+En cours de mois une _balance provisoire_ est calculable:
+- depuis la balance au mois précédent,
 - la consommation en cours _forfaitisée_,
 - la ligne d'ajustement spécifique de l'application.
 - la balance des débits / crédits du mois.
 
-### Politique vis à vis d'un solde négatif
-L'application fixe sa politique vis à vis d'un _contrat_ présentant un solde _provisoire_ négatif. Par exemple:
-- tolérance si le solde en début de mois était positif,
+### Politique vis à vis d'une balance négative
+L'application fixe sa politique vis à vis d'un _contrat_ présentant une balance _provisoire_ négative. Par exemple:
+- tolérance si la balance en début de mois était positif,
 - tolérance pour les opérations _privilégiées_,
-- alerte selon le nombre de jours estimés avec _solde positif_: simple calcul du nombre de jours pendant lequel le solde restera positif si la consommation se maintient au même niveau que la moyenne du mois courant et du mois précédent.
+- alerte selon le nombre de jours estimés avec _balance positive_: simple calcul du nombre de jours pendant lequel la balance restera positive si la consommation se maintient au même niveau que la moyenne du mois courant et du mois précédent.
 - rejet de l'opération.
 
 ## Authentification d'utilisateurs via leur contrat
 
 Tout utilisateur rattaché à un contrat _peut_ y être associé à une ou plusieurs **passphrases**: 
 - une _passphrase_ donnée ne peut être associée qu'à un seul contrat à un instant donné et à un seul _utilisateur_ dans le contrat.
-- dans son contrat, une map associe chaque à un _objet d'authentification_ de l'utilisateur.
+- dans son contrat, une map associe chaque utilisateur à son _objet d'authentification_.
 
 #### Exemple 1: authentification par clés de _signature / vérification_
 - un _objet d'authentification_ d'un utilisateur `id` est formé d'un couple `[hkp, kv]`
@@ -712,7 +720,7 @@ Tout utilisateur rattaché à un contrat _peut_ y être associé à une ou plusi
   - recherche un _contrat_ ayant la passphrase `shps`,
   - dans ce contrat récupère `id lhps` de l'utilisateur et vérifie que le `lhps` reçu correspond au `lhps` enregistré.
 
-> Dans ces deux exemples une seule action identifie et authentifie un _utilisateur_ et retourne son _contrat_.
+> Dans ces deux exemples une seule action localise un contrat, identifie et authentifie un _utilisateur_.
 
 > Un contrat est aussi accessible par son identifiant et contient tous ses utilisateurs enregistrés par leur identifiant.
 
@@ -727,47 +735,59 @@ Le début d'une opération va, en général,
 - lire le _contrat_ depuis la base et authentifier l'utilisateur demandeur de l'opération,
 - en cas de basculement sur le mois suivant, calculer la facturation et repositionner les compteurs.
 
-En cours d'opération, les compteurs du mois courant sont mis à jour (si nécessaire) et le _solde provisoire_ peut être réévalué.
+En cours d'opération, les compteurs du mois courant sont mis à jour (si nécessaire), la _balance provisoire_ peut être réévaluée ainsi que le nombre de jours en _balance positive_.
 
 La fin d'une opération va, en général, enregistrer en base la mise à jour du _contrat_.
 
-Un _contrat_ a un mois de dernière mise à jour: un traitement périodique à partir du N d'un mois effectue a minima une opération sur chaque contrat dont le dernier mois de mise à jour n'est pas le mois courant afin d'éviter de perdre des facturations sur les _contrats_ peu utilisés.
+Un _contrat_ a un mois de dernier calcul d'arrêté comptable: une tâche périodique à partir du N d'un mois effectue a minima une opération sur chaque contrat dont le dernier mois d'arrêté n'est pas le mois courant afin d'éviter de perdre des facturations sur les _contrats_ peu utilisés.
 
 Un traitement périodique peut aussi collecter un historique sous forme de fichier CSV pour analyse externe.
 
 ## Détail du document `Contrat`
 Propriétés:
-- `statCode`: code statistique: pour déclenchement sélectif d'actions / reports: indexé
-- `lcm` : dernier mois calculé / facturé: pour déclencher le calcul de la facture: indexé
-- montant consommation (moyenne M M-1): ???
-- `negBal` : indicateur de solde négatif
-- `time` du dernier calcul
-- `users` : map avec une entrée par `userId`: `{ cs, ce, ps, pe, hs, he }`
-  - `cs` : mois courant. Ns compteurs de _stock_ 
-  - `ce` : mois courant. Ne compteurs _d'énergie_ 
-  - `ps` : mois précédent. Ne compteurs de _stock_
-  - `pe` : mois précédent. Ne compteurs _d'énergie_
-  - `hs` : Nm * (Ns compteurs forfaitaires de stock)
-  - `he` : Nm * (Ne compteurs forfaitaires d'énergie)
-- `total` : `{ cms, cme, pms, pme, hs, he }`. somme des compteurs des _users_
-- `invoice` : 
+- `statCode` (indexé) : code statistique: pour déclenchement sélectif d'actions / reports.
+- `lcm` (indexé) : dernier mois calculé / facturé: pour déclencher le calcul de la facture.
+- `balance` : balance temporaire en cours de mois.
+- `negBal` (indexé) : niveau d'alerte de balance négative.
+- `nbdPos` : nombre de jours estimés restant avec balance positive si la consommation continue de suivre la tendance de M et M-1.
+- `time` : date-heure du dernier calcul.
+- `users` : map avec une entrée par `userId`: `{ quotas, counts }`
+  - `quotas` : array de N+1 éléments pour un historique de N mois.
+    - le premier élément donne les quotas courants (_maximum_),
+    - les éléments suivants donnent les consommations _forfaitaires_ constatées sur le mois.
+    - chaque éléments a C compteurs (courts).
+  - `counts` : Un array de C éléments chacun étant `[ vc, cm, pm ]` 
+    valeur courante, mois courant, mois précédent.
+- `total` : `{ quotas, counts }`. somme des compteurs des _users_.
+- `invoices` : deux éléments, mois en cours, mois précédent `[dbcr, balance]`:
   - `dbcr` : liste de _débits / crédits_: chacun a `[ code, ref, m ]`:
     - `code` : indique sa nature: par exemple _paiement reçu_,
     - `ref` : une _référence_ ou _commentaire_ permettant d'en savoir plus dans l'application.
     - `m` : un montant positif ou négatif.
-  - `balanceB` : balance au début du mois
-  - `balance` : balance en fin de mois
-- `authKeys` : liste des clés d'accès externes aux _users_. Liste indexée.
+  - `balance` : balance au début du mois
+- `authKeys` (indexé) : liste des clés d'accès externes aux _users_.
 - `authUsers` : map avec une entrée par userId. 
   - _val_ : objet contenant les informations d'authentification. 
 
 **Remarques**
 - La liste `authKeys` est calculable par l'application depuis la map `authUsers`.
 - les _compteurs_ sont des _number_, les _compteurs forfaitaires_ sont des bytes.
-- `Ns Ne Nm` : constantes dépendantes de l'application: 
-  - `Ns` compteurs d'énergie
-  - `Ne` compteurs d'énergie
-  - `Nm` nombre de mois d'historiques de forfaits
+- L'application déclare une _configuration_:
+  - le nombre de mois historisés.
+  - une liste avec un terme [code, stock] par UC:
+    - _code_: ce code court sert aux traces / éditions.
+    - _stock_: true si c'est une unité de _stock_ (sinon c'est une unité de calcul).
+
+### _Users_ virtuels
+Il est possible de décompter des consommations et définir des quotas maximum pour des _usages_ identifiés. Par exemple:
+- des _groupes_ sont rattachés à un contrat.
+- chaque _groupe_ peut avoir des quotas pour certains compteurs, voire disposer d'un calcul de consommation propre.
+
+Certains users virtuels peuvent être gérés comme des entrées de _comptabilité analytique_: chaque consommation _réelle_ est _dédoublée_ dans un _user_ ET dans un _user virtuel_ analytique.
+
+On peut déclarer ainsi un _user_ identifié par l'application, mais ce _user_ étant virtuel n'a pas d'entrée dans `authUsers`.
+- l'application donne dans sa configuration une liste des identifiants des users ayant un comportement _analytique_.
+- la ligne **total** du contrat ne totalise pas les lignes _analytiques_ mais les lignes correspondant à des consommations réelles.
 
 --------------
 
