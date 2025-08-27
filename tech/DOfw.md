@@ -737,12 +737,37 @@ Un traitement périodique peut aussi collecter un historique sous forme de fichi
 
 ## Détail du document `Contrat`
 Propriétés:
-- code statistique: pour déclenchement sélectif d'actions / reports
-- dernier mois facturé: pour déclencher le calcul de la facture
-- montant consommation (moyenne M M-1): 
-- indicateur de solde négatif
+- `statCode`: code statistique: pour déclenchement sélectif d'actions / reports: indexé
+- `lcm` : dernier mois calculé / facturé: pour déclencher le calcul de la facture: indexé
+- montant consommation (moyenne M M-1): ???
+- `negBal` : indicateur de solde négatif
+- `time` du dernier calcul
+- `users` : map avec une entrée par `userId`: `{ cs, ce, ps, pe, hs, he }`
+  - `cs` : mois courant. Ns compteurs de _stock_ 
+  - `ce` : mois courant. Ne compteurs _d'énergie_ 
+  - `ps` : mois précédent. Ne compteurs de _stock_
+  - `pe` : mois précédent. Ne compteurs _d'énergie_
+  - `hs` : Nm * (Ns compteurs forfaitaires de stock)
+  - `he` : Nm * (Ne compteurs forfaitaires d'énergie)
+- `total` : `{ cms, cme, pms, pme, hs, he }`. somme des compteurs des _users_
+- `invoice` : 
+  - `dbcr` : liste de _débits / crédits_: chacun a `[ code, ref, m ]`:
+    - `code` : indique sa nature: par exemple _paiement reçu_,
+    - `ref` : une _référence_ ou _commentaire_ permettant d'en savoir plus dans l'application.
+    - `m` : un montant positif ou négatif.
+  - `balanceB` : balance au début du mois
+  - `balance` : balance en fin de mois
+- `authKeys` : liste des clés d'accès externes aux _users_. Liste indexée.
+- `authUsers` : map avec une entrée par userId. 
+  - _val_ : objet contenant les informations d'authentification. 
 
-**TODO**
+**Remarques**
+- La liste `authKeys` est calculable par l'application depuis la map `authUsers`.
+- les _compteurs_ sont des _number_, les _compteurs forfaitaires_ sont des bytes.
+- `Ns Ne Nm` : constantes dépendantes de l'application: 
+  - `Ns` compteurs d'énergie
+  - `Ne` compteurs d'énergie
+  - `Nm` nombre de mois d'historiques de forfaits
 
 --------------
 
