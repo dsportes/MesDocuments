@@ -750,8 +750,10 @@ Propriétés:
 - `balance` : balance temporaire en cours de mois.
 - `negBal` (indexé) : niveau d'alerte de balance négative.
 - `nbdPos` : nombre de jours estimés restant avec balance positive si la consommation continue de suivre la tendance de M et M-1.
+- `minLrdu` (indexé) : `lrdu` le plus ancien des _users_.
 - `time` : date-heure du dernier calcul.
-- `users` : map avec une entrée par `userId`: `{ quotas, counts }`
+- `users` : map avec une entrée par `userId`: `{ ldr, quotas, counts }`
+  - `lrdu` : dernier jour de référence, utilisation comme entrée d'un contrat. 
   - `quotas` : array de N+1 éléments pour un historique de N mois.
     - le premier élément donne les quotas courants (_maximum_),
     - les éléments suivants donnent les consommations _forfaitaires_ constatées sur le mois.
@@ -788,6 +790,13 @@ Certains users virtuels peuvent être gérés comme des entrées de _comptabilit
 On peut déclarer ainsi un _user_ identifié par l'application, mais ce _user_ étant virtuel n'a pas d'entrée dans `authUsers`.
 - l'application donne dans sa configuration une liste des identifiants des users ayant un comportement _analytique_.
 - la ligne **total** du contrat ne totalise pas les lignes _analytiques_ mais les lignes correspondant à des consommations réelles.
+
+### Contrats / _users_ disparus
+L'application peut considérer comme _disparu_ des _users_ qui n'ont pas _utilisé_ leur contrat depuis un certain nombre de jours.
+
+Il est possible de filtrer par une tâche tous les contrats ayant un _user_ présumé disparu et le cas échéant de gérer:
+- leur suppression dans le contrat,
+- voire la suppression du contrat lui-même si aucun _user_ n'est plus vivant.
 
 --------------
 
