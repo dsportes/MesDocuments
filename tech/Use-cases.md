@@ -3,6 +3,66 @@ layout: page
 title: Use-cases : circuitscourts, asocial
 ---
 
+# Use Case _revues_
+Des _auteurs_ écrivent des _articles_ qui sont relus par des _groupes_ de relecture et les auteurs peuvent communiquer entre eux par chat.
+- un _auteur_ a un code identifiant immuable et une carte de visite (photo et texte).
+- un _groupe_ a un code identifiant immuable et une carte de visite. A groupe a des meetings de relecture, chacun donnant lieu à un compte-rendu.
+- un _article_ a un identifiant aléatoire immuable, un _sujet_ comme "écologie", une liste d'auteurs et un texte, voire des fichiers attachés.
+- les auteurs peuvent participer à des _chats_:
+  - un chat a un code identifiant immuable.
+  - un chat a un texte qui donne les derniers échanges dans l'ordre ante-chronologique jusqu'à un volume maximal donné.
+  - un ou plusieurs auteurs peuvent s'inscrire et se désinscrire d'un chat.
+
+Plusieurs angles de vue caractérisent l'usage de l'application.
+
+### Vue d'un auteur
+Un auteur peut voir:
+- _synchronisé_ : sa propre fiche d'information et les articles dont il est un des auteurs.
+- _synchronisé_ : la liste des chats auxquels il participe et le détail de chacun.
+- la liste des sujets gérés, possiblement avec un filtre.
+
+Un auteur reçoit des _notifications_ textuelles:
+- même quand l'application n'est pas lancée lorsqu'un de ses chats évolue.
+- quand l'application est lancée lorsqu'un de ses articles évolue.
+
+### Vue du gestionnaire
+Un gestionnaire peut voir:
+- _synchronisé_: la liste des groupes,
+- la liste des auteurs, possiblement avec un filtre.
+- la liste des sujets gérés, possiblement avec un filtre.
+- pour un quelques sujets choisis, la liste synchronisé des articles qui s'y rapportent.
+
+### Vue d'un groupe
+(A détailler)
+
+### Document `Article` synchronisable
+- Propriétés:
+  id : générée aléatoirement.
+  auteurs: liste des auteurs.
+  sujet: sujet de l'article.
+  soussujet: sujet détaillé.
+  taille: taille de l'article.
+  texte: texte de l'article.
+  fichiers: fichiers attachés et leur tailles.
+  volume: volume total des fichiers attachés.
+- Clés _identifiantes et de synchronisation_
+  - pk: [id]
+  - auteurs: [auteurs]
+  - sujet: [sujet, soussujet]
+- Index _de filtrage_
+  - taille: taille, entier
+  - volume: volume, entier
+  - sujet: sujet
+
+Les synchronisations possibles des documents `Article` sont `Article.pk Article.auteurs Article.sujet`
+- `Article.pk:1234` : synchronisation de l'article par sa clé primaire '1234'.
+- `Article.auteurs:Hugo` : liste synchronisée des articles dont 'Hugo' est un des rédacteurs.
+- `Article.sujet:écologie/solaire` : liste synchronisée des articles ayant pour sujet [écologie, solaire]
+
+_Remarques_: 
+- la liste `Article` de tous les articles serait synchronisable parce qu'il existe des index de synchronisation autres que pk, mais n'est pas utilisée en raison de son volume. 
+- la liste `Groupe` est une liste synchronisable utilisable.
+
 # Use Case _asocial_
 
 ### Compte
