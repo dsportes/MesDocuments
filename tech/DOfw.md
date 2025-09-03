@@ -75,8 +75,8 @@ Les _variantes_ de l'application terminale `randos` ont pour caractéristiques d
 
 > Une application _terminale_ donnée peut avoir des exigences vis à vis du choix du prestataire de service. Un prestataire de service _haut de gamme_ peut proposer aussi dans un magasin une variante plus complète de l'application terminale avec des écrans accédant aux prestations supplémentaires qu'il offre.
 
-# Organisations: les services sont _multi-tenant_
-Un service comme `randos`, peut à la manière de Discord, proposer d'héberger les applications d'associations de randonneurs distinctes: chaque organisation / _tenant_ dispose de _son_ espace de données propre complètement étanche à celui des autres.
+# Organisations: services _multi-tenant_
+Un service comme `randos`, peut à la manière de Discord, héberger les applications d'associations de randonneurs distinctes: chaque organisation / _tenant_ dispose de _son_ espace de données propre complètement étanche à celui des autres.
 
 Un service `boutiques` propose de gérer plusieurs boutiques, pas une seule, mais de manière à ce que les données de chacune soient totalement isolées de celle des autres.
 
@@ -86,8 +86,6 @@ Les données d'un service d'un prestataire sont stockées dans deux _mémoires p
 
 ### Pour un service donné, UNE organisation donnée n'est hébergée que par UN prestataire
 Pour un service `randos` proposés par les prestataires **Rouge** et **Bleu**, une organisation donnée _val-de-bièvre_ est _hébergée_ chez **Rouge** ou chez **Bleu** mais pas dans les deux.
-
-UNE base centrale unique pour `randos` indique pour chaque organisation le prestataire qui l'héberge (l'URL d'appel du service).
 
 > Une organisation peut _migrer_ d'un prestataire à un autre: ce transfert technique des données est génériquement possible, sauf quand un prestataire a des données additionnelles absentes chez l'autre.
 
@@ -134,7 +132,7 @@ Une notification ressemble à un SMS:
 - si l'utilisateur clique sur cette _popup_, l'application correspondante repasse au premier plan.
 
 **Quand l'application destinatrice N'EST PAS en exécution:**
-- l'OS de l'appareil ou le browser dans lequel elle est enregistrée, , selon que l'utilisateur l'autorise ou non, afficher en _popup_ la notification ce qui alerte l'utilisateur,
+- l'OS de l'appareil ou le browser dans lequel elle est enregistrée, _peut_ selon que l'utilisateur l'autorise ou non, afficher en _popup_ la notification ce qui alerte l'utilisateur,
 - si l'utilisateur clique sur cette _popup_, l'application est lancée.
 
 ## Des applications _écoutantes_ réagissant au flux d'informations poussées
@@ -152,14 +150,13 @@ Le prestataire dispose de deux stockages dédiés:
 Les stockages sont _partitionnés_ par _organisation_, une partition pour chaque organisation hébergée par ce service.
 
 ### La base de données
-Elle gère les documents et les fils de documents selon un mode _transactionnel_ (ACID).
+Elle gère les documents selon un mode _transactionnel_ (ACID).
 
-Elle gère aussi les _abonnements_ des applications terminales aux _fils de documents_ qui les intéressent:
-- chaque application sur un appareil a un _token_ qui l'identifie de manière unique. Ce répertoire contient les _abonnements_ en cours des applications.
-- Le répertoire détecte les applications n'ayant pas été lancées depuis un certain temps.
-- pour chaque application le répertoire conserve la liste des abonnements en cours aux _fils de documents_.
+Elle gère aussi les _abonnements_ des applications terminales aux _documents (synchronisables)_ qui les intéressent: chaque application sur un appareil a un _token_ qui l'identifie de manière unique. 
 
-Quand un document évolue, le répertoire retrouve toutes les applications abonnées à un _fil_ auquel le document est attachés et effectue une publication de notifications vers elles.
+> Une _micro base de données locale_ pour chaque application / appareil peut détenir en _cache_ les _documents_ récemment demandés et les _abonnements_ en cours de l'application. 
+
+Quand un ou des documents évoluent par exécution d'une opération, elle retrouve toutes les applications terminales abonnées et effectue une publication de notifications vers elles.
 
 > Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plus d'un prestataire si toutes les organisations de son domaine d'intérêt ne sont pas toutes gérées par le même prestataire.
 
@@ -173,11 +170,11 @@ Le Storage permet de disposer d'un volume pratiquement 10 fois plus importants �
 # Le répertoire des _organisations par application_
 
 Toute _application_ terminale détient, en tant que ressource statique, la liste des _prestataires_ fournissant les services centraux, avec pour chacun:
-- leur _code_,
-- leur _URL d'accès_.
+- son _code_,
+- son _URL d'accès_.
 - la liste des _organisations_ hébergées.
 
-L'ajout / retrait d'un prestataire et / ou d'une organisations  demande de générer une nouvelle version de l'application concernée. Toutefois une organisation pas encore _statiquement répertoriée_ peut être référencée par un utilisateur en indiquant le code du service qui l'héberge.
+L'ajout / retrait d'un prestataire et / ou d'une organisation  demande de générer une nouvelle version de l'application concernée. Toutefois une organisation pas encore _statiquement répertoriée_ peut être temporairement référencée par un utilisateur en indiquant le code du service qui l'héberge.
 
 Une session d'une application terminale peut concerner plusieurs organisations, à l'instar du randonneur faisant partie de plusieurs associations selon l'endroit où il randonne. Pour chaque organisation concernée elle obtient de ce répertoire le prestataire gestionnaire et son URL d'accès.
 
@@ -185,7 +182,7 @@ Chaque service peut ensuite gérer **dans _sa_ base de données**,
 - un document unique concernant toutes les organisations,
 - un document relatif à chaque organisation.
 
-Ces documents peuvent comporter:
+Ces documents peuvent comporter par exemple:
 - un **statut récapitulatif** : ouverture, restriction en lecture seule (archive), fermeture jusqu'à nouvel ordre.
 - une **courte liste des dernières _news_ ayant modifié ce statut** données par l'administrateur.
 
@@ -193,7 +190,7 @@ Les applications terminales peuvent s'abonner aux modifications de ces documents
 - son statut d'accessibilité, globalement et pour chaque organisation spécifiquement,
 - les _news_ récentes ayant modifié ce statut.
 
-# Documents, fichiers et _fils_ traçant leurs évolutions
+# Documents et fichiers
 
 ## Document
 Selon le standard JSON:
@@ -208,45 +205,84 @@ Un document est un agrégat de données structurées en JSON dont la racine est 
 Des _fichiers_ peuvent être attachés à un document
 - chaque descriptif d'un fichier est une _map_ de quelques propriétés (nom, type, taille ...).
 - les descriptifs sont inscrits dans une map `_files_` de la racine du document.
-- le contenu effectif des fichiers sont des suites de bytes stockés à part dans un _storage_.
+- les contenus effectifs des fichiers sont des suites de bytes stockés à part dans un _storage_.
 
-> Un document peut en conséquence être volumineux.
+> Un document peut être volumineux et même _très_ volumineux en incluant ses fichiers attachés.
 
 **Il y a plusieurs _types_ de document**, chacun correspondant à une structure dont la racine est une map de _propriétés_.
 
-**Parmi ces propriétés une liste ordonnée de propriétés _string_ immuables constitue l'identifiant fonctionnel du document** (clé primaire en SQL, path en NOSQL). 
+**Une liste `pk` ordonnée de propriétés _string_ immuables constitue l'identifiant fonctionnel du document** (clé primaire en SQL, path en NOSQL). Cette `pk` peut ne contenir qu'un terme, le cas échéant généré aléatoirement à la création.
 
-Exemple du document `CART` du _use-case circuit court_:
-- un _carton_ est un ensemble de produits emballés ensemble par un producteur `pr` d'un groupement `gp` gérant un camion à destination de points de livraison `gc` pour une livraison donnée `livr`.
-- `gp pr livr gc`, forment un quadruplet identifiant exactement un carton, donnant d'ailleurs de plus une information sur qui l'a constitué et à qui il est destiné.
+### Exemple du document `Article` dans le Use-case _revues_
+- Propriétés:
+  id : générée aléatoirement.
+  auteurs: liste des auteurs.
+  sujet: sujet de l'article.
+  soussujet: sujet détaillé.
+  taille: taille de l'article.
+  texte: texte de l'article.
+  fichiers: fichiers attachés et leur tailles.
+  volume: volume total des fichiers attachés.
+- Clés _identifiantes et de synchronisation_
+  - pk: [id]
+  - auteurs: liste auteurs
+  - sujet: [sujet, soussujet]
+- Index _de filtrage_
+  - taille: taille, entier
+  - volume: volume, entier
+  - sujet: sujet
 
-On peut définir des **regroupements** de propriétés identifiantes dont une valeur détermine une collection de documents:
-- le regroupement #1 `gp.livr`: en fixant cette valeur un point de livraison peut obtenir la liste des cartons à décharger du camion expédié par le groupement pour cette livraison, tous producteurs confondus.
-- le regroupement #2 `gp.pr`: en fixant cette valeur un producteur peut obtenir la liste de tous les cartons qu'il doit composer pour toutes les livraisons en cours et tous les points de livraison.
+Les synchronisations possibles des documents `Article` sont `Article.pk Article.auteurs Article.sujet`
+- `Article.pk:1234` : synchronisation de l'article par sa clé primaire '1234'.
+- `Article.auteurs:Hugo` : liste synchronisée des articles dont 'Hugo' est un des rédacteurs.
+- `Article.sujet:écologie/solaire` : liste synchronisée des articles ayant pour sujet [écologie, solaire]
+- la liste `Article` de tous les articles serait synchronisable mais n'est pas utilisée en raison de son volume. 
 
-**Parmi les propriétés certaines (de type _string_ ou _number_) sont _indexables_**.
-- soit pour être utilisées comme identifiants secondaires, mais pas immuables, du document,
-- soit pour filtrer la collection de ces documents selon des seuils de valeurs.
+#### Vue d'un _auteur_
+Un auteur peut voir:
+- _synchronisé_ : sa propre fiche d'information.
+- _synchronisé_ : la liste des articles dont il est un des auteurs. Si son identifiant est 'Hugo', l'abonnement `Article.auteurs:Hugo` fournit la synchronisation de cette liste.
+- _synchronisé_ : la liste des chats auxquels il participe et le détail de chacun.
+- la liste des sujets gérés, possiblement avec un filtre.
+
+L'abonnement `Article.auteurs:Hugo`:
+- fournit _intégralement_ **tous** les articles dont Hugo est un des auteurs.
+- fournit _incrémentalement_ les articles créés, modifiés, supprimés ou n'ayant PLUS Hugo comme auteur depuis la dernière demande datée t.
+
+Un _auteur_ reçoit des _notifications_ textuelles:
+- même quand l'application n'est pas lancée lorsqu'un de ses chats évolue.
+- quand l'application est lancée lorsqu'un de ses articles évolue.
+
+#### Propriétés _indexables_
+Certaines propriétés sont _indexables_.
+- soit pour être utilisées comme identifiants alternatifs, _uniques_ mais pas _immuables_, du document.
+- soit pour filtrer la collection de ces documents selon des seuils de valeurs: par exemple avoir un _report_ des articles dont le volume des fichiers dépasse un seuil donné.
+
+> Un **report** N'EST PAS SYNCHRONISE: une fois calculé il reste tel quel. Pour être _rafraîchi_ il doit être redemander / recalculer.
 
 La propriété `version` du document est un numéro d'ordre de mise à jour: la numérotation est _chronologique_ mais pas _continue_.
 
-La propriété `zombi` contient le jour de suppression _logique_ quand la document n'a été encore purgé physiquement.
+#### Suppression des documents synchronisables
+Pour que les sessions _abonnées_ soient informés qu'un document a été _supprimé_ on opère une _suppression logique_, le document est marqué _zombi_ au lieu d'être _purgé_.
+- La propriété `zombi` contient le jour de suppression _logique_.
+- Après quelques mois, les sessions abonnées sont supposées avoir été synchronisées et le document est purgé physiquement. Les sessions n'ayant pas opéré une telle synchronisation devront effectuer une demande de liste _intégrale_ et non pas _incrémentale_ depuis t (date-heure de la dernière synchronisation incrémentale).
 
 ### Stockage d'un document d'un type donné
 Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifique du type de document.
 
-**L'ensemble des propriétés** est sérialisé dans un champ dénommé `_data_`: ce contenu est désérialisable dans les applications terminales et les serveurs.
+**L'ensemble des propriétés** est sérialisé dans un champ dénommé `data`: ce contenu est désérialisable dans les applications terminales et les serveurs.
 
 En base de données, les propriétés **visibles de la base de données** sont:
 - `pk` : clé primaire ou path.
-- `v` : version.
+- les propriétés de _synchronisation_ (s'il y en a) : `auteurs sujet` : les _groupes de propriétés_ auxquels les sessions peuvent s'abonner: par exemple _auteurs_ contient la liste des auteurs et permet à chaque auteur de s'abonner aux articles auxquels il a contribué.
+- les propriétés _indexables_ (s'il y en a) `taille volume` : pour effectuer des _filtrages sélectifs_ ou des accès par identifiants alternatifs.
+- `v` : version: date-heure en micro-seconde de l'opération ayant créé/ mis à jour / zombifié le document.
 - `z` : jour de suppression logique.
 - `data`.
-- `sk1 sk2 ...` : les _regroupements_ de propriétés identifiantes, clés secondaires, (s'il y en a).
-- `i1 i2 ...` : les _propriétés_ indexables (s'il y en a).
 
-Le contenu structuré complexe du document `_data_` est crypté et en conséquence _opaque_ pour la base de données (et crypté pour la plupart des types de documents).
-- les propriétés identifiantes _peuvent_ être remplacées par leur _hash_ si on ne veut pas que leurs valeurs soient lisibles dans la base. Les propriétés `ii` quand elles sont utilisées par test d'égalité peuvent être _hachées_ mais pas quand elles interviennent dans des filtres _d'ordre_ (les algorithmes de _hash_ ne préservent pas les relations d'ordres de leurs sources).
+Le contenu structuré complexe du document `data` est crypté et en conséquence _opaque_ pour la base de données.
+- les propriétés _synchronisables / indexables_ sont remplacées par leur _hash_ afin que leurs valeurs ne soient pas lisibles dans la base. 
+- toutefois les propriétés indexables utilisables par les opérateurs _d'ordre_ ( > < ) sont conservées telles quelles et non hachées.
 
 ### Fichiers attachés à un document
 Un fichier est stocké en deux parties:
@@ -263,156 +299,72 @@ Le descriptif d'un fichier a les propriétés suivantes:
 - `size` : taille en bytes (son _original non crypté_).
 - `sha` : digest SHA256 de l'original non crypté.
 
-La propriété `_files_` (dans `_data_`) du document est une _map_ avec une entrée `fid` par fichier et pour valeur le descriptif du fichier.
+La propriété `_files_` (dans `data`) du document est une _map_ avec une entrée `fid` par fichier et pour valeur le descriptif du fichier.
 
 > Selon la logique de l'application, la propriété `name` **est ou non unique dans son document**. Si elle est unique, le stockage d'un fichier d'un nom donné supprime d'office le fichier portant antérieurement ce nom. Si la propriété `name` n'est contrainte à être unique, plusieurs fichiers porteront le même nom dans un document (avec des propriétés `time` différentes) vus comme autant de _révisions_ pour un nom donné.
 
 Le contenu du fichier est stocké sous un _path_ dans l'espace de stockage `folderId/fid`:
 - `fid` est suffisant pour garantir l'unicité du contenu.
 - `folderId` définit un _folder_ de rangement et a une structure `a/b/c ...` dont le seul intérêt est de pouvoir purger en une seule commande tous les fichiers sous une partie de ce path, par exemple les fichiers dont le path commence par `a/b`.
-- les termes qui définissent le `folderId` sont parmi ceux apparaissant dans l'id du document:
-  - `gp pr livr gc` dans l'exemple ci-avant, l'id du document,
-  - `gp livr` le groupement d'id #2 défini pour le rattachement au fil `CMDGP`.
 
 ### Protocole de stockage / suppression d'un ou plusieurs fichiers
 Une ou plusieurs opérations de **preload** chargent le contenu du fichier dans le storage sous le path `folderId/fid`, `fid` étant généré à cet instant.
 
-Avant le stockage physique la ou les opérations de _preload_ notent dans la table `todelete` le couple (`folderId/id`, `date du jour`).
+Avant le stockage physique la ou les opérations de _preload_ notent dans la table `FTP` le couple (`folderId/id`, `date du jour`).
 
 Une opération de validation enregistre ensuite dans le ou les documents concernés les nouveaux fichiers `fid` et leurs descriptifs. Cette opération s'accompagne éventuellement d'une liste de `fid` à détruire dans ces mêmes documents.
 - pour chaque document la propriété _files_ est mise à jour.
 - s'il y a des fichiers à détruire,
   - leurs entrées sont enlevés des propriétés _files_ de leurs documents.
-  - leur couple (`folderId/id`, `date du jour`) est inséré dans la table `todelete`.
+  - leur couple (`folderId/id`, `date du jour`) est inséré dans la table `FTP`.
 - la transaction est _validée par un commit_ de la base de données, les fichiers nouveaux _existent_ les fichiers supprimés n'existent plus (logiquement).
 
 Après cette étape transactionnelle, une étape terminale prend place:
 - les fichiers à supprimer sont effectivement purgés de leur répertoire de storage.
-- les références des fichiers créés et de ceux supprimés sont purgées de la table `todelete`, cette seconde phase de transaction est validée par commit.
+- les références des fichiers créés et de ceux supprimés sont purgées de la table `FTP`, cette seconde phase de transaction est validée par commit.
 
 Les mises à jour comme les suppressions sont donc en deux phases et il se peut que suite à un incident une phase s'exécute et pas la seconde.
 
-Un traitement périodique de nettoyage liste les fichiers inscrits dans `todelete` depuis plus d'un jour:
+Un traitement périodique de nettoyage liste les fichiers inscrits dans `FTP` depuis plus d'un jour:
 - ils sont purgés de l'espace de storage,
-- ils sont purgés de la table `todelete`.
+- ils sont purgés de la table `FTP`.
 
 > Moyennant le respect de ce protocole simple, la gestion des fichiers dans un document bénéficie de la même sécurité transactionnelle que les autres propriétés du document.
 
-## _Fils_ de documents
-Un _fil de document_ est défini pour que des documents puissent s'y rattacher, sachant qu'un document peut,
-- n'être rattaché à aucun fil,
-- être rattaché à plusieurs fils.
+# Abonnements d'une application à des _documents_
 
-Créer et maintenir un _fil_ est le moyen retenu pour **tracer** les évolutions des documents qui lui sont attachés: une application terminale (voir un traitement d'un serveur) peut ainsi être informé / notifié qu'au moins un des documents d'un fil a changé ou a été ajouté ou supprimé.
+Un _abonnement_ peut porter:
+- sur la collection complète de tous les documents d'une classe D1 : référence `D1`.
+- sur UN document d'une classe D1 et de clé primaire 1234 : référence `D1:pk/1234`.
+- sur la **sous-collection** des documents d'une classe D1 dont la propriété synchronisable prop1 à pour valeur abcd: référence `D1.prop1:abcd`
 
-### Type de  _fil_
-Le _type_ d'un fil définit son objectif: tracer les évolutions d'un certain nombre de documents et pour chacun selon quel filtrage sur les valeurs de ses propriétés identifiantes. 
-- l'identifiant d'un fil est une suite de propriétés telle que les documents qui y seront rattachés les auront toutes dans leur propre suite de propriétés identifiantes.
+> Une session reçoit au fil de l'eau des avis de changement donnant **la liste des codes** de ses abonnements dont le contenu a évolué: pour maintenir à jour une copie différée des documents concernés, la session interroge ensuite le serveur pour obtenir pour chaque abonnement listé les documents eux-mêmes.  
 
-Dans le _use-case circuit court_ par exemple `CMDGP` sert à rattacher tous les documents utiles à une livraison `livr` gérée par un groupement `gp`.
-- l'identifiant d'un fil de type `CMDGP` est `gp.livr`.
-- les types de documents rattachés à ce fil sont `CHD, BCG, CART`.
-  - `CHD` (le chat ouvert pour une livraison donnée) a pour identifiant `gp livr`: il n'y aura au plus qu'un document `CHD` rattaché au fil.
-  - `BCG` (un bon de commande d'un point de livraison) a pour identifiant `gp livr gc`: il y aura donc une collection de documents `BCG` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr` (soit au plus un par point-de-livraison `gc`).
-  - `CART` à pour identifiant `gp pr livr gc`: il y aura donc une collection de documents `CART` dans le fil, tous ceux ayant pour regroupement indexé de propriétés `gp.livr`. Un carton est créé par un producteur qui y met tous les produits d'une livraison destiné à un même point-de-livraison.
+### Références d'abonnement ayant un texte de _pop-up_
+Certaines références d'abonnements peuvent être utilisés comme _alertes_. 
+- Quand un document change (par exemple `Chat`), les _références_ des abonnements `Chats....` concernés sont _poussés_ en notification des sessions abonnés.
+- Quand un de ces abonnements a spécifié un _texte de pop-up_, celui-ci est affiché par le browser lors de sa réception, **que l'application soit lancéé OU NON**.
 
-> Connaissant le type et l'identifiant d'un fil, par exemple `CMDGP/gp.livr` on peut _tirer_ toute une collection de documents, le cas échéant nombreuse, `CHD`,  `BCG`, `CART` rattachés au même fil, en l'occurrence ceux concernant la livraison d'un camion organisé par un groupement de producteur pour une livraison donnée à plusieurs point-de-livraison (une _tournée_).
-
-Un _type de fil_ définit de facto un critère de sélection s'appliquant à un ensemble de documents ayant pour identifiant ou regroupement d'identifiants une valeur donnée.
-
-**Un fil donné, une instance de son type pour un identifiant donné, est _stocké_ en base de données** dans une table / collection portant le nom du type de fil, par exemple `CMDGP`. Ces tables / collections ont toutes le même schéma.
-
-**Propriétés indexées:**
-- `id` : concaténation des ids de sa clé primaire / path: `gp.livr`. Les valeurs individuelles des éléments de la clé ne sont pas citées.
-- `version` : numéro séquentiel d'ordre de mise à jour du document le plus récent attaché au fil (ou détruit).
-
-**Propriété opaque _data_ d'un fil:**
-- `versions` est une map avec une entrée pour chaque type de document donnant le dernier numéro de version, soit _du_ document si c'est un singleton, soit du document de la collection _le plus récemment mis à jour_.
-- `cleandate` : c'est la date du dernier nettoyage des suppressions (voir plus avant).
-
-### Utilisation des _fils_
-Chaque fil est une **trace** de l'évolution la plus récente des documents qui lui sont attachés: 
-- le fait que la version d'un fil s'incrémente à chaque mise à jour d'un de ses documents fait du fil un événement _notifiable_.
-- dans cette _notification_, une application terminale peut retrouver pour chaque type de document,
-  - le nombre de documents _existants_ attachés,
-  - si ce document ou cette sous-collection a évolué depuis la version qu'elle détenait.
-
-Une application terminale qui a gardé en mémoire la dernière image d'un fil qui lui a été transmise, peut à réception d'un nouvel état de ce fil, demander à un serveur la liste des documents de version postérieure à celle qu'elle détenait et en effectuer la mise à jour dans sa mémoire. Cette mise à jour est :
-- _optimale_: elle n'est demandée QUE si un des documents d'un type qui intéresse l'application a changé et a encore des documents. Le filtrage s'effectuant sur la propriété indexée `v`, seul l'index est sollicité (ce qui pour certaines bases NOSQL est gratuit) la _lecture effective_ n'étant pas faite pour les documents modifiés / supprimés (zombifiés).
-- _incrémentale_: seuls les documents ayant changé depuis la version connue de l'application terminale sont lus et transmis.
-
-#### Propriété d'un fil
-- `_class`: c'est le nom de la classe du **Fil** commençant arbitrairement par `DT`. 
-- `pk` : c'est un array de strings donnant la clé primaire du fil.
-- `v` : version du fil.
-- `z` : jour de suppression du fil.
-- `versions` est une map avec une entrée pour chaque classe de document donnant `[nb, vmax]`,
-  - `nb`: le nombre de documents **existants** (non _zombi_),
-  - `vmax`: le numéro de version du document de la collection _le plus récemment créé / mis à jour / supprimé_ .
-
-La classe `DThread` est _finale_ (pas de sous-classe).
-
-#### Règles de gestion
-Un fil est créé par la création du premier document devant y être attaché de par sa classe et ses propriétés de sa clé secondaire correspondant au fil.
-- il est ensuite mis à jour à chaque création / mise à jour / suppression d'un document lui étant rattaché ou devant lui être rattaché (en cas de création).
-- il devient _zombi_ quand le nombre total de documents _existant_ rattachés est nul. Il sera _purgé_ quelques mois plus tard (si non recréé d'ici là) quand sa synchronisation incrémentale sera transformée en synchronisation intégrale
-
-A la création / mise à jour / suppression d'un document de classe C, récupération des fils auxquels le document est attaché. 
-- La nouvelle `v` du document est calculée comme le maximum des `v` des fils trouvés + 1.
-
-**Création** : pour chaque fil auquel le document doit être attaché:
-- s'il n'existe pas, créer le fil avec,
-  - l'élément `versions.C` mis à `[1, v]`
-  - les autres éléments `versions.x` sont initialisés à `[0, 0]`
-  - si le fil avait une propriété `z`, elle est supprimée (cas de _renaissance_ d'un fil qui était _zombi_).
-- s'il existe dans l'élément `versions.C`, le nombre de documents est incrémenté et la version est mise à `v`.
-- la nouvelle `v` du fil est mis à la nouvelle `v` du document.
-
-**Mise à jour** : pour chaque fil auquel le document est attaché:
-- dans l'élément `versions.C` le nombre de documents `nb` est inchangé et la version `vmax` est mise à `v`.
-- la nouvelle `v` du fil est mis à la nouvelle `v` du document.
-
-**Suppression** : pour chaque fil auquel le document est attaché:
-- dans l'élément `versions.C`,
-  - si le nombre de documents `nb` est > 1, il est décrémenté de 1 et la version `vmax` est mise à `v`.
-  - sinon l'élément est mis `[0, 0]`
-- la nouvelle `v` du fil est mis à la nouvelle `v` du document.
-- si tous les éléments de `versions.X` ont un nombre de documents `nb` à 0, le fil devient _zombi_: sa propriété `z` est mis à la date du jour.
-
-# Abonnements d'une application à des _fils_
-
-**Un _fil_ fait aussi office de _news_, d'alerte:** quand un document change (un bon de commande), le ou les fils auxquels il est attaché (la livraison de samedi) sont informés et le fil a noté qu'un bon de commande a changé. 
-
-**Si des applications s'étaient abonnées à ce fil**, leurs utilisateurs vont voir apparaître sur leurs écrans une _notification_ indiquant _qu'un bon de commande a changé pour la livraison de samedi_. Si l'application d'un utilisateur était lancée et que la page courante montrait cette livraison, l'application est allé chercher les bons de commande attachés au fil de la livraison de samedi ayant une version plus récente que celle que l'application a en mémoire: la page est mise à jour à l'écran sans intervention de l'utilisateur.
+> Des pop-ups d'alertes peuvent ainsi s'afficher, même quand l'application n'est pas lancée, et ainsi informer l'utilisateur qui peut cliquer sur le pop-up pour ouvrir l'application et / ou la faire venir en premier plan. Si l'application était lancée et que l'écran montrait un contenu concerné par cette annonce de changement, la vue à l'écran se synchronise au nouveau contenu.
 
 Suivant ce paradigme, une application présente à son utilisateur trois concepts:
-- des **_fils d'information_** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution tarifaire (un tarif vu comme une collection de documents). Ces fils **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
-- des **fils de documents synchronisables**: les documents attachés à un fil synchronisé sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur.
-- des **_rapports_**: ce sont vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
+- des **notifications d'alerte** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution tarifaire (un tarif vu comme une collection de documents). Elles **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
+- des **notification de documents synchronisés**: les documents correspondant sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur (du moins quand l'application est _au premier plan_).
+- des **_rapports_**: ce sont des vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
 
 **Les documents synchronisés dans une application** le restent a minima tant que l'application est **au premier plan**:
-- l'application **peut** décider de ne plus maintenir cette synchronisation quand elle passe **en arrière plan**: c'est une économie de ressources et comme en pratique l'utilisateur ne voit d'une application en arrière plan que les _popups_ de notification, maintenir à jour un volume important de documents synchronisés n'a pas forcément d'intérêt.
-- en repassant au premier plan, l'application demande aux services de lui fournir les mises à jour survenues sur les fils synchronisés depuis le dernier état synchronisé qui était détenu dans l'application.
+- l'application **peut** décider de ne plus maintenir cette synchronisation quand elle passe **en arrière plan**: c'est une économie de ressources et comme en pratique l'utilisateur ne voit d'une application en arrière plan que les _pop-ups_ de notification, maintenir à jour un volume important de documents synchronisés n'a pas forcément d'intérêt.
+- en repassant au premier plan, l'application demande aux services de lui fournir les mises à jour des documents synchronisés depuis le dernier état connu antérieurement.
 
 ### Quand l'application n'est plus en exécution
-Quand une application est en exécution elle peut rester _abonnée_ à des _fils d'information_.
+Quand une application est en exécution elle peut rester _abonnée_ à des _alertes_.
 
 Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, certains de ces abonnements restent actifs, du moins un certain temps:
 - les notifications correspondantes continueront à s'afficher en _popups_, l'OS ou le browser de l'application s'en chargeant.
 - l'utilisateur reste informé des _news_ auxquelles il était abonné.
-- un clic sur un ces _popups_ ouvre l'application ce qui lui permet plus ou moins directement de connaître en détail les documents ayant changé.
+- un clic sur un ces _pop-ups_ ouvre l'application ce qui lui permet plus ou moins directement de connaître en détail les documents ayant changé.
 
-> Chaque application détermine pour chaque fil auquel elle est abonné, si l'abonnement s'interrompt ou non quand l'application s'arrête.
-
-### Des _fils_ plus ou moins riches
-Pour assurer la synchronisation d'une collection de documents, le _fil_ correspondant est riche: il peut y avoir beaucoup de documents modifiés. Les **_fils de synchronisation_** ne donnent lieu à des _popups_ que sur des critères très restrictifs gérés par l'application afin de ne pas submerger l'utilisateur.
-
-Les **_fils de news_** sont a contrario beaucoup plus sobres: ils correspondent à quelques documents / collections bien ciblés et pas à tous ceux qui seraient nécessaires à une synchronisation complète de ces documents.
-
-**La caractéristique d'un _fil de news_ est qu'il peut produire des textes en popups de notification alors que l'application terminale ne s'exécute pas** et en conséquence le texte complet est à produire par le serveur. Pour que ces textes soient lisibles, l'abonnement à un _fil de news_ va fournir une petite structure de données permettant au serveur de générer le texte de la notification. Par exemple:
-- la langue courante de la session au moment de l'abonnement,
-- l'identifiant d'un texte _template_ traduit dans plusieurs langues,
-- des intitulés / labels / noms associés afin que le texte les référencent plutôt qu'un code identifiant abscons pour l'utilisateur (le _nom_ d'un producteur, plutôt que son code).
+> Chaque application détermine pour chaque abonnement élémentaire auquel elle est abonné, si l'abonnement s'interrompt ou non quand l'application s'arrête.
 
 # Modules génériques utilisables dans les logiciels serveurs
 Ces modules forment une couche logicielle offrant un certain nombre de services de bases raccourcissant et sécurisant l'effort de développement.
@@ -420,33 +372,34 @@ Ces modules forment une couche logicielle offrant un certain nombre de services 
 ## Gestion des _opérations_
 **Une opération est initiée par la réception d'un requête HTTP**. La couche de base:
 - identifie l'opération demandée en fonction de l'URL.
+- détermine sa _version_ une date-heure unique et croissante qui sera attribuée aux versions des documents créés / modifiés / supprimés par l'opération.
 - récupère les paramètres d'entrée et les met à disposition de l'opération dans une structure.
 - **gère l'opération comme une succession de phases:**
   - **phase 1:** vérification que les paramètres d'entrée sont bien formés, présents s'ils étaient obligatoires, etc. _Normalement_ l'application terminale s'en est assuré mais l'opération dans le serveur fait cette vérification pour éviter de tomber sur des exceptions dues à des valeurs qui n'auraient pas dues être trouvées en entrée. Cette phase s'effectue sans accès à la base de données.
   - **phase 2:** c'est une transaction au sens de la base de données. Elle lit, met à jour créé et supprime des documents et élabore un résultat. En cas d'exception détectée comme liée à une saturation technique de la base de données, cette phase est annulée et relancée (du moins un certain nombre de fois).
-  - **phase 3:** c'est une phase de nettoyage qui peut effectuer quelques mises à jour dans la base de données, typiquement dans la table `toDelete` pour la gestion des fichiers.
-  - **phase 4:** la phase 2 a produit une liste de fils de documents mis à jour. Cette phase identifie les abonnements à ces fils et génèrent les _notifications_ aux applications abonnées.
+  - **phase 3:** c'est une phase de nettoyage qui peut effectuer quelques mises à jour dans la base de données, typiquement dans la table `FTP` pour la gestion des fichiers.
+  - **phase 4:** la phase 2 a produit une liste de documents mis à jour. Cette phase identifie les abonnements associés et génèrent les _notifications_ aux applications abonnées.
 - **retourne le résultat à l'application appelante,**
   - construit en phase 2,
-  - ainsi que les fils déterminés en phase 4 auxquels l'application appelante était abonné.
+  - ainsi que la liste des abonnements calculés en phase 4 auxquels l'application appelante était abonné. Ceci évite à l'appelant d'attendre une _notification_ (qui peut être un peu plus tardive) venant par le browser
 
 ## Gestion des documents
-Un module gère une _mémoire cache_ des documents les plus récemment demandés et mis à jour, du moins pour les types de documents spécifiés. 
+Un module gère une _mémoire cache_ des documents les plus récemment demandés et mis à jour. 
 
 Ainsi la demande par une opération en phase 2 d'un document qui se trouve en _cache_,
 - soit délivre le document s'il n'est pas exigé à être absolument dans sa version la plus récente mais tolère une _certaine ancienneté_,
-- soit s'assure que c'est bien la dernière version: si c'est le cas seul un index a été lu, sinon le document est lu et conservé en _cache_.
+- soit, et c'est le cas général, s'assure que c'est bien la dernière version: si c'est le cas seul un index a été lu, sinon le document est lu et conservé en _cache_.
 
 Le module gère également une _mémoire cache de documents_ **pour chaque opération en cours**.
 - les documents lus y sont stockés dans leur forme _objet compilé_ (et non le format sérialisé de stockage en base).
-- les documents supprimés et créés y sont aussi stockés.
+- les documents _zombifiés_ et créés y sont aussi stockés.
 
-A la fin de l'opération le module gère les _fils_ impactés par les documents modifiés / créés / détruits, et les met à jour dans la base. Ces _fils_ seront utilisés en phase 4 de l'opération pour notifier les applications abonnées.
+A la fin de l'opération le module gère les _abonnements_ impactés par les documents modifiés / créés / zombifiés / détruits, et les met à jour dans la base : ils seront utilisés en phase 4 de l'opération pour notifier les applications abonnées.
 
-## Requête de collecte des documents d'un fil
-Quand une application terminale souhaite disposer des documents mis à jour pour un fil donné, ce module détermine en fonction du fil transmis:
+## Requête de collecte des documents sur un _abonnement élémentaire_
+Quand une application terminale souhaite disposer des documents mis à jour pour un _abonnement_ donné, ce module détermine:
 - si la mise à jour peut être _incrémentale_ ou si elle doit être _intégrale_,
-- quels documents sont à retourner en fonction des versions détenues par l'application terminale.
+- quels documents sont à retourner en fonction de la dernière version détenue par l'application terminale.
 
 ## Modules _providers_ d'accès à la base de données
 Un module _provider_ présente un interface indépendant de la base de données gérée. Pour chacun des services de cet interface, il implémente l'accès effectif à la base qu'il gère:
@@ -462,21 +415,19 @@ Pour un serveur donné, seul le _provider_ requis est importé.
 Les quelques services généraux d'accès sont développés pour chaque type de storage souhaité (AWS-S3, GCP, File-system ...).
 
 ## Principe de _déclaration_ statique
-La structure des documents et leur rattachements aux fils se fait par _déclaration statique_ dans des modules de configuration. Il en est de même pour les options techniques de cryptage / hachage par type de document.
-
-Toutefois dans ces déclarations il peut apparaître des noms de fonctions applicatives spécifiques qui sont à développer par codage et non plus par déclaration.
+La structure des documents (leurs propriétés) se fait par _déclaration statique_ dans des modules de configuration.
 
 ## Modules utilitaires
 Un module de cryptographie évite de gérer les subtilités du paramétrages des algorithmes.
 
-> Vis à vis des applications terminales, les serveurs ne connaissent **QUE** les concepts de documents et fils de documents: abonnements et mises à jour incrémentales. Le reste de la logique applicative passe par l'usage des opérations.
+> Vis à vis des applications terminales, les serveurs ne connaissent **QUE** les concepts de documents / abonnements et mises à jour incrémentales. Le reste de la logique applicative passe par l'usage des opérations.
 
 # L'application _Safe_ 
 Cette application a pour objet de gérer des _coffres forts_ pour des utilisateurs.
 
 En lançant _Safe_ un utilisateur donne les éléments d'identification de son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver les diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_ aux documents des applications.
 
-L'application _Safe_ une fois initialisé sur un appareil est en charge:
+L'application _Safe_ une fois initialisée sur un appareil est en charge:
 - de gérer ses appareils _de confiance_.
 - pour chaque application:
   - de stocker `ses droits` et les mettre à jour.
@@ -488,7 +439,7 @@ L'application _Safe_ une fois initialisé sur un appareil est en charge:
 
 > Le lancement d'applications par le _Safe_ évite le risque de lancement d'une application _piratée_ et permet de choisir le cas échéant des _options_ au lancement ouvrant la session dans un contexte déjà préfixé.
 
-> L'URL de lancement de _Safe_ doit être soigneusement vérifiée: le code de cette application est lisible dans le browser et il est possible de vérifier auprès de sites certificateurs que l'application est _fair_. Ceci évite d'avoir à le faire pour chaque application gérée par _Safe_, quoi que ce soit toujours possible. 
+> L'URL de lancement de _Safe_ est un élément de sécurité: le code de cette application est lisible dans le browser et il est possible de vérifier auprès de sites certificateurs que l'application est _fair_. Ceci évite d'avoir à le faire pour chaque application gérée par _Safe_, quoi que ce soit toujours possible. 
 
 # Un utilisateur, ses appareils et ses applications
 
@@ -506,7 +457,7 @@ Lancer une application depuis un appareil _de confiance_ a plusieurs autres avan
 - **disponibilité des droits** de l'utilisateur pour chaque application le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
 - **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
 
-> Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même, même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
+> Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même: même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
 
 ## Lancement d'une application
 Depuis son application _Safe_ qui gère son _coffre fort_, un utilisateur peut lancer ses applications:
@@ -525,14 +476,14 @@ Au lancement d'une application une page d'accueil est présentée:
 Au cours de l'exécution de l'application des droits peuvent être ajoutés / modifiés si l'application est en mode _synchronisé ou incognito_: ils sont répercutés sur le serveur _Safe_.
 
 **En mode _synchronisé_** en fermant l'application, l'utilisateur peut choisir:
-- de laisser ses _fils de news_ activés: des notifications apparaîtront, même quand l'application sera fermée et même si ce n'est plus le même utilisateur qui dispose de l'appareil. Les _notifications_ ne font qu'annoncer des changements sans en donner les détails et évitent de délivrer des informations confidentielles. 
-- de fermer ses _fils de news_: aucune notification ne parviendra plus sur l'appareil relativement à cette application. L'utilisateur peut le prêter à quelqu'un d'autre sans risque ... mais lui-même ne recevra plus de notifications (il faut choisir).
+- de laisser ses _abonnements de news_ activés: des notifications apparaîtront, même quand l'application sera fermée et même si ce n'est plus le même utilisateur qui dispose de l'appareil. Les _notifications_ ne font qu'annoncer des changements sans en donner les détails et évitent de délivrer des informations confidentielles. 
+- de fermer ses _abonnements de news_: aucune notification ne parviendra plus sur l'appareil relativement à cette application. L'utilisateur peut le prêter à quelqu'un d'autre sans risque ... mais lui-même ne recevra plus de notifications (il faut choisir).
 
-**En mode _avion_**, il n'y a pas de réseau, pas de _fils de news_: les dossiers peuvent être consultés mais pas mis à jour. 
-- la base de données locale est cryptée par la clé `K` du _Safe_ de l'utilisateur. Elle contient les _fils de document_ du contexte fixé par l'utilisateur et les documents attachés: ils ne sont pas du tout dernier état mais a minima dans l'état où ils ont été accédés la dernière fois sur ce appareil.
+**En mode _avion_**, il n'y a pas de réseau, pas _d'abonnements actifs_: les dossiers peuvent être consultés mais pas mis à jour. 
+- la base de données locale est cryptée par la clé `K` du _Safe_ de l'utilisateur. Elle contient pour chaque sous-collection associée à un abonnement, les documents qui en faisaient partie à un instant t: ceux-ci ne sont pas du tout dernier état mais a minima dans l'état t où ils ont été accédés la dernière fois sur ce appareil.
 - l'utilisateur peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations pourront être utilisées pour mettre à jour des documents quand le réseau sera à nouveau disponible en sécurité.
 
-**En mode _incognito_** la fermeture de l'application ne laisse pas le choix: les abonnements aux _fils de news_ sont tous supprimés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
+**En mode _incognito_** la fermeture de l'application ne laisse pas le choix: les _abonnements de news_ sont tous supprimés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
 
 ### Mode _veille_
 Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'application se met en veille en cas de non utilisation pendant quelques minutes (fixés selon le degré de paranoïa de l'utilisateur). Pour sortir de la veille un code est nécessaire et au second échec l'application se ferme.
@@ -544,13 +495,14 @@ Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'ap
 
 ### Clés asymétriques C / D : cryptage / décryptage
 Un couple de clés `Ca / Da` asymétriques généré par A:
-- `Ca` est une clé publique de **cryptage**: elle est utilisée par B pour crypter un objet qui ne pourra être décrypté que par A.
-- `Da` est la clé privée de **décryptage**: elle est utilisée par A pour décrypter un objet qui a été crypté par B en utilisant `Ca`.
+- `Ca` est une clé publique de **cryptage**: elle est utilisée par B pour crypter par une clé X un objet qui ne pourra être décrypté que par A.
+- `Da` est la clé privée de **décryptage**: elle est utilisée par A pour décrypter par la clé X un objet qui a été crypté par B en utilisant `Ca`.
+- la clé X est la même qu'elle ait obtenue depuis Ca/Db ou Cb/Da.
 
 ### Clés asymétriques S / V : signature / vérification
 Un couple de clés `Sa / Va` asymétriques généré par A:
-- `Va` est une clé publique de **vérification**: elle est utilisée par B pour _vérifier que la signature S d'un texte X_ a bien été générée par A en utilisant `Sa`.
-- `Sa` est la clé privée de **signature**: elle est utilisée par A pour _générer la signature S d'un texte challenge X_.
+- `Va` est une clé publique de **vérification**: elle est utilisée par B pour _vérifier que la signature S d'un texte T_ a bien été générée par A en utilisant `Sa`.
+- `Sa` est la clé privée de **signature**: elle est utilisée par A pour _générer la signature S d'un texte challenge T_.
 
 -----------------------------------------------------------------------
 
@@ -558,7 +510,7 @@ Un couple de clés `Sa / Va` asymétriques généré par A:
 
 Une application peut être gratuite pour certains de ses utilisateurs (voire tous) et payante pour d'autres selon l'usage qu'ils en font. 
 
-Mais même dans le cas où l'application est toujours gratuite pour tous, il peut être cependant nécessaire / intéressant de décompter des unités d' œuvre d'utilisation afin le cas échéant de les limiter.
+Mais même dans le cas où l'application est toujours gratuite pour tous, il peut être cependant nécessaire / intéressant de décompter des unités d'œuvre d'utilisation afin le cas échéant de les limiter.
 
 La mise en œuvre de **contrats** permet,
 - d'effectuer des décomptes d'usage par des _utilisateurs_, 
@@ -585,13 +537,15 @@ Chaque application déclare ses _unités d'œuvre_ selon deux catégories: les u
 Chaque unité a ses compteurs spécifiques: elles ne se moyennent ni se s'additionnent pas entre elles. Définir si c'est nécessaire des unités génériques englobantes.
 
 Les unités sont décomptées,
-- pour chaque _utilisateur_.
-- globalement pour le _contrat_ (somme des valeurs pour chaque utilisateur).
+- pour chaque _utilisateur_ d'un contrat.
+- globalement pour le _contrat_ (somme des valeurs pour chacun de ses utilisateurs).
 
-### Unités de _stock /volume_
+### Unités de _stock / volume_
 Leur existence a un coût par le seul effet du temps qui passe. Par exemple:
 - S1: nombre de commandes en cours.
 - S2: volume en Mo de fichiers stockés.
+
+> Même sans utiliser l'application, le stockage a un coût dépendant du temps.
 
 Le contrat conserve pour chaque unité:
 - le valeur _courante_, c'est à dire la dernière valeur attribuée,
@@ -604,6 +558,8 @@ La moyenne est calculée au prorata du temps passé (à la milliseconde) à chaq
 Elles _coûtent_ effectivement lorsqu'elles sont sollicitées. Par exemple:
 - C3: **nombre** de lecture de documents D1 et D2.
 - C4: **volume en Mo** des fichiers de type F1 téléchargés.
+
+> Tant qu'une application n'est pas utilisée, ces coûts sont nuls.
 
 Le contrat conserve pour chaque unité:
 - la valeur _courante_.
@@ -630,20 +586,20 @@ Un _quota_ est codifié par deux chiffres `en`, sa valeur étant `(10**e) * n`.
 
 Un _quota_ permet d'exprimer sur un entier très court (un byte),
 - soit un _seuil maximum_,
-- soit un ordre de grandeur _forfaitaire_ d'une quantité. Par exemple la quantité 5342 correspond au _quota_ 36 (le plus petit supérieur à sa valeur).
+- soit un ordre de grandeur _forfaitaire_ d'une quantité. Par exemple la quantité 5342 correspond au _quota_ 36 (6000, le plus petit supérieur à sa valeur).
 
 ## Quotas applicables à un contrat
 
 Pour chaque UC déclarée, le contrat définit un _quota_ à rapprocher de la valeur courante correspondante. Par exemple:
-- S1-nombre de commandes en cours :  un quota de `23` correspond à 300 documents
+- S1-nombre de commandes en cours :  un quota de `23` correspond à 300 documents.
 - C4-volume en Mo des fichiers de type F1 téléchargés : un quota de `65` correspond à 5000000, soit 5Mo par jour (lissé sur 20 jours).
 
-**Pour les unités de _stock_, le _quota_ ne peut pas être dépassé**, l'opération demanderesse tombe en exception.
+**Pour les unités de _stock_, le _quota_ est un maximum qui ne peut pas être dépassé**, l'opération demanderesse tombe en exception.
 - _sauf_ si l'opération est marquée _privilégiée_,
 - _sauf_ si le maximum est certes dépassé mais en baisse.
 - le **niveau d'alerte** est le pourcentage de dépassement (au plus 999%) au delà de 80% (0 en deçà).
 
-**Pour les unités de _calcul_ le dépassement du quota provoque un ralentissement de l'opération**, un temps d'attente fonction du taux de dépassement afin de _dissuader l'usage d'opérations coûteuses_, voire pour les grands dépassements de faire tomber l'opération en exception (si elle n'est pas _privilégiée_).
+**Pour les unités de _calcul_ le dépassement du quota peut provoquer un ralentissement de l'opération**, un temps d'attente fonction du taux de dépassement afin de _dissuader l'usage d'opérations coûteuses_, voire pour les grands dépassements de faire tomber l'opération en exception (si elle n'est pas _privilégiée_).
 
 ### Pour chaque _utilisateur_
 Des _quotas_ par UC sont également fixés par _utilisateur_: 
@@ -666,6 +622,8 @@ Un _tarif_ donne un _prix unitaire_ pour chaque UC.
 L'application du tarif à tous les compteurs courants _forfaitisés_ donne un _montant monétaire_:
 - _provisoire_ pour le mois courant,
 - _définitif_ pour le mois précédent.
+
+> La _monnaie_ est virtuelle: c'est à l'application de prciser le _cors_ de sa monnaie en monnaies réelles (euro, dollar ...) pour convertir en monnaie virtuelle de l'application les versements reçus (en monnaie réelle).
 
 > Quand un _contrat_ est utilisé d'une manière assez stable dans le temps, ces montants ont des chances d'être identiques d'un mois sur l'autre.
 
@@ -693,7 +651,7 @@ En cours de mois une _balance provisoire_ est calculable:
 
 ### Politique vis à vis d'une balance négative
 L'application fixe sa politique vis à vis d'un _contrat_ présentant une balance _provisoire_ négative. Par exemple:
-- tolérance si la balance en début de mois était positif,
+- tolérance si la balance en début de mois était positive,
 - tolérance pour les opérations _privilégiées_,
 - alerte selon le nombre de jours estimés avec _balance positive_: simple calcul du nombre de jours pendant lequel la balance restera positive si la consommation se maintient au même niveau que la moyenne du mois courant et du mois précédent.
 - rejet de l'opération.
@@ -730,7 +688,7 @@ Si l'application enregistre les _consommations_, sauf exception toute opération
 
 Au cours de l'opération, d'autres _contrats_ peuvent être cités à qui imputer certaines consommations spécifiques selon la logique de l'application. Par exemple le stockage et l'utilisation de documents partagés par un **groupe** d'utilisateurs peut être imputé au _contrat du groupe_ plutôt qu'aux _contrats_ des utilisateurs eux-mêmes.
 
-### Remarque: début et fin d'opération
+### Début et fin d'opération
 Le début d'une opération va, en général, 
 - lire le _contrat_ depuis la base et authentifier l'utilisateur demandeur de l'opération,
 - en cas de basculement sur le mois suivant, calculer la facturation et repositionner les compteurs.
@@ -785,11 +743,11 @@ Il est possible de décompter des consommations et définir des quotas maximum p
 - des _groupes_ sont rattachés à un contrat.
 - chaque _groupe_ peut avoir des quotas pour certains compteurs, voire disposer d'un calcul de consommation propre.
 
-Certains users virtuels peuvent être gérés comme des entrées de _comptabilité analytique_: chaque consommation _réelle_ est _dédoublée_ dans un _user_ ET dans un _user virtuel_ analytique.
+Certains users virtuels peuvent être gérés comme des entrées de _comptabilité analytique_: chaque consommation _réelle_ est _dédoublée_ dans un _user_ ET dans un _user virtuel analytique_.
 
 On peut déclarer ainsi un _user_ identifié par l'application, mais ce _user_ étant virtuel n'a pas d'entrée dans `authUsers`.
 - l'application donne dans sa configuration une liste des identifiants des users ayant un comportement _analytique_.
-- la ligne **total** du contrat ne totalise pas les lignes _analytiques_ mais les lignes correspondant à des consommations réelles.
+- la ligne **total** du contrat ne totalise pas les lignes des _users analytiques_ mais les lignes correspondant à des consommations réelles.
 
 ### Contrats / _users_ disparus
 L'application peut considérer comme _disparu_ des _users_ qui n'ont pas _utilisé_ leur contrat depuis un certain nombre de jours.
@@ -807,14 +765,15 @@ Elle peut s'effectuer de deux manières:
 - en retournant le contenu binaire du fichier dans la couche applicative,
 - en retournant une URL d'accès sécurisé valable un certain temps, typiquement à transmettre à une application externe.
 
-### Cohérence _forte_ dans un fil, _faible_ entre fils
-L'état d'un fil retourné par une requête est _fortement cohérent_: cette configuration a existé vraiment à un moment donné.
+### Cohérence _forte_ / _faible_ entre collections de documents
+Toutes les collections de documents et documents dont la synchronisation a été demandée par la même requête sont en cohérence _forte_, calculés exactement sur le même état de la base noté par la date-heure t de l'opération.
 
-Mais deux demandes faites pour deux fils, forcément à des moments différents, retourne deux états de fils qui ont pu ne jamais exister conjointement: il en résulte une _cohérence faible_ entre fils, un état qui globalement peut être fonctionnellement incohérent temporairement.
+En revanche, quand des documents sont synchronisés par deux requêtes (r1 à t1) et (r2 à t2) différentes, leur cohérence est _faible_, certains étant connus dans l'état t1 de la bse et d'autres dans l'état t2 de la base: toutefois pour ces documents rien ne dit que les état à t1 et t2 sont différents ou identiques.
 
-> On pourrait certes grouper dans la même requête des demandes concernant plusieurs fils: toutefois le volume correspondant retourné peut être important et la transaction correspondante de collecte être longue et induire des blocages techniques de la base de données. Il y a applicativement un compromis à choisir entre _force de la cohérence entre arbres_ et lourdeur technique.
 
-## Authentification _double_
+> On pourrait certes grouper dans une même requête toutes les _synchronisations de tous les abonnements_ mais la requête put être longueet le volume (trop) important. Il y a applicativement un compromis à choisir entre _force de la cohérence entre documents_ et lourdeur technique.
+
+### Authentification _double_
 (questions, pertinence)
 
 Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigeant une confirmation sur un appareil #2 (favori ou non).
@@ -822,22 +781,12 @@ Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigean
 - et si l'utilisateur N'A PAS d'appareil #2 (au moins sous la main) ?
 - si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
 
-### Attacher des _credentials_ aux _fils_
-Le _credential_ attaché à un fil gouverne le droit à,
-- en lire les documents,
-- à s'y abonner. L'id d'un _fil_ est quasi publique. Le fait de pouvoir recevoir une notification quand un _fil_ évolue, bref _d'espionner_ quand un fil évolue, est une information qui doit être soumise à autorisation.
+### Attacher des _droits d'accès_ aux _abonnements_
+Il peut être requis par une application qu'un _droit d'accès_ soit fourni pour chaque abonnement élémentaire.
+- ceci évite qu'une session soit _notifiée_ de mises à jour de documents auxquels elle n'a pas droit d'accès.
+- la _synchronisation effective_ (récupérer le contenu des documents) est sauf exception soumise à des _droits d'accès_.
 
-Les autorisations de création / mise à jour sont gérées par l'application selon des règles applicatives plus riches.
-
-Chaque _type de fil_ est associé à un _type de credential_:
-- les propriétés identifiantes du credential doivent toutes figurer dans les propriétés identifiantes du type de fil.
-- par exemple le fil `CMDGP` est identifié par `gp.livr`.
-- son _credential_ associé sera par exemple `CREDGP` identifié par `gp`.
-- pour accéder à un _fil_ d'une livraison d'un groupement, il faut avoir le _credential_ de ce groupement.
-
-> Des documents de ce fil, par exemple les _cartons_, apparaissent aussi dans un autre fil relatif au point-de-livraison (`CMDGC` identifié par `gc.gp.livr`). Ce second fil sera associé à un _credential_ `CREDGC` identifié par `gc`. Les _cartons_ seront donc accessibles soit en ayant un _credential_ `CMDGP`, soit un _credential_ `CMDGC`, avec en conséquence des notifications de deux ordres avec des autorisations différentes.
-
-## Les _activités_ définies dans une application
+## OBSOLÈTE ??? : _activités_ définies dans une application
 
 Dans une application terminale une _activité_ désigne un ensemble de tâches cohérentes qu'un utilisateur peut effectuer. Par exemple dans l'exemple _circuitscourts_:
 - l'activité _commande d'un consommateur_ où un consommateur peut déclarer les quantités qu'il souhaite recevoir pour les livraisons en cours.

@@ -17,7 +17,8 @@ Plusieurs angles de vue caractérisent l'usage de l'application.
 
 ### Vue d'un auteur
 Un auteur peut voir:
-- _synchronisé_ : sa propre fiche d'information et les articles dont il est un des auteurs.
+- _synchronisé_ : sa propre fiche d'information.
+- _synchronisé_ : la liste des articles dont il est un des auteurs.
 - _synchronisé_ : la liste des chats auxquels il participe et le détail de chacun.
 - la liste des sujets gérés, possiblement avec un filtre.
 
