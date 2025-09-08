@@ -7,11 +7,14 @@ title: Use-cases : circuitscourts, asocial
 Des _auteurs_ écrivent des _articles_ qui sont relus par des _groupes_ de relecture et les auteurs peuvent communiquer entre eux par chat.
 - un _auteur_ a un code identifiant immuable et une carte de visite (photo et texte).
 - un _groupe_ a un code identifiant immuable et une carte de visite. A groupe a des meetings de relecture, chacun donnant lieu à un compte-rendu.
-- un _article_ a un identifiant aléatoire immuable, un _sujet_ comme "écologie", une liste d'auteurs et un texte, voire des fichiers attachés.
-- les auteurs peuvent participer à des _chats_:
-  - un chat a un code identifiant immuable.
-  - un chat a un texte qui donne les derniers échanges dans l'ordre ante-chronologique jusqu'à un volume maximal donné.
-  - un ou plusieurs auteurs peuvent s'inscrire et se désinscrire d'un chat.
+- un _article_ a un identifiant aléatoire immuable, 
+  - un _sujet_ comme "écologie": le sujet peut être adapté. 
+  - une _liste d'auteurs_ qui peut évoluer au cours du temps.
+  - un texte, voire des fichiers attachés.
+- les auteurs peuvent participer à des _chats_. Un chat a:
+  - un code identifiant immuable.
+  - une liste de _participants_, chacun étant un auteur qui peut s'inscrire et se désinscrire d'un chat (ou de plusieurs).
+  - un texte qui donne les derniers échanges dans l'ordre ante-chronologique jusqu'à un volume maximal donné.
 
 Plusieurs angles de vue caractérisent l'usage de l'application.
 
@@ -20,7 +23,7 @@ Un auteur peut voir:
 - _synchronisé_ : sa propre fiche d'information.
 - _synchronisé_ : la liste des articles dont il est un des auteurs.
 - _synchronisé_ : la liste des chats auxquels il participe et le détail de chacun.
-- la liste des sujets gérés, possiblement avec un filtre.
+- un report avec la liste des sujets gérés, possiblement avec un filtre.
 
 Un auteur reçoit des _notifications_ textuelles:
 - même quand l'application n'est pas lancée lorsqu'un de ses chats évolue.
