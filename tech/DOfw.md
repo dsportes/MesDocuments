@@ -213,24 +213,47 @@ Des _fichiers_ peuvent être attachés à un document
 
 **Une liste `pk` ordonnée de propriétés _string_ immuables constitue l'identifiant fonctionnel du document** (clé primaire en SQL, path en NOSQL). Cette `pk` peut ne contenir qu'un terme, le cas échéant généré aléatoirement à la création.
 
+Pour chaque classe de document il peut être déclaré :
+- des _collections_ : l'ensemble des documents de cette classe associés à une valeur d'une propriété. Les sessions peuvent _s'abonner_ aux évolutions des collections.
+- des _index_ : les propriétés pouvant être utilisées pour obtenir une liste _report_ des documents de cette classe associés à la valeur de cette propriété.
+
 ### Exemple du document `Article` dans le Use-case _revues_
-- Propriétés:
-  id : générée aléatoirement.
-  auteurs: liste des auteurs.
-  sujet: sujet de l'article.
-  soussujet: sujet détaillé.
-  taille: taille de l'article.
-  texte: texte de l'article.
-  fichiers: fichiers attachés et leur tailles.
-  volume: volume total des fichiers attachés.
-- Clés _identifiantes et de synchronisation_
-  - pk: [id]
-  - auteurs: liste auteurs
-  - sujet: [sujet, soussujet]
-- Index _de filtrage_
-  - taille: taille, entier
-  - volume: volume, entier
-  - sujet: sujet
+Propriétés: la classe est _synchronisée_.
+- `id` : générée aléatoirement.
+- `auteurs`: liste des auteurs.
+- `sujet`: sujet de l'article.
+- `sousSujet`: sujet détaillé de l'article.
+- `taille`: taille de l'article.
+- `texte`: texte de l'article.
+- `fichiers`: fichiers attachés et leur tailles.
+- `volume`: volume total des fichiers attachés.
+
+Clé primaire `pk` : `[id]`
+- la classe étant _synchronisée_.
+  - Une session peut s'abonner à un document et être notifié de son évolution.
+  - Une session peut s'abonner à la classe de document et être notifié de tout ajout, suppression ou modification d'un `Article`.
+
+#### Collections
+- _auteurs_ : `[auteurs]`.
+  - _mutable_: la liste des auteurs peut être mise à jour.
+  - _liste_: c'est une _liste_ d'auteurs, pas un seul.
+- _sujet_: `[sujet, sousSujet]`
+  - _NON mutable_: déclaré à la création de l'article sans possibilité de mise à jour.
+  - _terme unique_: il n'y a qu'un sujet/sousSujet (pas une liste).
+
+**Exemples:**
+- une session peut _s'abonner_ à la collection `Article/auteurs/Zola`:
+  - elle recevra une notification à chaque fois que la liste des articles dont l'un des auteurs est `Zola` change (et quand `Zola` ait été ajouté ou retiré de la liste des auteurs d'un article).
+  - elle pourra demander tous les articles de cette collection ayant changé ou ayant été ajouté ou ayant été retiré de cette collection depuis une version t1.
+
+#### Index _de filtrage_
+- propriété taille: type _entier_
+- propriété volume: type _entier_
+- propriété sujet: type _hash_
+
+On peut obtenir une liste filtrée par _taille_ des documents ayant une taille `< <= == >= >` à une taille x fournie.
+
+On peut obtenir une liste filtrée par _sujet_ des documents ayant un sujet égal un sujet x fourni.
 
 Les synchronisations possibles des documents `Article` sont `Article.pk Article.auteurs Article.sujet`
 - `Article.pk:1234` : synchronisation de l'article par sa clé primaire '1234'.
@@ -241,13 +264,13 @@ Les synchronisations possibles des documents `Article` sont `Article.pk Article.
 #### Vue d'un _auteur_
 Un auteur peut voir:
 - _synchronisé_ : sa propre fiche d'information.
-- _synchronisé_ : la liste des articles dont il est un des auteurs. Si son identifiant est 'Hugo', l'abonnement `Article.auteurs:Hugo` fournit la synchronisation de cette liste.
+- _synchronisé_ : la liste des articles dont il est un des auteurs. Si son identifiant est 'Hugo', l'abonnement `Article/auteurs/Hugo` fournit la synchronisation de cette liste.
 - _synchronisé_ : la liste des chats auxquels il participe et le détail de chacun.
 - la liste des sujets gérés, possiblement avec un filtre.
 
-L'abonnement `Article.auteurs:Hugo`:
+La demande de la collection `Article/auteurs/Hugo` à `t1`:
 - fournit _intégralement_ **tous** les articles dont Hugo est un des auteurs.
-- fournit _incrémentalement_ les articles créés, modifiés, supprimés ou n'ayant PLUS Hugo comme auteur depuis la dernière demande datée t.
+- fournit _incrémentalement_ les articles créés, modifiés, supprimés ou n'ayant PLUS Hugo comme auteur depuis `t1`.
 
 Un _auteur_ reçoit des _notifications_ textuelles:
 - même quand l'application n'est pas lancée lorsqu'un de ses chats évolue.
@@ -274,9 +297,9 @@ Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifiq
 
 En base de données, les propriétés **visibles de la base de données** sont:
 - `pk` : clé primaire ou path.
-- les propriétés de _synchronisation_ (s'il y en a) : `auteurs sujet` : les _groupes de propriétés_ auxquels les sessions peuvent s'abonner: par exemple _auteurs_ contient la liste des auteurs et permet à chaque auteur de s'abonner aux articles auxquels il a contribué.
+- les _collections_ (s'il y en a) : `auteurs sujet`. Elles donnent les _groupes de propriétés_ auxquels les sessions peuvent s'abonner: par exemple _auteurs_ contient la liste des auteurs et permet à chaque auteur de s'abonner aux articles auxquels il a contribué.
 - les propriétés _indexables_ (s'il y en a) `taille volume` : pour effectuer des _filtrages sélectifs_ ou des accès par identifiants alternatifs.
-- `v` : version: date-heure en micro-seconde de l'opération ayant créé/ mis à jour / zombifié le document.
+- `v` : version: _time_ de l'opération ayant créé/ mis à jour / zombifié le document.
 - `z` : jour de suppression logique.
 - `data`.
 
@@ -334,21 +357,21 @@ Un traitement périodique de nettoyage liste les fichiers inscrits dans `FTP` de
 # Abonnements d'une application à des _documents_
 
 Un _abonnement_ peut porter:
-- sur la collection complète de tous les documents d'une classe D1 : référence `D1`.
-- sur UN document d'une classe D1 et de clé primaire 1234 : référence `D1:pk/1234`.
-- sur la **sous-collection** des documents d'une classe D1 dont la propriété synchronisable prop1 à pour valeur abcd: référence `D1.prop1:abcd`
+- sur la collection complète de tous les documents d'une classe D1 synchronisée : référence `D1`.
+- sur UN document d'une classe D1 et de clé primaire 1234 : référence `D1/pk/1234`.
+- sur la **collection** des documents d'une classe D1 dont la propriété déclarant la collection coll1 à pour valeur abcd: référence `D1/coll1/abcd`
 
 > Une session reçoit au fil de l'eau des avis de changement donnant **la liste des codes** de ses abonnements dont le contenu a évolué: pour maintenir à jour une copie différée des documents concernés, la session interroge ensuite le serveur pour obtenir pour chaque abonnement listé les documents eux-mêmes.  
 
 ### Références d'abonnement ayant un texte de _pop-up_
 Certaines références d'abonnements peuvent être utilisés comme _alertes_. 
 - Quand un document change (par exemple `Chat`), les _références_ des abonnements `Chats....` concernés sont _poussés_ en notification des sessions abonnés.
-- Quand un de ces abonnements a spécifié un _texte de pop-up_, celui-ci est affiché par le browser lors de sa réception, **que l'application soit lancéé OU NON**.
+- Quand un de ces abonnements a spécifié un _texte de pop-up_, celui-ci est affiché par le browser lors de sa réception, **que l'application soit lancée OU NON**.
 
 > Des pop-ups d'alertes peuvent ainsi s'afficher, même quand l'application n'est pas lancée, et ainsi informer l'utilisateur qui peut cliquer sur le pop-up pour ouvrir l'application et / ou la faire venir en premier plan. Si l'application était lancée et que l'écran montrait un contenu concerné par cette annonce de changement, la vue à l'écran se synchronise au nouveau contenu.
 
 Suivant ce paradigme, une application présente à son utilisateur trois concepts:
-- des **notifications d'alerte** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution tarifaire (un tarif vu comme une collection de documents). Elles **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
+- des **notifications d'alerte** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution de nomenclature d'articles (liste des documents Sujet). Elles **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
 - des **notification de documents synchronisés**: les documents correspondant sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur (du moins quand l'application est _au premier plan_).
 - des **_rapports_**: ce sont des vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
 
@@ -372,7 +395,7 @@ Ces modules forment une couche logicielle offrant un certain nombre de services 
 ## Gestion des _opérations_
 **Une opération est initiée par la réception d'un requête HTTP**. La couche de base:
 - identifie l'opération demandée en fonction de l'URL.
-- détermine sa _version_ une date-heure unique et croissante qui sera attribuée aux versions des documents créés / modifiés / supprimés par l'opération.
+- fixe son _time_ une date-heure unique (pour le serveur) et croissante qui sera attribuée aux versions des documents créés / modifiés / supprimés par l'opération.
 - récupère les paramètres d'entrée et les met à disposition de l'opération dans une structure.
 - **gère l'opération comme une succession de phases:**
   - **phase 1:** vérification que les paramètres d'entrée sont bien formés, présents s'ils étaient obligatoires, etc. _Normalement_ l'application terminale s'en est assuré mais l'opération dans le serveur fait cette vérification pour éviter de tomber sur des exceptions dues à des valeurs qui n'auraient pas dues être trouvées en entrée. Cette phase s'effectue sans accès à la base de données.

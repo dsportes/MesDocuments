@@ -17,18 +17,15 @@ Les classes de documents NON synchronisables ne supportent pas d'abonnements.
 - la **suppression** d'un document _NOSYNC_ est traitée une purge physique effective (_delete_ classique).
 
 ## Version des opérations / documents en base de données
-Une _version_ est un entier donnant une date-heure en _micro-seconde_:
-- les 5 premiers chiffres donne le numéro du jour depuis le 1970.
-- les 8 suivants donne le nombre de ms dans la journée.
-- les 3 suivants donne un numéro _arbitraire_ de micro-seconde attribué au lancement du serveur et tel que deux instances de serveurs n'aient pas la même valeur. Ce numéro est réattribué lors de la première opération du jour pour le serveur (soit un maximum de 999 lancements de serveur par jour).
+Le _time_ d'une opération est sa date-heure UTC "epoch" prise au début d'une opération, et reprise au début de sa phase 2 (dans la _transaction_) : tout document mis à jour dans une opération a pour version le _time_ de l'opération.
 
-Chaque opération reçoit à sa création une _version_, unique et chronologique donc: tous les documents créés / modifiés / zombifiés par l'opération en seront porteur.
+Pour un document donné la version ne peut pas régresser: quand un document est lu (dans la _transaction_) si sa version est supérieure ou égale au _time_ de l'opération, la transaction est sortie en exception `REGVER` (_régression de version_) et la transaction est relancée avec une nouvelle valeur du _time_ de l'opération.
 
 ## Classes spéciales `Hdr Org Ftp`
 `Hdr` est une classe synchronisable singleton représentant l'état global du _service_:
 - elle ne peut être mise à jour que par une opération de niveau _administration_.
 - sa _clé primaire_ par convention vaut '1'.
-- elle n'a ni _propriétés de synchronisation_, ni _propriétés indexées_.
+- elle n'a ni _sous-collections_, ni _propriétés indexées_.
 
 `Org` est la classe dont chaque instance représente une _organisation_, son statut, etc.
 - sa _clé primaire_ est par convention le code de l'organisation.
@@ -77,10 +74,61 @@ Ses propriétés systématiques sont:
   - pour les autres classes, `pk` est le sha16 de `p1/p2/ ...` ou les `pi` sont propriétés formant la clé primaire.
 - `v` : entier. version du document.
 - `z` : entier ou absent. Valeur de zombi pour un document supprimé.
-- `del` : booléen optionnel (voir plus loin)
+- `minus` : booléen optionnel (voir plus loin)
 - `data` : binaire, jamais indexé. Sérialisation cryptée du _data_ du document.
 
-Ses autres propriétés sont indexées.
+Ses autres propriétés sont indexées:
+- **une propriété par _collection_** (par exemple `auteurs` pour un `Article`): ce peut être une valeur ou une liste de valeurs.
+- **une propriété par propriété déclarée indexée** (par exemple `volume` pour un `Article`)
+
+# Collections: mises à jour _incrémentales_ en sessions
+La mémoire d'une session comporte:
+- **une mémoire par document** (pour sa classe) identifiée par sa `pk`. La copie en session d'UN document donné porte sa version `v`: toute mise à jour portant une version inférieure ou égal à `v` est ignorée (plus vieille ou déjà faite).
+- **une mémoire par _collection_**.
+
+### Collections en mémoire d'une session
+Une collection est identifiée dans la mémoire d'une session par _classe / propriété / valeur_ par exemple `Article/auteurs/Zola`.
+
+Une collection a deux propriétés: 
+- `v` : `t1` la date-heure de l'opération qui en a retourné la mise à jour la plus récente.
+- `pks`: la liste des `pk` des documents de la collection (ce qui permet d'en obtenir le contenu dans la mémoire des documents).
+
+Le principe de mise à jour incrémentale d'une collection consiste à solliciter une opération retournant tous les documents _plus / égal_ de la collection`Article/auteurs/Zola]` de version postérieure à `t1` ET / OU tous les _moins_ (articles retirés de cette collection depuis `t1`). Cette opération a un _time_ `t2` qui replace `t1` dans l'objet collection.
+
+### Imprécision de la _version_ d'une collection en mémoire d'une session
+Pour un _document_ sa version n'a pas d'ambiguïté : même si les mises à jour ont été effectuées par des serveurs différents, le contrôle de _non régression_ pour chaque document garantit bien une progression chronologique réelle.
+
+Ce n'est pas le cas quand il s'agit d'une _collection_:
+- deux instances de serveurs peuvent avoir exécuté _simultanément_ et en parallèle deux opération impactant la collection `Article/auteurs/Zola`:
+  - Sur S1 : l'article 5 a une liste d'auteurs qui passe de `[Victor, Zola]` à `[Victor, Hugo]` dans une opération marquée `t2`.
+  - Sur S2 : l'article 6 a une liste d'auteurs qui passe de `[Freud]` à `[Freud, Zola]` dans une opération aussi marquée `t2`.
+
+En effet si les horloges des serveurs sont _à peu près_ synchronisées elles toutes la possibilité d'indiquer le même temps `t2` à des moments qu'il est impossible de comparer. En conséquence, demander **_toutes les modifications sur la collection `Article/auteurs/Zola` intervenues après `t1`_** expose à obtenir des résultats différents:
+- selon que le `t1` en question a été retourné par S1 ou S2,
+- selon le serveur S3 à qui on pose la question et dont le _time_ d'opération a encore une autre valeur.
+
+Il faut donc accepter cette incertitude sur les _versions des collections_ et la gérer en sécurité:
+- une demande des mises à jour portant sur `Article/auteurs/Zola` transmet une version `tx` au serveur,
+- le retour porte un _time_ d'opération `ty`: la _version_ enregistrée pour la collection remplaçant `t`x ne va pas être `ty` mais `ty - DELTA`.
+
+En conséquence, une même mise à jour _peut_ parvenir plus d'une fois.
+
+### Maintien en session de la _cohérence_ entre _documents_ et _collections_
+L'opération retournant une _collection_ comme `Article/auteurs/Zola` à `t1`, ne retourne qu'une seule ligne _plus_ ou _moins_ pour chaque `pk`, **la plus récente**.
+
+Cette liste comporte in fine:
+- des _plus_ : articles ayant `Zola` dans sa liste d'auteur et de _version_ > t1. Pour chaque article `X`:
+  - si `X` n'est pas présent dans la mémoire des documents `Article`, il y est mis et la collection contient `X`.
+  - si `X` figure déjà dans la mémoire,
+    - on ne le remplace que s'il est plus récent,
+    - selon la valeur de `X` dans la mémoire des documents on met ou non `X` dans la collection selon que la liste des auteurs contient ou non `Zola`.
+- des _moins_ : articles dont `Zola` a été retiré de la liste des auteurs lors d'une opération postérieure à `t1`. Pour chaque article `X`:
+  - si `X` n'est pas présent dans la mémoire des documents `Article`, il y est mis et la collection NE contient PAS `X`.
+  - si `X` figure déjà dans la mémoire,
+    - on ne le remplace que s'il est plus récent,
+    - selon la valeur de `X` dans la mémoire des documents on met ou non `X` dans la collection selon que la liste des auteurs contient ou non `Zola`.
+
+> La liste des _mises à jour postérieures à t1_ d'une collection est en conséquence _imprécise_: chaque session doit en contrôler la pertinence selon la version la plus récente de chaque document de cette liste dans la mémoire _documents_ de la session.
 
 ### Sous-collections _synchronisables_
 Il peut ne pas y en avoir.
