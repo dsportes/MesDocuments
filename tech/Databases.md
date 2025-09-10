@@ -31,25 +31,24 @@ Pour un document donné la version ne peut pas régresser: quand un document est
 - sa _clé primaire_ est par convention le code de l'organisation.
 
 ## Format _data_
-_data_ est un objet ayant toujours les propriétés suivantes:
-- `clazz` : string donnant la classe du document, commençant par une majuscule comme `Avatar`.
+_data_ est un objet ayant A MINIMA les propriétés suivantes:
+- `clazz` : string donnant la classe du document, commençant par une majuscule comme `Article`.
 - `org` : string donnant le code de l'organisation. Ce code est inscrit au moment de l'écriture d'un document dans la DB, (pour un objet créé et jamais inséré il est absent).
   - certaines sélections pour les tâches d'administration peuvent retourner des documents issus de plusieurs organisations: on retrouve ainsi l'organisation de chaque document.
   - normalement aucun traitement applicatif pur (sauf administration) n'a à traiter l'organisation d'un document.
 - `v` : date-heure de l'opération l'ayant créé / mis à jour / zombifié.
-- `z` : entier. Numéro de jour de suppression logique du document. Si absent le document existe.
-- `p1 p2 p3 ...` : propriétés string constituant de la _clé primaire_ du document. 
+- `x` : une propriété technique donnant l'état du document.
+- `p1 p2 p3 i1 i2 ...` : propriétés string constituant de la _clé primaire_ du document.
 
-> Les noms des propriétés _applicatives_ ne commencent pas par `_`. 
+_data_ contient de plus,
+- les propriétés citées dans les index.
+- les autres propriétés _applicatives_ du document: 
+  - elles ont n'importe quel nom commençant par une minuscule.
+  - elles peuvent des `string, number, boolean, array, objet`.
 
-Un document _zombi_ (supprimé logiquement) a un _data_ ne contenant **que** les propriétés ci-dessus.
+Un document _zombi_ (supprimé logiquement) a un _data_ ne contenant **que** les propriétés A MINIMA ci-dessus.
 
-Autres propriétés applicatives:
-- elles ont n'importe quel nom commençant par une minuscule.
-- elles peuvent des `string, number, boolean, array, objet`.
-
-Un objet data peut être _sérialisé / désérialisé_ par `encode / decode` de `@msgpack/msgpack`.
-- pour devenir la propriété `data` d'un _row_, la sérialisation est cryptée par la clé du site.
+Un objet _data_ peut être _sérialisé / désérialisé_ par `encode / decode` de `@msgpack/msgpack`: la propriété `data` d'un _row_ (objet connu de la base de données) est la sérialisation cryptée par la clé du site.
 
 ## Format _Document_
 Une classe de document hérite de la class générique `Document`.
@@ -67,33 +66,42 @@ Ces méthodes d'instances de documents retourne l'objet _data_ depuis une instan
 ## Format _row_
 C'est un objet représentant le document stocké en DB.
 
-Ses propriétés systématiques sont:
-- `pk` : string. clé primaire.
+En base de données, les propriétés **visibles de la base de données** sont:
+- `pk` : clé primaire ou path.
   - pour les documents de classe `Org`, `pk` est le code de l'organisation.
   - pour les documents de classe `Hdr` qui sont des singletons, `pk` vaut `1`.
   - pour les autres classes, `pk` est le sha16 de `p1/p2/ ...` ou les `pi` sont propriétés formant la clé primaire.
-- `v` : entier. version du document.
-- `z` : entier ou absent. Valeur de zombi pour un document supprimé.
-- `minus` : booléen optionnel (voir plus loin)
+- les _index_ déclarés pour la classe de document (s'il y en a). Par exemple pour la classe _Article_ `auteurs sujet taille`.
+- `v` : version: _time_ de l'opération ayant créé / mis à jour / zombifié le document.
+- `ck x z` : trois propriétés _techniques_ gérer les _collections_ et la suppression des documents de manière par synchronisation incrémentale.
 - `data` : binaire, jamais indexé. Sérialisation cryptée du _data_ du document.
 
-Ses autres propriétés sont indexées:
+Les propriétés _index_ ci-dessus sont indexées:
 - **une propriété par _collection_** (par exemple `auteurs` pour un `Article`): ce peut être une valeur ou une liste de valeurs.
-- **une propriété par propriété déclarée indexée** (par exemple `volume` pour un `Article`)
+- **une propriété par _index simple ou global_** (par exemple `taille` pour un `Article`): ce peut être un _string, integer, float_.
 
 # Collections: mises à jour _incrémentales_ en sessions
 La mémoire d'une session comporte:
 - **une mémoire par document** (pour sa classe) identifiée par sa `pk`. La copie en session d'UN document donné porte sa version `v`: toute mise à jour portant une version inférieure ou égal à `v` est ignorée (plus vieille ou déjà faite).
+  - par document `subs` donne la liste des _abonnements_ qui ont provoqué sa présence: quand `subs` est vide, le document est _inutile_, ne sera plus mis à jour et peut être supprimé de cette mémoire.
 - **une mémoire par _collection_**.
 
 ### Collections en mémoire d'une session
 Une collection est identifiée dans la mémoire d'une session par _classe / propriété / valeur_ par exemple `Article/auteurs/Zola`.
 
 Une collection a deux propriétés: 
-- `v` : `t1` la date-heure de l'opération qui en a retourné la mise à jour la plus récente.
+- `v` : `t1` la date-heure de l'opération qui en a retourné la mise à jour la plus récente. 0 si elle n'a pas encore été chargée.
 - `pks`: la liste des `pk` des documents de la collection (ce qui permet d'en obtenir le contenu dans la mémoire des documents).
 
-Le principe de mise à jour incrémentale d'une collection consiste à solliciter une opération retournant tous les documents _plus / égal_ de la collection`Article/auteurs/Zola]` de version postérieure à `t1` ET / OU tous les _moins_ (articles retirés de cette collection depuis `t1`). Cette opération a un _time_ `t2` qui replace `t1` dans l'objet collection.
+Le principe de mise à jour incrémentale à `t1` d'une collection consiste à solliciter une opération retournant,
+- tous les documents _plus_ de la collection `Article/auteurs/Zola]` de version postérieure à `t1`: `x` vaut 0 pour un article existant, 1 pour un _zombi_, article supprimé logiquement.
+- ET / OU tous les _moins_ `x = 2` articles retirés de cette collection depuis `t1`. 
+
+Pour un pk donné, l'extrait de la base de données peut retourner plusieurs rows.
+- il n'en n'est conservé que ceux de `v` le plus récent.
+- quand il en reste plusieurs, celui de `x` = 0 ou 1 est conservé.
+
+Cette opération a un _time_ `t2` qui replace `t1` dans l'objet collection.
 
 ### Imprécision de la _version_ d'une collection en mémoire d'une session
 Pour un _document_ sa version n'a pas d'ambiguïté : même si les mises à jour ont été effectuées par des serveurs différents, le contrôle de _non régression_ pour chaque document garantit bien une progression chronologique réelle.

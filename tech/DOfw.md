@@ -317,13 +317,10 @@ En base de données, les propriétés **visibles de la base de données** sont:
 - `pk` : clé primaire ou path.
 - les _index_ déclarés pour la classe de document (s'il y en a). Par exemple pour la classe _Article_ `auteurs sujet taille`.
 - `v` : version: _time_ de l'opération ayant créé / mis à jour / zombifié le document.
-- `z` : jour de suppression logique.
-- `l` : 0: si c'est la version actuelle (ligne _plus_), 1: si c'est une ligne _moins_
+- `ck x z` : trois propriétés _techniques_ gérer les _collections_ et la suppression des documents de manière par synchronisation incrémentale.
 - `data`.
 
-Le contenu structuré complexe du document `data` est crypté et en conséquence _opaque_ pour la base de données.
-- selon leur type, les propriétés sont remplacées par leur _hash_ afin que leurs valeurs ne soient pas lisibles dans la base. 
-- toutefois les propriétés indexables utilisables par les opérateurs _d'ordre_ ( > < ) sont conservées telles quelles et non hachées.
+Le contenu structuré du document `data` est crypté, _opaque_ pour la base de données. Selon leur type, les propriétés de data peuvent être remplacées dans les _index_ par leur _hash_ (opaques également) sauf celles utilisables par les opérateurs _d'ordre_  `LT LE GE GT` qui sont conservées telles quelles.
 
 ### Fichiers attachés à un document
 Un fichier est stocké en deux parties:
@@ -372,36 +369,38 @@ Un traitement périodique de nettoyage liste les fichiers inscrits dans `FTP` de
 
 > Moyennant le respect de ce protocole simple, la gestion des fichiers dans un document bénéficie de la même sécurité transactionnelle que les autres propriétés du document.
 
-# Abonnements d'une application à des _documents_
+# Abonnements d'une application à des _documents / collections_
 
-Un _abonnement_ peut porter:
-- sur la collection complète de tous les documents d'une classe D1 synchronisée : référence `D1`.
-- sur UN document d'une classe D1 et de clé primaire 1234 : référence `D1/pk/1234`.
-- sur la **collection** des documents d'une classe D1 dont la propriété déclarant la collection coll1 à pour valeur abcd: référence `D1/coll1/abcd`
+Un _abonnement_ peut porter sur:
+- **la collection complète des documents** d'une classe _D1_ synchronisée : référence `D1`.
+- **UN document** d'une classe _D1_ et de clé primaire _1234_ : référence `D1/pk/1234`.
+- **la collection des documents** d'une classe _D1_ ayant une propriété _coll1_ d'usage COL à pour valeur _abcd_: référence `D1/coll1/abcd`.
 
-> Une session reçoit au fil de l'eau des avis de changement donnant **la liste des codes** de ses abonnements dont le contenu a évolué: pour maintenir à jour une copie différée des documents concernés, la session interroge ensuite le serveur pour obtenir pour chaque abonnement listé les documents eux-mêmes.  
+Une application soumet sa liste _d'abonnements_ en une fois et attribue un _code numérique court_ à chacun.
+
+> Une session reçoit au fil de l'eau des avis de changement donnant **la liste des codes** des abonnements dont le contenu a évolué: pour maintenir à jour une copie légèrement différée des documents concernés, la session interroge ensuite le serveur pour obtenir les documents eux-mêmes pour chaque abonnement ayant changé.  
 
 ### Références d'abonnement ayant un texte de _pop-up_
 Certaines références d'abonnements peuvent être utilisés comme _alertes_. 
 - Quand un document change (par exemple `Chat`), les _références_ des abonnements `Chats....` concernés sont _poussés_ en notification des sessions abonnés.
 - Quand un de ces abonnements a spécifié un _texte de pop-up_, celui-ci est affiché par le browser lors de sa réception, **que l'application soit lancée OU NON**.
 
-> Des pop-ups d'alertes peuvent ainsi s'afficher, même quand l'application n'est pas lancée, et ainsi informer l'utilisateur qui peut cliquer sur le pop-up pour ouvrir l'application et / ou la faire venir en premier plan. Si l'application était lancée et que l'écran montrait un contenu concerné par cette annonce de changement, la vue à l'écran se synchronise au nouveau contenu.
+> **Des pop-ups d'alertes peuvent ainsi s'afficher**, même quand l'application n'est pas lancée, et informer l'utilisateur qui peut cliquer sur le pop-up. Si l'application n'était pas lancée, elle l'est. Sinon si l'écran montrait un contenu concerné par cette annonce de changement, la vue à l'écran se synchronise au nouveau contenu. 
 
 Suivant ce paradigme, une application présente à son utilisateur trois concepts:
 - des **notifications d'alerte** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution de nomenclature d'articles (liste des documents Sujet). Elles **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
-- des **notification de documents synchronisés**: les documents correspondant sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur (du moins quand l'application est _au premier plan_).
+- des **notifications de documents synchronisés**: les documents correspondant sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur (du moins quand l'application est _au premier plan_).
 - des **_rapports_**: ce sont des vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
 
 **Les documents synchronisés dans une application** le restent a minima tant que l'application est **au premier plan**:
-- l'application **peut** décider de ne plus maintenir cette synchronisation quand elle passe **en arrière plan**: c'est une économie de ressources et comme en pratique l'utilisateur ne voit d'une application en arrière plan que les _pop-ups_ de notification, maintenir à jour un volume important de documents synchronisés n'a pas forcément d'intérêt.
-- en repassant au premier plan, l'application demande aux services de lui fournir les mises à jour des documents synchronisés depuis le dernier état connu antérieurement.
+- l'application **peut** décider de ne plus maintenir cette synchronisation quand elle passe **en arrière plan**: en pratique l'utilisateur ne voit d'une application en arrière plan que les _pop-ups_ de notification, c'est donc une économie de ressources que d'éviter de les synchroniser à cet instant.
+- en repassant au premier plan, l'application **peut** demander aux serveurs de lui fournir les mises à jour des documents synchronisés depuis le dernier état mémorisé en session.
 
 ### Quand l'application n'est plus en exécution
 Quand une application est en exécution elle peut rester _abonnée_ à des _alertes_.
 
 Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, certains de ces abonnements restent actifs, du moins un certain temps:
-- les notifications correspondantes continueront à s'afficher en _popups_, l'OS ou le browser de l'application s'en chargeant.
+- les notifications correspondantes continueront à s'afficher en _pop-ups_, l'OS ou le browser de l'application s'en chargeant.
 - l'utilisateur reste informé des _news_ auxquelles il était abonné.
 - un clic sur un ces _pop-ups_ ouvre l'application ce qui lui permet plus ou moins directement de connaître en détail les documents ayant changé.
 
