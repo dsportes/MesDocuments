@@ -200,7 +200,7 @@ Selon le standard JSON:
   - chaque terme d'une structure peut être une structure ou une donnée primitive.
 - les données primitives sont des _string, number, boolean_.
 
-Un document est un agrégat de données structurées en JSON dont la racine est une map dont chaque nom / clé donne la valeur d'une propriété qui elle-même peut être une structure ou une donnée élémentaire.
+Un document est un agrégat de données de structure JSON ayant une map pour racine et dont chaque nom / clé donne la valeur d'une propriété qui elle-même peut être une structure ou une donnée élémentaire.
 
 Des _fichiers_ peuvent être attachés à un document
 - chaque descriptif d'un fichier est une _map_ de quelques propriétés (nom, type, taille ...).
@@ -209,13 +209,40 @@ Des _fichiers_ peuvent être attachés à un document
 
 > Un document peut être volumineux et même _très_ volumineux en incluant ses fichiers attachés.
 
-**Il y a plusieurs _types_ de document**, chacun correspondant à une structure dont la racine est une map de _propriétés_.
+**Il y a plusieurs _classes_ de document**, chacune correspondant à une structure dont la racine est une map de _propriétés_.
 
 **Une liste `pk` ordonnée de propriétés _string_ immuables constitue l'identifiant fonctionnel du document** (clé primaire en SQL, path en NOSQL). Cette `pk` peut ne contenir qu'un terme, le cas échéant généré aléatoirement à la création.
 
-Pour chaque classe de document il peut être déclaré :
-- des _collections_ : l'ensemble des documents de cette classe associés à une valeur d'une propriété. Les sessions peuvent _s'abonner_ aux évolutions des collections.
-- des _index_ : les propriétés pouvant être utilisées pour obtenir une liste _report_ des documents de cette classe associés à la valeur de cette propriété.
+La propriété `v` version du document est le _time_ de l'opération qui l'a mise à jour. Une version ne régresse jamais pour un document donné.
+
+### Les index d'une classe de document
+Plusieurs _index_ peuvent être déclarés pour une classe de document. Un index peut avoir deux catégories d'usage:
+- **_filtre_** : une propriété indexée permet d'obtenir une liste _report_ des documents de cette classe filtrés selon la valeur de cette propriété. Deux sous-catégories:
+  - `SIMPLE` : les documents filtrés sont de la même organisation.
+  - `GLOBAL` : les documents peuvent être de n'importe quelle organisation: usage réservé à d**es opérations _d'administration_.
+- **_collection_ : la collection des documents de cette classe ayant une valeur donnée est _notifiable / synchronisable_. Deux sous-catégories:
+  - `COL` : la propriété définissant la collection peut être mise à jour.
+  - `IMUTCOL` : cette propriété reste constante pour le document après sa création.
+
+> Un **report** N'EST PAS SYNCHRONISE: une fois calculé (en utilisant les index simple et global) il reste tel quel. Pour être _rafraîchi_ il doit être redemandé / recalculé. Par opposition une **collection** est synchronisable, une session qui y est abonnée reçoit les _notifications de son changement_.
+
+Un index a un _type_ de données: `STRING, INTEGER, FLOAT, UNIQUE, LIST, HASH`
+- `STRING` : la valeur de la propriété est un _string_.
+- `INTEGER` : nombre sur 32 bits.
+- `FLOAT` : flottant en double précision.
+- `UNIQUE` : la valeur de la propriété est un _string_: UN seul document peut avoir cette valeur qui est stockée hachée en index. Sert à définir des clés identifiantes depuis un code fonctionnel alternatif à `pk`.
+- `LIST` : la valeur de la propriété est une liste de _strings_.
+- `HASH` : permet d'indexer soit UNE propriété `sujet`, soit un N-uplet `[sujet, sousSujet]`.
+  - la ou les propriétés sont des _strings_.
+  - l'index est **opaque**, c'est un hash de la valeur ou de la liste des valeurs pour un N-uplet.
+
+Les index de type `STRING, INTEGER, FLOAT` supportent des filtres d'égalité et de comparaison: `LT LE EQ GE GT`. Exemple: `volume GE 100`
+
+Les index de type `LIST` ne supporte que le filtre `CONTAINS`. Exemple : `membres CONTAINS 'Bob'`
+
+Les index de type `UNIQUE HASH` ne supportent que le filtre `EQ`. Exemple : `sujet EQ 'écologie'`. La valeur de sujet n'apparaît pas en clair dans la base de données mais seulement son _hash_.
+
+Les _collections_ ne peuvent être déclarées que sur les types `LIST HASH`.
 
 ### Exemple du document `Article` dans le Use-case _revues_
 Propriétés: la classe est _synchronisée_.
@@ -233,33 +260,33 @@ Clé primaire `pk` : `[id]`
   - Une session peut s'abonner à un document et être notifié de son évolution.
   - Une session peut s'abonner à la classe de document et être notifié de tout ajout, suppression ou modification d'un `Article`.
 
-#### Collections
-- _auteurs_ : `[auteurs]`.
-  - _mutable_: la liste des auteurs peut être mise à jour.
-  - _liste_: c'est une _liste_ d'auteurs, pas un seul.
-- _sujet_: `[sujet, sousSujet]`
-  - _NON mutable_: déclaré à la création de l'article sans possibilité de mise à jour.
-  - _terme unique_: il n'y a qu'un sujet/sousSujet (pas une liste).
+#### Index
+`auteurs: { type: LIST, use: COL }`
+- la propriété est auteurs est une liste et peut changer de valeur.
+- elle définit une **collection** : `Article/auteurs/Hugo` définit la collection des articles dont un des auteurs est 'Hugo'.
 
-**Exemples:**
-- une session peut _s'abonner_ à la collection `Article/auteurs/Zola`:
-  - elle recevra une notification à chaque fois que la liste des articles dont l'un des auteurs est `Zola` change (et quand `Zola` ait été ajouté ou retiré de la liste des auteurs d'un article).
-  - elle pourra demander tous les articles de cette collection ayant changé ou ayant été ajouté ou ayant été retiré de cette collection depuis une version t1.
+`sujdet: { type: HASH, use: COL, props: [sujet, sousSujet]`
+- le N-uplet de propriétés `[sujet, sousSujet]` forme un index de nom `sujdet`.
+- il est de type HASH et permet une sélection sur égalité à un couple `[s1, ss1]`.
+- elle définit (aussi) une **collection**: `Article/sujdet/écologie/solaire` définit la collection des articles dont le sujet détaillé est `écologie/solaire`.
+- `sujdet` n'est pas une liste, un article n'a QU'UN SEUL sujet détaillé qui peut changer au cours du temps pour un document.
 
-#### Index _de filtrage_
-- propriété taille: type _entier_
-- propriété volume: type _entier_
-- propriété sujet: type _hash_
+`taille: { type: INTEGER, use: SIMPLE }`
+- l'index par taille permet des sélections de comparaison d'ordre.
+- Par exemple: tous les articles dont la taille est supérieure à 5000.
 
-On peut obtenir une liste filtrée par _taille_ des documents ayant une taille `< <= == >= >` à une taille x fournie.
+**Exemple: usage des collections `Article/auteurs`**
+- une session peut _s'abonner_ à la collection `Article/auteurs/Zola`.
+- elle recevra une notification à chaque fois que la liste des articles dont l'un des auteurs est `Zola` change (et quand `Zola` ait été ajouté ou retiré de la liste des auteurs d'un article).
+- elle pourra demander tous les articles de cette collection ayant changé ou ayant été ajouté ou ayant été retiré de cette collection depuis une version t1.
 
-On peut obtenir une liste filtrée par _sujet_ des documents ayant un sujet égal un sujet x fourni.
-
-Les synchronisations possibles des documents `Article` sont `Article.pk Article.auteurs Article.sujet`
-- `Article.pk:1234` : synchronisation de l'article par sa clé primaire '1234'.
-- `Article.auteurs:Hugo` : liste synchronisée des articles dont 'Hugo' est un des rédacteurs.
-- `Article.sujet:écologie/solaire` : liste synchronisée des articles ayant pour sujet [écologie, solaire]
-- la liste `Article` de tous les articles serait synchronisable mais n'est pas utilisée en raison de son volume. 
+**Exemple des synchronisations possibles**
+Pour une session donnée, les synchronisations possibles des documents `Article` sont `Article/pk Article/auteurs Article/sujdet`
+- `Article/pk/1234` : synchronisation de l'article par sa clé primaire '1234'.
+- `Article/auteurs/Hugo` : liste synchronisée des articles dont 'Hugo' est un des rédacteurs.
+- `Article/sujet/écologie/solaire` : liste synchronisée des articles ayant pour sujet détaillé `[écologie, solaire]`
+- la liste `Article` de tous les articles est synchronisable mais pourrait avoir un volume très important.
+- la session peut synchroniser plusieurs collections auteurs (Hugo, Zola), plusieurs articles (1234, 5678, 9876) et plusieurs collections sujets détaillés.
 
 #### Vue d'un _auteur_
 Un auteur peut voir:
@@ -276,18 +303,9 @@ Un _auteur_ reçoit des _notifications_ textuelles:
 - même quand l'application n'est pas lancée lorsqu'un de ses chats évolue.
 - quand l'application est lancée lorsqu'un de ses articles évolue.
 
-#### Propriétés _indexables_
-Certaines propriétés sont _indexables_.
-- soit pour être utilisées comme identifiants alternatifs, _uniques_ mais pas _immuables_, du document.
-- soit pour filtrer la collection de ces documents selon des seuils de valeurs: par exemple avoir un _report_ des articles dont le volume des fichiers dépasse un seuil donné.
-
-> Un **report** N'EST PAS SYNCHRONISE: une fois calculé il reste tel quel. Pour être _rafraîchi_ il doit être redemander / recalculer.
-
-La propriété `version` du document est un numéro d'ordre de mise à jour: la numérotation est _chronologique_ mais pas _continue_.
-
-#### Suppression des documents synchronisables
+### Suppression des documents synchronisables
 Pour que les sessions _abonnées_ soient informés qu'un document a été _supprimé_ on opère une _suppression logique_, le document est marqué _zombi_ au lieu d'être _purgé_.
-- La propriété `zombi` contient le jour de suppression _logique_.
+- La propriété `z` contient le jour de suppression _logique_.
 - Après quelques mois, les sessions abonnées sont supposées avoir été synchronisées et le document est purgé physiquement. Les sessions n'ayant pas opéré une telle synchronisation devront effectuer une demande de liste _intégrale_ et non pas _incrémentale_ depuis t (date-heure de la dernière synchronisation incrémentale).
 
 ### Stockage d'un document d'un type donné
@@ -297,14 +315,14 @@ Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifiq
 
 En base de données, les propriétés **visibles de la base de données** sont:
 - `pk` : clé primaire ou path.
-- les _collections_ (s'il y en a) : `auteurs sujet`. Elles donnent les _groupes de propriétés_ auxquels les sessions peuvent s'abonner: par exemple _auteurs_ contient la liste des auteurs et permet à chaque auteur de s'abonner aux articles auxquels il a contribué.
-- les propriétés _indexables_ (s'il y en a) `taille volume` : pour effectuer des _filtrages sélectifs_ ou des accès par identifiants alternatifs.
-- `v` : version: _time_ de l'opération ayant créé/ mis à jour / zombifié le document.
+- les _index_ déclarés pour la classe de document (s'il y en a). Par exemple pour la classe _Article_ `auteurs sujet taille`.
+- `v` : version: _time_ de l'opération ayant créé / mis à jour / zombifié le document.
 - `z` : jour de suppression logique.
+- `l` : 0: si c'est la version actuelle (ligne _plus_), 1: si c'est une ligne _moins_
 - `data`.
 
 Le contenu structuré complexe du document `data` est crypté et en conséquence _opaque_ pour la base de données.
-- les propriétés _synchronisables / indexables_ sont remplacées par leur _hash_ afin que leurs valeurs ne soient pas lisibles dans la base. 
+- selon leur type, les propriétés sont remplacées par leur _hash_ afin que leurs valeurs ne soient pas lisibles dans la base. 
 - toutefois les propriétés indexables utilisables par les opérateurs _d'ordre_ ( > < ) sont conservées telles quelles et non hachées.
 
 ### Fichiers attachés à un document
