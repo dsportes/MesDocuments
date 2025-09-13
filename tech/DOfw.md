@@ -226,11 +226,10 @@ Plusieurs _index_ peuvent être déclarés pour une classe de document. Un index
 
 > Un **report** N'EST PAS SYNCHRONISE: une fois calculé (en utilisant les index simple et global) il reste tel quel. Pour être _rafraîchi_ il doit être redemandé / recalculé. Par opposition une **collection** est synchronisable, une session qui y est abonnée reçoit les _notifications de son changement_.
 
-Un index a un _type_ de données: `STRING, INTEGER, FLOAT, UNIQUE, LIST, HASH`
+Un index a un _type_ de données: `STRING, INTEGER, FLOAT, LIST, HASH`
 - `STRING` : la valeur de la propriété est un _string_.
 - `INTEGER` : nombre sur 32 bits.
 - `FLOAT` : flottant en double précision.
-- `UNIQUE` : la valeur de la propriété est un _string_: UN seul document peut avoir cette valeur qui est stockée hachée en index. Sert à définir des clés identifiantes depuis un code fonctionnel alternatif à `pk`.
 - `LIST` : la valeur de la propriété est une liste de _strings_.
 - `HASH` : permet d'indexer soit UNE propriété `sujet`, soit un N-uplet `[sujet, sousSujet]`.
   - la ou les propriétés sont des _strings_.
@@ -238,9 +237,7 @@ Un index a un _type_ de données: `STRING, INTEGER, FLOAT, UNIQUE, LIST, HASH`
 
 Les index de type `STRING, INTEGER, FLOAT` supportent des filtres d'égalité et de comparaison: `LT LE EQ GE GT`. Exemple: `volume GE 100`
 
-Les index de type `LIST` ne supporte que le filtre `CONTAINS`. Exemple : `membres CONTAINS 'Bob'`
-
-Les index de type `UNIQUE HASH` ne supportent que le filtre `EQ`. Exemple : `sujet EQ 'écologie'`. La valeur de sujet n'apparaît pas en clair dans la base de données mais seulement son _hash_.
+Les index de type `LIST` ne supporte que le filtre `CONTAINS`. Exemple : `membres CONTAINS 'Bob'`.
 
 Les _collections_ ne peuvent être déclarées que sur les types `LIST HASH`.
 
@@ -255,21 +252,22 @@ Propriétés: la classe est _synchronisée_.
 - `fichiers`: fichiers attachés et leur tailles.
 - `volume`: volume total des fichiers attachés.
 
-Clé primaire `pk` : `[id]`
-- la classe étant _synchronisée_.
-  - Une session peut s'abonner à un document et être notifié de son évolution.
-  - Une session peut s'abonner à la classe de document et être notifié de tout ajout, suppression ou modification d'un `Article`.
+Clé primaire `[id]`
+
+La classe est _synchronisée_.
+- Une session peut s'abonner à UN document et être notifiée de son évolution.
+- Une session peut s'abonner à LA CLASSE de document et être notifiée de tout ajout, suppression ou modification d'un `Article`.
 
 #### Index
 `auteurs: { type: LIST, use: COL }`
-- la propriété est auteurs est une liste et peut changer de valeur.
+- la propriété est `auteurs` est une liste et peut changer de valeur.
 - elle définit une **collection** : `Article/auteurs/Hugo` définit la collection des articles dont un des auteurs est 'Hugo'.
 
-`sujdet: { type: HASH, use: COL, props: [sujet, sousSujet]`
-- le N-uplet de propriétés `[sujet, sousSujet]` forme un index de nom `sujdet`.
+`sujdetail: { type: HASH, use: COL, props: [sujet, sousSujet]`
+- le N-uplet de propriétés `[sujet, sousSujet]` forme un index de nom `sujdetail`.
 - il est de type HASH et permet une sélection sur égalité à un couple `[s1, ss1]`.
-- elle définit (aussi) une **collection**: `Article/sujdet/écologie/solaire` définit la collection des articles dont le sujet détaillé est `écologie/solaire`.
-- `sujdet` n'est pas une liste, un article n'a QU'UN SEUL sujet détaillé qui peut changer au cours du temps pour un document.
+- elle définit (aussi) une **collection**: `Article/sujdetail/écologie/solaire` définit la collection des articles dont le sujet détaillé est `écologie/solaire`.
+- `sujdetail` n'est PAS une liste, un article n'a QU'UN SEUL sujet détaillé qui peut changer au cours du temps pour un document.
 
 `taille: { type: INTEGER, use: SIMPLE }`
 - l'index par taille permet des sélections de comparaison d'ordre.
@@ -281,7 +279,7 @@ Clé primaire `pk` : `[id]`
 - elle pourra demander tous les articles de cette collection ayant changé ou ayant été ajouté ou ayant été retiré de cette collection depuis une version t1.
 
 **Exemple des synchronisations possibles**
-Pour une session donnée, les synchronisations possibles des documents `Article` sont `Article/pk Article/auteurs Article/sujdet`
+Pour une session donnée, les synchronisations possibles des documents `Article` sont `Article Article/pk Article/auteurs Article/sujdetail`
 - `Article/pk/1234` : synchronisation de l'article par sa clé primaire '1234'.
 - `Article/auteurs/Hugo` : liste synchronisée des articles dont 'Hugo' est un des rédacteurs.
 - `Article/sujet/écologie/solaire` : liste synchronisée des articles ayant pour sujet détaillé `[écologie, solaire]`
@@ -300,16 +298,18 @@ La demande de la collection `Article/auteurs/Hugo` à `t1`:
 - fournit _incrémentalement_ les articles créés, modifiés, supprimés ou n'ayant PLUS Hugo comme auteur depuis `t1`.
 
 Un _auteur_ reçoit des _notifications_ textuelles:
-- même quand l'application n'est pas lancée lorsqu'un de ses chats évolue.
+- même quand l'application n'est pas lancée lorsqu'un de ses _chats_ évolue.
 - quand l'application est lancée lorsqu'un de ses articles évolue.
 
 ### Suppression des documents synchronisables
 Pour que les sessions _abonnées_ soient informés qu'un document a été _supprimé_ on opère une _suppression logique_, le document est marqué _zombi_ au lieu d'être _purgé_.
-- La propriété `z` contient le jour de suppression _logique_.
+- Dans la base il a une propriété `ttl` (time-to-live) qui indique quand il sera physiquement purgé.
+- Sa version indique quand exactement il est devenu _zombi_.
 - Après quelques mois, les sessions abonnées sont supposées avoir été synchronisées et le document est purgé physiquement. Les sessions n'ayant pas opéré une telle synchronisation devront effectuer une demande de liste _intégrale_ et non pas _incrémentale_ depuis t (date-heure de la dernière synchronisation incrémentale).
 
 ### Stockage d'un document d'un type donné
-Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifique du type de document.
+Le document est stocké dans une table (SQL) ou une collection (NOSQL) spécifique de la classe de document.
+- pour chaque classe ayant des _collections_, pour chaque _collection_ une table trace les documents retirés de la collection.
 
 **L'ensemble des propriétés** est sérialisé dans un champ dénommé `data`: ce contenu est désérialisable dans les applications terminales et les serveurs.
 
@@ -317,10 +317,17 @@ En base de données, les propriétés **visibles de la base de données** sont:
 - `pk` : clé primaire ou path.
 - les _index_ déclarés pour la classe de document (s'il y en a). Par exemple pour la classe _Article_ `auteurs sujet taille`.
 - `v` : version: _time_ de l'opération ayant créé / mis à jour / zombifié le document.
-- `ck x z` : trois propriétés _techniques_ gérer les _collections_ et la suppression des documents de manière par synchronisation incrémentale.
-- `data`.
+- `ttl` : time-to-live.
+  - dans la cas standard si `ttl` existe le document est _zombi_ (quelle que soit la valeur de `ttl`), n'existe plus logiquement et est candidat à suppression physique future à un instant exact indéfini.
+  - si `ttl` est déclarée **gérée par l'application**, c'est une date-heure en minutes:
+    - si `ttl` est dans le passé: le document EST _zombi_.
+    - si `ttl` est dans le futur: le document SERA automatiquement considéré comme _zombi_ à échéance de cette date-heure. Il est ainsi possible de déclarer des _dates limite de validité_ gérées applicativement pour certaines classes de documents.
+- `data`. Quand le document est _zombi_ data est raccourci et ne comprte plus que les propriétés suivantes:
+  - `v`: sa version.
+  - `del`: la date-heure en minutes à laquelle il sera purgé. En fait fonctionnellement seule son existence ou non est interprétable (si présente, _zombi_).
+  - les _propriétés de la clé primaire_.
 
-Le contenu structuré du document `data` est crypté, _opaque_ pour la base de données. Selon leur type, les propriétés de data peuvent être remplacées dans les _index_ par leur _hash_ (opaques également) sauf celles utilisables par les opérateurs _d'ordre_  `LT LE GE GT` qui sont conservées telles quelles.
+Le contenu structuré du document `data` est crypté, _opaque_ pour la base de données. Selon leur type, les propriétés de data peuvent être remplacées dans les _index_ par leur _hash_ (opaques également) sauf celles utilisables par les opérateurs _d'ordre_ `LT LE GE GT` qui sont conservées telles quelles.
 
 ### Fichiers attachés à un document
 Un fichier est stocké en deux parties:

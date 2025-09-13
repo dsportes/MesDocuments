@@ -21,7 +21,7 @@ Le _time_ d'une opération est sa date-heure UTC "epoch" prise au début d'une o
 
 Pour un document donné la version ne peut pas régresser: quand un document est lu (dans la _transaction_) si sa version est supérieure ou égale au _time_ de l'opération, la transaction est sortie en exception `REGVER` (_régression de version_) et la transaction est relancée avec une nouvelle valeur du _time_ de l'opération.
 
-## Classes spéciales `Hdr Org Ftp`
+## Classes spéciales `Hdr Org Ftp` TODO
 `Hdr` est une classe synchronisable singleton représentant l'état global du _service_:
 - elle ne peut être mise à jour que par une opération de niveau _administration_.
 - sa _clé primaire_ par convention vaut '1'.
