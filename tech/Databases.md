@@ -200,33 +200,36 @@ Chaque sous-collection synchronisable est déclarée par:
 - `global`: si true l'index à une portée _globale_ à toutes les organisations, sinon ce sont des propriétés utilisables uniquement dans les opérations trans organisations (de facto d'administration).
 - `type` : 
   - `HASH` : shaS de la propriété string applicative. Le seul filtrage possible est sur égalité.
-  - `string int float` : c'est la propriété telle quelle qui permet les filtrages d'égalité et d'ordre.
-  - `list` : la propriété est un array de string et le seul filtrage possible est `in`.
+  - `STRING INT FLOAT` : c'est la propriété telle quelle qui permet les filtrages d'égalité et d'ordre.
+  - `LIST` : la propriété est un array de string et le seul filtrage possible est `in`.
 
-> Les propriétés _applicatives_, sauf `v maxLife` et celles indexées et de type non `hash`, ne sont pas lisibles directement dans la base, même par son hébergeur: les clés primaires et secondaires sont des _hash_ et _data_ est cryptée. Il faut la clé de cryptage du site gérée confidentiellement par _l'administrateur technique_ pour en prendre connaissance.
+> Les propriétés _applicatives_, sauf `v maxLife` et celles indexées et de type non `HASH`, ne sont pas lisibles directement dans la base, même par son hébergeur: les clés primaires et secondaires sont des _hash_ et _data_ est cryptée. Il faut la clé de cryptage du site gérée confidentiellement par _l'administrateur technique_ pour en prendre connaissance.
 
 ### Index de liste de valeurs
-Les propriétés indexées peuvent être de type `list`, avoir un array de valeurs. La sélection peut se faire avec l'opérateur `CONTAINS` et rechercher les documents dont la valeur `myval1` est dans la liste des valeurs de leur propriété `i2`.
+Les propriétés indexées peuvent être de type `LIST`, avoir un array de valeurs. La sélection peut se faire avec l'opérateur `CONTAINS` et rechercher les documents dont la valeur `myval1` est dans la liste des valeurs de leur propriété `myprop`.
 
 ### Synchronisation des sous-collections
 Quand une classe de document est _synchronisable_ un document est enregistré par son row avec une version plus récente que la précédente.
 
-Quand une sous-collection est basée **sur des propriétés immuables**, ce seul row permet de synchroniser, la collection de la classe, un row du document par sa `pk`, toutes les sous-collections.
-- si un `Article` est déclaré avec UN auteur et UN sujet à sa création et ne peut plus en changer, les sous-collections par auteur par exemple sont synchronisables d'après les seuls documents `Article`.
+Quand une sous-collection est basée **sur des propriétés immuables**, ce seul row permet de synchroniser, 
+- la collection de la classe, 
+- un row du document connu par sa `pk`, 
+- toutes les sous-collections.
+- si un `Article` est déclaré avec N auteur et UN sujet à sa création et **ne peut plus en changer**, la sous-collection par `Article/auteurs` par exemple est synchronisable d'après les seuls documents `Article`.
 
-**Mais si une sous-collection est basée sur une propriété qui PEUT changer**, par exemple par UN auteur **MAIS** peut changer d'auteur:
-- si un article passe de l'auteur 'Hugo' à l'auteur 'Victor', le row _standard_ va refléter ce changement:
-  - la synchronisation de la sous-collection `Article/auteur/shaS(Victor)` va bien recevoir un row supplémentaire.
-  - MAIS la synchronisation de la sous-collection `Article/auteur/shaS(Hugo)` ne sera PAS avertie du _retrait_ de Hugo au profit de Victor.
+**Mais si une sous-collection est basée sur une propriété qui PEUT changer**, par exemple par N auteurs **MAIS** pouvant changer d'auteurs (en avoir de nouveaux, en perdre):
+- si un article passe des auteurs `Zola, Hugo` à l'auteur `Zola, Victor`, le row _standard_ va refléter ce changement:
+  - la synchronisation de la sous-collection `Article/auteurs/shaS(Victor)` va bien recevoir un row supplémentaire.
+  - MAIS la synchronisation de la sous-collection `Article/auteurs/shaS(Hugo)` ne sera PAS avertie du _retrait_ de `Hugo` au profit de `Victor`.
 
 Pour gérer ce cas de changement de valeur d'une propriété identifiante d'une sous-collection, un second row `rowQ` (documents _quittés_) est inséré avec:
-- pour classe / table `Article@auteur`
+- pour classe / table `Article@auteurs`
 - pour `pk` la valeur `shaS(Hugo) `(_l'ancien_ auteur),
 - pour version `v` celle de l'opération ayant mis à jour (ou zombifié) le document _Article_.
 
-La lecture de synchronisation pour l'abonnement `Article/auteur/shaS(Hugo)` récupère:
-- les documents `Article` ayant pour auteur 'Hugo'.
-- les `pk` des documents qui **ont ONT EU comme auteur** 'Hugo' MAIS ne l'ont plus. 
+La lecture de synchronisation pour l'abonnement `Article/auteurs/shaS(Hugo)` récupère:
+- les documents `Article` ayant (depuis la précédente synchronization) dans leurs auteurs 'Hugo'.
+- les `pk` des documents qui **ont perdu `Hugo`** (depuis la précédente synchronization) dans leurs liste d'auteurs. 
 
 Les lectures de synchronisation, a) de **toute** la classe, b) ou **d'un** document par sa `pk`, ne reçoivent pas les rows _quittés_.
 
@@ -234,9 +237,8 @@ Les lectures de synchronisation, a) de **toute** la classe, b) ou **d'un** docum
 
 `static mutate()` : cette méthode transforme un row d'une ancienne _release_ dans le format de la _release_ courante et permet de remettre _au nouveau format_ les rows en ayant un ancien.
 
-`compile ()` : après transformation en un _document_ cette méthode (facultative) permet d'ajouter des propriétés _helpers_ au document destinées à faciliter leur consultation et mise à jour.
+`compile ()` : après transformation en un _document_ cette méthode (facultative) permet d'ajouter des propriétés _helpers_ au document destinées à faciliter leur consultation et mise à jour. Par convention leurs noms commencent par `_` afin qu'elles ne soient pas écrites en base ni transmises par synchronisation.
 
-`decompile ()` : cette méthode (facultative) supprime les propriétés _helpers_ ajoutées par compile() afin de ne pas les sauvegarder.
 
 ### Export / import
 L'export des documents d'une base consiste à lire tous les documents _d'une organisation donnée_ pour chaque classe de document et pour chaque document:
@@ -256,92 +258,39 @@ L'export / import peut ne concerner qu'une classe de document avec les objectifs
 
 # Provider _Firestore_ TODO
 ## Paths
-Le path du singleton `Hdr` est `Hdr/hdr`.
-Le path du singleton `Ping` est `Hdr/ping`.
+Le path du singleton `Status` est `Status/1`.
+
 Le path d'un document `Org` est `Org/demo`.
 
-Le path des autres classes, par exemple `Article`, sont `Org/demo/Article/kYc..`, des sous-documents de l'organisation.
-- `demo` est l'organisation,
-- `kYc...` est le sha16 du numéro de l'article.
+Le path des documents `Task` est `Org/demo/Task/kxc...` ou `Org/ROOT/Task/cbn...`. 
+  - Par convention les tâches non liées à une organisation ont un code d'organisation `ROOT`.
+  - leur `pk` `kxc...` désigne un document correspondant au couple d'un code de traitement de la tâche et d'un identifiant de sa cible.
 
-**Toutes** les propriétés des _rows_ sauf `data` sont indexées basiquement, toutefois les propriétés indexées marquées `G` doivent être déclarées :
+Les souscriptions sont stockées sous deux classes:
+- `Org/demo/Subs/sessionId`: pour l'entête de souscription.
+- `Org/demo/SubsItem/vbn...` : pour les items de souscription.
 
-    "queryScope": "COLLECTION_GROUP"
-    (au lieu de "COLLECTION" pour les autres)
+Le path des autres classes, par exemple `Article`, sont:
+  - `Org/demo/Article/kYc..`, des sous-documents de l'organisation.
+    - `demo` est l'organisation,
+    - `kYc...` est le sha16 du numéro de l'article.
+  - `Org/demo/Article@auteurs/kert...` pour la sous-collection auteurs les pk des documents ayant quitté la sous-collection.
 
-C'est aussi le cas pour la propriété `z` pour pouvoir _purger_ les vieux zombis.
+### Gestion des _locks_
+Un _lock_ permet en particulier de gérer des identifiants _externes_ uniques.
 
-Chaque classe de _document_ (sauf `Hdr Task`) et de _fil_ doit avoir une déclaration spécifique qui permette de la filtrer sur son égalité de `k0` ET sa version avec `>`:
+Pour chaque valeur possible `cvuk...` (le sha de son identifiant), un document `Lock` est créé avec pour path `Org/demo/Locks/cvuk...`.
 
-    {
-    "indexes": [
-      {
-        "collectionGroup": "avatar",
-        "queryScope": "COLLECTION",
-        "fields": [
-          {
-            "fieldPath": "k0",
-            "order": "ASCENDING"
-          },
-          {
-            "fieldPath": "v",
-            "order": "ASCENDING"
-          }
-        ]
-      },
+`Lock` n'a qu'une propriété `owner` (string) qui est la clé complète du document référençant cette valeur: `cl1/pk`.
 
-## Création / mise à jour
-Les _créations_ **exigent** que le document n'existe pas: emploi de la méthode `dr.create()`.
+Pour utiliser un `Lock` une transaction doit effectuer **HORS tranasction** une requête `CreateLock` qui tente de _créer_ le lock :
+- s'il n'existait pas la création est un succès et le lock existe désormais.
+- s'il existait l'exception est récupérée et ... ignorée, le lock existe.
+- dans les deux cas la valeur du lock est retournée pour information. 
 
-Les _mises à jour_ partent d'un document qui a été lu, donc verrouillé dans la transaction, et est opéré par `dr.update()`.
+Si le lock est _libre_, dans le cours normal de la transaction sa mise à jour pour réservation / libération est protégée par le _commit_ de la transaction.
 
-## Gestion des index _unique_
-Pour chaque valeur possible `uk` (un sha16), un document `locks` est créé, avec un path dépendant si la propriété est globale ou non:
-- `locks/uk` : portée globale.
-- `org/demo/locks/uk` : portée locale d'une organisation.
-
-Lock n'a qu'une propriété owner (string) qui est la la clé complète du document référençant cette valeur: `[demo, cl1, pk]`.
-
-Ces propriétés ne sont SONT PAS INDEXÉES, l'accès se fait par une méthode spécifique lisant _locks_.
-
-# API d'accès primaire générique
-
-Les accès retournant une _liste_ peuvent avoir comme dernier paramètre une fonction fn anonyme qui reçoit en argument chaque _data_ et la traite. Cette facilité permet d'éviter d'accumuler des listes longues quand la _data_ peut être transformée / traitée une par une.
-
-## Accès aux documents / fils / tasks
-
-    async getDoc (org: string, cl: string, pk: string, v?: number) { return null }
-    async insertDoc (row: Object) {}
-    async updateDoc (row: Object) {}
-    async deleteDoc (org: string, cl: string, pk: string) {}
-    async listDocs (org: string, cl: string, v?: number, fn? : Function) { return [] }
-    async listDocsSk (org: string, cl: string, ik: number, val: string, v?: number, fn? : Function) { return [] }
-    async listDocsIdx (org: string, cl: string, ix: number, comp: string, val: any, v?: number, fn? : Function) { return [] }
-
-## Accès `Hdr`
-
-    async getHdr (v? : number) { return null }
-    async insertHdr (row: Object) {}
-    async updateHdr (row: Object) {}
-
-## Accès `Org`
-
-    async getOrg (org: string, v?: number) { return null }
-    async insertOrg (row: Object) {}
-    async updateOrg (row: Object) {}
-    async listOrgs (v?: number, fn? : Function) { return [] }  
-    async listOrgsIdx (ix: number, comp: string, val: any, v?: number, fn? : Function) { return []}
-
-## Purges hors transaction
-
-    async purgeAllDocs (org: string, cl: string) {}
-    async purgeOrg (org: string, z?: number) {}
-    async purgeOrgs (org: string, z: number) {}
-    async purgeDlvDocs (org: string, cl: string, ix: number, comp: string, val: any, lsp?: string[]) {}
-
-# Autres _tables_ / clazzes de documents_
-
-## Fichiers à purger
+### Fichiers à purger
 Des fichiers stockés en _storage_ peuvent être marqués _à purger_ jusqu'à un jour donné: au delà de ce jour, ils peuvent être purgés du storage.
 
 Le `path` d'un fichier d'une organisation en storage est de la forme `folderId/fid` :
@@ -349,7 +298,7 @@ Le `path` d'un fichier d'une organisation en storage est de la forme `folderId/f
 - `fid` est un string totalement identifiant en lui-même.
 
 **NOSQL**
-- le path d'un document est `Orgs/org/FTP/path`
+- le path d'un document est `Orgs/demo/FTP/path`
 - sa propriété unique (et indexée) est `p`, date du jour de purge.
 
 **SQL**
@@ -361,31 +310,39 @@ Le `path` d'un fichier d'une organisation en storage est de la forme `folderId/f
     async listFTP (dp : number, fn: Function) {}
     async purgeAllFTP (dp : number) {}
 
-## Gestion des tâches
+
+
+### Gestion des tâches
 Une tâche différée est représentée par une instance d'une classe héritant de `Task` (héritant de Document) ayant les propriétés suivantes:
-- `clazz` : `Task`.
-- `org` : code l'organisation.
-- `starTime`: date-heure de création. Cette propriété est l'index 0 (`i0` du row), de type string / global. 
+- `starTime`: date-heure de création. Cette propriété est indexée de type STRING et est **global**. 
 - `process` : classe de traitement de la tâche (sous-classe de `Task`).
-- `pk` : array des identifiants de la cible du traitement.
+- `target` : un string identifiant la cible du traitement.
 - `nb`: une tâche peut être _itérative_ pour épuiser une liste. nb est le nombre d'itérations restant à effectuées.
 - `exc`: code de l'exception rencontrée lors du dernier traitement.
 - `endTime`: date-heure de fin.
 
-La propriété `k0` du row correspondant est le base64 du sha16 de l'array `processPk`.
+Le `pk` est le shaS du couple `process, target`.
 
-`'startTime endTime`' ont une forme string `AAAAMMJJhhmmssmmm` ce qui les rend comprables par relation d'ordre et plus lisible.
+`'startTime endTime`' ont une forme string `AAAAMMJJhhmmssmmm` ce qui les rend comparables par relation d'ordre.
 
 **NOSQL**
-- le path d'une tâche est `Orgs/org/Task/pk`
-- les propriétés sont `org k0, i0, data`.
-- il n'y a ni `v` ni `z`. 
+- le path d'une tâche est `Org/demo/Task/pk`
+- `v` n'est pas fonctionnellement significatif. 
 
 **SQL**
 - table portant le nom `Task`.
-- colonnes: `org, k0, i0, data`
+- colonnes: `org, processTarget, startTime, data`
 
 **Méthode spécifique**
 
     async nextTask (time: string) { return null }
 
+## Règles d'indexation
+Le texte est généré par le _provider_ dans un fichier `firestore-indexes.json` à installer dans Firestore.
+
+## Création / mise à jour
+Les _créations_ **exigent** que le document n'existe pas: emploi de la méthode `dr.create()`.
+
+Les _mises à jour_ comme les _suppressions_ partent d'un document qui a été lu, donc verrouillé dans la transaction, et sont opérées par `dr.update()`. Les _créations_ sont opérées par `dr.create()`.
+
+### TODO:  API d'accès primaire générique
