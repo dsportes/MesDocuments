@@ -11,28 +11,28 @@ shaS(s) : le SHA 256 (32 bytes) est tronqué des bytes 3 à 19, puis encodé en 
 
 ## Documents _SYNC_ et _NOSYNC_
 Les classes de documents **synchronisables** supportent des abonnements directs à leurs changements.
-- la **suppression** d'un document _SYNC_ s'effectue en le transformant en _zombi_: c'est une suppression logique dont la trace en base subsiste un certain temps afin que les bases synchronisées externes aient la possibilité d'être informées de leur _suppression_.
+- la **suppression** d'un document _SYNC_ s'effectue en le transformant en _zombi_: c'est une suppression logique dont la trace en base subsiste un certain temps afin que les bases synchronisées externes aient la possibilité d'être informées de leur _suppression_ (la propriété `deleted` du document est true).
 
 Les classes de documents **NON synchronisables** ne supportent pas d'abonnements.
 - la **suppression** d'un document _NOSYNC_ est traitée une purge physique effective (_delete_ classique).
 
 ### _Existence_ d'un document
-Un document **synchronisable** peut être _zombi_ (propriété `isZombi`):
+Un document **synchronisable** peut être _zombi_ (propriété `deleted`):
 - fonctionnellement il doit être considéré comme INEXISTANT.
 - il peut être transmis à une session comme résultat d'une opération de _synchronisation_ afin que la session le supprime de son côté.
 - en état _zombi_ le document n'a que quelques propriétés: 
-  - `_deleted` : true
+  - `deleted` : true
   - `v` : sa version, la date-heure de l'opération l'ayant zombifié.
-  - les propriétés de sa clé primaire.
+  - `_pk` : le hash court de la concaténation des propriétés de sa clé primaire.
 - un document _zombi_ a une durée de vie limitée en tant que zombi: au bout d'un certain temps il est effectivement détruit, les sessions distantes ne pourront plus être informées par synchronisation incrémentale de sa disparition. 
 
 Un document **NON synchronisable** supprimé n'est a pas d'existence.
 
 Un document **peut** avoir une propriété `maxLife`:
 - c'est sa date-heure maximale de vie _logique_: au delà de cette date-heure le document est **fonctionnellement périmé**.
-- sa lecture dans une opération **AVANT** cette limite retourne un document `d` normal ayant simplement une valeur dans le futur de `maxLife`. `d.isAlive(now)` est `true`
+- sa lecture dans une opération **AVANT** cette limite retourne un document `d` normal ayant simplement une valeur dans le futur de `maxLife`.
 - sa lecture dans une opération **APRÈS** cette limite retourne,
-  - soit un document `d` dont `d.isAlive(now)` est `false`.
+  - soit un document `d` dont `deleted` est `true`.
   - soit AUCUN document (`d` est `null`) au delà d'un certain temps, sa durée de vie en tant que _zombi_ étant dépassée.
 
 `maxLife` est une "epoch" en MINUTES: le nombre de minutes écoulées depuis le 1/1/1970. Depuis un time en ms, il suffit d'une division par 60000.
@@ -55,7 +55,7 @@ Pour un document donné la version ne peut pas régresser: quand un document est
 - `setSrvStatus(st, txt)` : opération de l'administrateur fixant le status du serveur.
 
 `Org` est la classe de documents dont chaque instance représente une _organisation_, son statut, etc.
-- sa _clé primaire_ est par convention le code de l'organisation.
+- sa _clé primaire_ `pk` (par rapport à son organisation) est par convention `1`.
 - son contenu / comportement est spécifique de chaque application.
 
 `Task` est une classe NON synchronisable représentant une opération _différée_:
@@ -83,7 +83,11 @@ _data_ est un objet ayant A MINIMA les propriétés suivantes:
 - `release` : numéro de _release_ de la structure d'un document permettant à la lecture de convertir les documents ayant une ancienne structure dans celle la plus récente.
 - `p1 p2 p3 i1 i2 ...` : propriétés string constituant de la _clé primaire_ du document.
 
-> Un document _zombi_ (supprimé logiquement) a un _data_ ne contenant **que** les propriétés ci-dessus.
+> En session, les propriétés suivantes sont reconstituées:
+- `_clazz`: la classe du document.
+- `_pk`: le hash court de la concaténartion des propriétés de sa clé primaire.
+
+Un document _zombi_ (supprimé logiquement) a un _data_ (reconstitué) ne contenant **que** `_clazz _pk deleted`.
 
 _data_ contient de plus,
 - `maxLife`: facultative, "epoch" en MINUTES de fin de vie logique du document.
@@ -92,7 +96,7 @@ _data_ contient de plus,
   - elles ont n'importe quel nom commençant par une minuscule.
   - elles peuvent des `string, number, boolean, array, objet`.
 
-**Quelques propriétés _techniques_** sont lisibles au cours d'une opération: 
+**Quelques propriétés _techniques_** sont lisibles dans les _data_ stockés en cache d'une opération: 
 - `_clazz`: la classe du document.
 - `_status`:
   - `NONE`: le document a été lu mais pas (encore) mis à jour par l'opération.
@@ -100,7 +104,7 @@ _data_ contient de plus,
   - `NEW`: le document n'existait pas et a été créé ex-nihilo par l'opération.
   - `DEL`: le document a été lu ou créé par l'opération puis supprimé par elle.
 - `_before`: objet technique contenant les valeurs des propriétés de sous-collection à la lecture du document depuis la DB.
-- `_deleted`: document _zombi_.
+- `deleted`: document _zombi_.
 
 Un objet _data_ peut être _sérialisé / désérialisé_ par `encode / decode` de `@msgpack/msgpack`: la propriété `data` d'un _row_ (objet connu de la base de données) est la sérialisation cryptée par la clé du site.
 
@@ -110,8 +114,7 @@ Une classe de document hérite de la class générique `Document`.
 Une instance de document est créée depuis les propriétés d'un _data_. Quelques méthodes:
 - `static mutate()` : réalise la mutation d'un document de release antérieure dans la dernière release.
 - `compile()` : facultatif - permet de calculer certaines propriétés _helpers_ après initialisation.
-- `decompile()` : facultatif - retire les propriétés _helpers_ ajouté ci-dessus.
-- `serialForApp()` : facultatif - sérialise le document pour transmission / synchronisation à l'application terminale, en sélectionnant les propriétés à transmettre en fonction des autorisations de l'application.
+- `serialForApp()` : facultatif - sérialise le document pour transmission / synchronisation à l'application terminale, en sélectionnant les propriétés à transmettre en fonction des autorisations de l'application. Par défaut créé un objet en ne reprenant que les propriétés dont le nom ne commence par `_`.
 
 ## Format _row_
 C'est un objet représentant le document stocké en DB.
@@ -122,10 +125,8 @@ En base de données, les propriétés **visibles de la base de données** sont:
   - pour les autres classes, `pk` est le shaS de `p1/p2/...` ou les `pi` sont les valeurs des propriétés formant la clé primaire.
 - les _index_ déclarés pour la classe de document (s'il y en a). Par exemple pour la classe _Article_ `auteurs sujet taille`.
 - `v` : version: _time_ de l'opération ayant créé / mis à jour / zombifié le document.
-- `deleted`: _true_ pour un document zombi.
-- `maxLife`: (le cas échéant) date-heure de fin de vie programmée par l'application ("epoch" en MINUTES)
-- `ttl`: TTL pour purge automatique par la DB, **format dépendant de la DB**. Absent pour un document vivant, présent pour un zombi ou un document ayant une propriété `maxLife`.
-- `data` : binaire, jamais indexé. Sérialisation cryptée du _data_ du document.
+- `ttl`: TTL pour purge automatique par la DB, **format dépendant de la DB**. Absent pour un document vivant, présent pour un zombi (`data` est null) ou un document existant ayant une propriété `maxLife` non dépassée au moment de l'enregistrement en DB.
+- `data` : binaire, jamais indexé. Sérialisation cryptée du _data_ du document. Pour un document _zombi_ `data` est null.
 
 Les propriétés _index_ ci-dessus sont indexées:
 - **une propriété par _sous-collection_** (par exemple `auteurs` pour un `Article`): ce peut être une valeur (_hash_) ou une liste de valeurs (_hash_).
@@ -134,22 +135,30 @@ Les propriétés _index_ ci-dessus sont indexées:
 # Sous-collections: mises à jour _incrémentales_ en sessions
 La mémoire d'une session comporte **par organisation / classe**:
 - **une mémoire par document** identifiée par sa `pk`. La copie en session d'UN document donné porte sa version `v`: toute mise à jour portant une version inférieure ou égal à `v` est ignorée (plus vieille ou déjà faite).
-  - par document, la propriété `defs` donne la liste des identifiants des _abonnements_ qui ont provoqué sa présence: quand `defs` est vide, le document est _inutile_ car non référencé par aucune collection / sous-collection synchronisable. Il ne sera plus mis à jour et peut être supprimé de cette mémoire.
+  - par document, la propriété `defs` donne la liste des identifiants des _abonnements_ qui ont provoqué sa présence: quand `defs` est vide, le document est _inutile_ car non référencé par aucune collection / sous-collection synchronisable. Il est supprimé de cette mémoire.
 - **une mémoire par _sous-collection_**.
 
 ### Sous-collections en mémoire d'une session
-Une collection est identifiée dans la mémoire d'une session pour une organisation donnée par sa **définition** `def` _classe / propriété @ valeur_ par exemple `Article/auteurs@XXX`:
+Une sous-collection est identifiée dans la mémoire d'une session pour une organisation donnée par sa **définition** `def` _classe / nom de propriété / valeur de la propriété_ par exemple `Article/auteurs/XXX`:
 - `XXX` est le shaS de l'identifiant de l'auteur (avec possiblement des /) 'a1/Zola'.
 
-Une sous-collection a deux propriétés: 
-- `v` : `t1` la date-heure de l'opération qui en a retourné la mise à jour la plus récente. 0 si elle n'a pas encore été chargée.
-- `pks`: la liste des `pk` des documents de la sous-collection (ce qui permet d'en obtenir le contenu dans la mémoire des documents).
+Une sous-collection a deux versions:
+- version _serveur_ : date-heure de la notification la plus récente ayant notifié un changement. 0 si aucune notification n'a encre été reçue.
+- version _détenue_ : date-heure de l'opération `Sync` qui en a retourné la mise à jour la plus récente. 0 si elle n'a pas encore été chargée.
 
 Le principe de mise à jour incrémentale à `t1` d'une collection consiste à solliciter une opération retournant,
 - tous les documents de la sous-collection `Article/auteurs/shaS(Zola)` de version postérieure à `t1` non zombi.
-- la liste `lpkv` des couples `[pk, v]` des documents de clé pk ayant quitté la sous-collection à l'instant v (le cas échéant par _zombification_) depuis `t1`. 
+- tous les documents ayant eu 'Zola' dans la liste d'aureurs mais ne l'ayant plus.
 
-Cette opération a un _time_ `t2` qui replace `t1` dans l'objet sous-collection.
+Pour chaque document de cette liste la session sait retrouver:
+- ceux étant dans la sous-collectio,
+- ceux supprimés,
+- ceux n'étant plus dans cette sous-collection: ceux n'étant plus dans aucune collection de la classe sont _inutiles_ et supprimés.
+
+> A tout instant une session détient pour une classe donnée tous les documents référencés par une _souscription élémentaire_ (`def`):
+>- soit à la classe,
+>- soit à des documents cités par leur `pk`,
+>- soit à des sous-collections citées par _nom de propriété / valeur de la propriété_.
 
 ### Imprécision de la _version_ d'une collection en mémoire d'une session
 Pour un _document_ sa version n'a pas d'ambiguïté : même si les mises à jour ont été effectuées par des serveurs différents, le contrôle de _non régression_ pour chaque document garantit bien une progression chronologique réelle.
@@ -167,14 +176,7 @@ Il faut donc accepter cette incertitude sur les _versions des collections_ et la
 - une demande des mises à jour portant sur `Article/auteurs/shaS(Zola)` transmet une version `tx` au serveur,
 - le retour porte un _now_ d'opération `ty`: la _version_ enregistrée pour la collection remplaçant `tx` ne va pas être `ty` mais `ty - DELTA`.
 
-En conséquence, une même mise à jour _peut_ parvenir plus d'une fois.
-
-### Maintien en session de la cohérence entre _documents_ et _sous-collections_
-L'opération retournant une _sous-collection_ comme `Article/auteurs/shaS(Zola)` à `t1` retourne:
-- une ligne _document_ au plus pour chaque `pk`: **la version la plus récente**. Il faut ne prendre en compte un tel document que si sa version est postérieure à celle déjà connue en session.
-- pour chaque pk, zéro, une voire lignes indiquant les pk (et leur version) des documents ayant quitté la sous-collection. Il ne faut considérer que les _retraits_ de la sous-collection cohérents avec la version du document correspondant.
-
-> La liste des _mises à jour postérieures à t1_ d'une collection est en conséquence _imprécise_: chaque session doit en contrôler la pertinence selon la version la plus récente de chaque document de cette liste dans la mémoire _documents_ de la session.
+> **En conséquence, une même mise à jour _peut_ parvenir plus d'une fois.**
 
 ### Sous-collections _synchronisables_
 Il peut ne pas y en avoir.
@@ -206,7 +208,7 @@ Chaque sous-collection synchronisable est déclarée par:
 > Les propriétés _applicatives_, sauf `v maxLife` et celles indexées et de type non `HASH`, ne sont pas lisibles directement dans la base, même par son hébergeur: les clés primaires et secondaires sont des _hash_ et _data_ est cryptée. Il faut la clé de cryptage du site gérée confidentiellement par _l'administrateur technique_ pour en prendre connaissance.
 
 ### Index de liste de valeurs
-Les propriétés indexées peuvent être de type `LIST`, avoir un array de valeurs. La sélection peut se faire avec l'opérateur `CONTAINS` et rechercher les documents dont la valeur `myval1` est dans la liste des valeurs de leur propriété `myprop`.
+Les propriétés indexées peuvent être de type `LIST`, avoir un array de valeurs. La sélection peut se faire avec l'opérateur `CONTAINS / CONTAINSANY` et rechercher les documents dont la valeur `myval1` est dans la liste des valeurs de leur propriété `myprop`.
 
 ### Synchronisation des sous-collections
 Quand une classe de document est _synchronisable_ un document est enregistré par son row avec une version plus récente que la précédente.
@@ -215,7 +217,7 @@ Quand une sous-collection est basée **sur des propriétés immuables**, ce seul
 - la collection de la classe, 
 - un row du document connu par sa `pk`, 
 - toutes les sous-collections.
-- si un `Article` est déclaré avec N auteur et UN sujet à sa création et **ne peut plus en changer**, la sous-collection par `Article/auteurs` par exemple est synchronisable d'après les seuls documents `Article`.
+- si un `Article` est déclaré avec N auteurs et UN sujet à sa création et **ne peut plus en changer**, la sous-collection par `Article/auteurs` par exemple est synchronisable d'après les seuls documents `Article`.
 
 **Mais si une sous-collection est basée sur une propriété qui PEUT changer**, par exemple par N auteurs **MAIS** pouvant changer d'auteurs (en avoir de nouveaux, en perdre):
 - si un article passe des auteurs `Zola, Hugo` à l'auteur `Zola, Victor`, le row _standard_ va refléter ce changement:
@@ -238,7 +240,6 @@ Les lectures de synchronisation, a) de **toute** la classe, b) ou **d'un** docum
 `static mutate()` : cette méthode transforme un row d'une ancienne _release_ dans le format de la _release_ courante et permet de remettre _au nouveau format_ les rows en ayant un ancien.
 
 `compile ()` : après transformation en un _document_ cette méthode (facultative) permet d'ajouter des propriétés _helpers_ au document destinées à faciliter leur consultation et mise à jour. Par convention leurs noms commencent par `_` afin qu'elles ne soient pas écrites en base ni transmises par synchronisation.
-
 
 ### Export / import
 L'export des documents d'une base consiste à lire tous les documents _d'une organisation donnée_ pour chaque classe de document et pour chaque document:
@@ -276,6 +277,9 @@ Le path des autres classes, par exemple `Article`, sont:
     - `kYc...` est le sha16 du numéro de l'article.
   - `Org/demo/Article@auteurs/kert...` pour la sous-collection auteurs les pk des documents ayant quitté la sous-collection.
 
+#### _Rules_ d'indexation
+Le fichier est généré depuis le schema des types de documents.
+
 ### Gestion des _locks_
 Un _lock_ permet en particulier de gérer des identifiants _externes_ uniques.
 
@@ -310,8 +314,6 @@ Le `path` d'un fichier d'une organisation en storage est de la forme `folderId/f
     async listFTP (dp : number, fn: Function) {}
     async purgeAllFTP (dp : number) {}
 
-
-
 ### Gestion des tâches
 Une tâche différée est représentée par une instance d'une classe héritant de `Task` (héritant de Document) ayant les propriétés suivantes:
 - `starTime`: date-heure de création. Cette propriété est indexée de type STRING et est **global**. 
@@ -329,10 +331,6 @@ Le `pk` est le shaS du couple `process, target`.
 - le path d'une tâche est `Org/demo/Task/pk`
 - `v` n'est pas fonctionnellement significatif. 
 
-**SQL**
-- table portant le nom `Task`.
-- colonnes: `org, processTarget, startTime, data`
-
 **Méthode spécifique**
 
     async nextTask (time: string) { return null }
@@ -345,4 +343,13 @@ Les _créations_ **exigent** que le document n'existe pas: emploi de la méthode
 
 Les _mises à jour_ comme les _suppressions_ partent d'un document qui a été lu, donc verrouillé dans la transaction, et sont opérées par `dr.update()`. Les _créations_ sont opérées par `dr.create()`.
 
-### TODO:  API d'accès primaire générique
+# Provider _sqlite_ 
+TODO
+
+## Tables: schema.sql
+Le script de création des tables et des index est généré depuis le descriptif des document.
+
+**SQL**
+- table portant le nom `Task`.
+- colonnes: `org, processTarget, startTime, data`
+
