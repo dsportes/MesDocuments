@@ -169,20 +169,16 @@ Le Storage permet de disposer d'un volume pratiquement 10 fois plus importants �
 
 # Le répertoire des _organisations par application_
 
-Toute _application_ terminale détient, en tant que ressource statique, la liste des _prestataires_ fournissant les services centraux, avec pour chacun:
-- son _code_,
-- son _URL d'accès_.
-- la liste des _organisations_ hébergées.
+Une base de données _centrale_ `Directory` détient une table donnant pour chaque application et chaque organisation l'URL de son serveur.
 
-L'ajout / retrait d'un prestataire et / ou d'une organisation  demande de générer une nouvelle version de l'application concernée. Toutefois une organisation pas encore _statiquement répertoriée_ peut être temporairement référencée par un utilisateur en indiquant le code du service qui l'héberge.
+Chaque serveur a un **status** d'accessibilité géré par son administrateur technique donnant:
+- son status: 0: inconnu, 1: OK, 2: indispobilité temporaire,
+- un court texte informatif,
+- la date-heure à laquelle ce status a changé pour la dernière fois.
 
 Une session d'une application terminale peut concerner plusieurs organisations, à l'instar du randonneur faisant partie de plusieurs associations selon l'endroit où il randonne. Pour chaque organisation concernée elle obtient de ce répertoire le prestataire gestionnaire et son URL d'accès.
 
-Chaque service peut ensuite gérer **dans _sa_ base de données**,
-- un document unique concernant toutes les organisations,
-- un document relatif à chaque organisation.
-
-Ces documents peuvent comporter par exemple:
+Chaque service gère **dans _sa_ base de données** un document relatif à chaque organisation qui peut comporter par exemple:
 - un **statut récapitulatif** : ouverture, restriction en lecture seule (archive), fermeture jusqu'à nouvel ordre.
 - une **courte liste des dernières _news_ ayant modifié ce statut** données par l'administrateur.
 
@@ -237,7 +233,7 @@ Un index a un _type_ de données: `STRING, INTEGER, FLOAT, LIST, HASH`
 
 Les index de type `STRING, INTEGER, FLOAT` supportent des filtres d'égalité et de comparaison: `LT LE EQ GE GT`. Exemple: `volume GE 100`
 
-Les index de type `LIST` ne supporte que le filtre `CONTAINS`. Exemple : `membres CONTAINS 'Bob'`.
+Les index de type `LIST` ne supporte que le filtre `CONTAINS CONTAINSANY`. Exemple : `membres CONTAINS 'Bob'` ou `membres CONTAINSANY 'Bob, Alice'`.
 
 Les _collections_ ne peuvent être déclarées que sur les types `LIST HASH`.
 
@@ -252,7 +248,7 @@ Propriétés: la classe est _synchronisée_.
 - `fichiers`: fichiers attachés et leur tailles.
 - `volume`: volume total des fichiers attachés.
 
-Clé primaire `[id]`
+Clé primaire: `[id]`
 
 La classe est _synchronisée_.
 - Une session peut s'abonner à UN document et être notifiée de son évolution.
@@ -319,13 +315,13 @@ En base de données, les propriétés **visibles de la base de données** sont:
 - `v` : version: _time_ de l'opération ayant créé / mis à jour / zombifié le document.
 - `ttl` : time-to-live.
   - dans la cas standard si `ttl` existe le document est _zombi_ (quelle que soit la valeur de `ttl`), n'existe plus logiquement et est candidat à suppression physique future à un instant exact indéfini.
-  - si `ttl` est déclarée **gérée par l'application**, c'est une date-heure en minutes:
-    - si `ttl` est dans le passé: le document EST _zombi_.
-    - si `ttl` est dans le futur: le document SERA automatiquement considéré comme _zombi_ à échéance de cette date-heure. Il est ainsi possible de déclarer des _dates limite de validité_ gérées applicativement pour certaines classes de documents.
-- `data`. Quand le document est _zombi_ data est raccourci et ne comprte plus que les propriétés suivantes:
+  - si `maxLife` est déclarée **gérée par l'application**, c'est une date-heure en minutes:
+    - si `maxLife` est dans le passé: le document EST _zombi_.
+    - si `maxLife` est dans le futur: le document SERA automatiquement considéré comme _zombi_ à échéance de cette date-heure. Il est ainsi possible de déclarer des _dates limite de validité_ gérées applicativement pour certaines classes de documents.
+- `data`. Quand le document est _zombi_ data (null en base de données) est reconstitué à la lecture avec les propriétés suivantes:
   - `v`: sa version.
-  - `del`: la date-heure en minutes à laquelle il sera purgé. En fait fonctionnellement seule son existence ou non est interprétable (si présente, _zombi_).
-  - les _propriétés de la clé primaire_.
+  - `deleted`: true.
+  - `_pk` sa clé primaire.
 
 Le contenu structuré du document `data` est crypté, _opaque_ pour la base de données. Selon leur type, les propriétés de data peuvent être remplacées dans les _index_ par leur _hash_ (opaques également) sauf celles utilisables par les opérateurs _d'ordre_ `LT LE GE GT` qui sont conservées telles quelles.
 
@@ -379,17 +375,17 @@ Un traitement périodique de nettoyage liste les fichiers inscrits dans `FTP` de
 # Abonnements d'une application à des _documents / collections_
 
 Un _abonnement_ peut porter sur:
-- **la collection complète des documents** d'une classe _D1_ synchronisée : référence `D1`.
-- **UN document** d'une classe _D1_ et de clé primaire _1234_ : référence `D1/pk/1234`.
-- **la collection des documents** d'une classe _D1_ ayant une propriété _coll1_ d'usage COL à pour valeur _abcd_: référence `D1/coll1/abcd`.
+- **la collection complète des documents** d'une classe _Article_ synchronisée : définition `Article`.
+- **UN document** d'une classe _Article_ et de clé primaire _1234_ : référence `Article/1234`.
+- **la collection des documents** d'une classe _Article_ ayant une propriété _auteurs_ d'usage COL à pour valeur _Zola_: référence `Article/auteurs/Zola`.
 
-Une application soumet sa liste _d'abonnements_ en une fois et attribue un _code numérique court_ à chacun.
+Une application soumet sa liste _d'abonnements_ en une fois au serveur.
 
-> Une session reçoit au fil de l'eau des avis de changement donnant **la liste des codes** des abonnements dont le contenu a évolué: pour maintenir à jour une copie légèrement différée des documents concernés, la session interroge ensuite le serveur pour obtenir les documents eux-mêmes pour chaque abonnement ayant changé.  
+> Une session reçoit au fil de l'eau des avis de changement donnant **la liste des définitions** des abonnements dont le contenu a évolué: pour maintenir à jour une copie légèrement différée des documents concernés, la session interroge ensuite le serveur pour obtenir les documents eux-mêmes pour chaque abonnement ayant changé.  
 
-### Références d'abonnement ayant un texte de _pop-up_
-Certaines références d'abonnements peuvent être utilisés comme _alertes_. 
-- Quand un document change (par exemple `Chat`), les _références_ des abonnements `Chats....` concernés sont _poussés_ en notification des sessions abonnés.
+### Abonnements ayant un texte de _pop-up_
+Certaines définitions d'abonnements peuvent être utilisés comme _alertes_. 
+- Quand un document change (par exemple `Chat`), les _définitions_ des abonnements `Chats....` concernés sont _poussés_ en notification des sessions abonnés.
 - Quand un de ces abonnements a spécifié un _texte de pop-up_, celui-ci est affiché par le browser lors de sa réception, **que l'application soit lancée OU NON**.
 
 > **Des pop-ups d'alertes peuvent ainsi s'afficher**, même quand l'application n'est pas lancée, et informer l'utilisateur qui peut cliquer sur le pop-up. Si l'application n'était pas lancée, elle l'est. Sinon si l'écran montrait un contenu concerné par cette annonce de changement, la vue à l'écran se synchronise au nouveau contenu. 
