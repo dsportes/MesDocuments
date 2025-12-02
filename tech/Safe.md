@@ -145,7 +145,7 @@ Pour Bob initialiser sa session de l'application _myApp1_ depuis un _profil_ pr�
 ## Stockage des _safes_
 
 ### La base de données _Safe_
-Elle stocke les données de chaque _safe_. Elle est accédée par le moule _safe server_ embarqué dans les applications serveur comme _myApp1 server_.
+Elle stocke les données de chaque _safe_. Elle est accédée par le module _safe server_ embarqué dans les applications serveur comme _myApp1 server_.
 
 L'accès au _safe_ de Bob par _myApp1 terminal_ est effectué par le module _safe terminal_ embarquée. L'authentification du _safe_ de Bob se fait par de ces deux procédés:
 - depuis tout appareil, la donnée des phrases _longues_ `p0` et `p1` (ou `p2`) connues uniquement de Bob.
@@ -244,7 +244,7 @@ Depuis l'application myApp1 une page permet de créer un (voire plusieurs) _prof
 > Ces libellés _about_ permettront ensuite à Bob de sélectionner depuis une liste en clair de ses profils, celui ou ceux qu'il voudra détruire.
 
 L'application terminale _myApp1_ : 
-- génère aléatoirement `idprf` et les challenges `cx cy` et enregistre dans la base IDF _safes_ l'objet décriavant le profil généré.
+- génère aléatoirement `idprf` et les challenges `cx cy` et enregistre dans la base IDF _safes_ l'objet décrivant le profil généré.
 - génère un couple `Sa Va` de clés asymétriques signature / vérification.
 - initialise `nbe`, le nombre d'échecs, à 0.
 - disposant de la clé `K` de cryptage du _safe_ par la donnée par l'utilisateur,
