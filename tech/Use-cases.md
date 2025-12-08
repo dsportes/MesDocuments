@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Use-cases : circuitscourts, asocial
+title: Use-cases : revues, circuitscourts, asocial
 ---
 
 # Use Case _revues_

@@ -14,26 +14,25 @@ Les opérations exécutées par le serveur comme les données qu'il peut retourn
 - `mbr` : droit de gestion des accès des membres d'un groupe,
 - `trf` : droit de modification tarifaire ...
 
-## Vérification des _droits d'accès_ par _jetons signés_
-### Droit d'accès / _credential_
-Un _droit d'accès_ est matérialisé par les données suivantes:
+### Droit d'une application
+Un _droit_ d'une application est matérialisé par les données suivantes:
 - `type`, un code correspondant à sa _classe / catégorie_ `cpt, mbr, trf ...`
-- `target` : l'identifiant dans l'application de sa _cible_ qui peut comporter aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire. Par exemple pour un droit `cpt`, l'identifiant du compte.
+- `target` : l'identifiant dans l'application de sa _cible_ qui peut comporter aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire. Par exemple pour un droit `cpt` l'identifiant du compte.
 - une _liste de clés_, souvent d'un seul terme:
   - `var` : un code (vide par défaut) permettant de disposer de plusieurs clés pour un même droit identifié par `type / target`.
   - `S` : clé privée de **signature** (environ 400 bytes).
   - `V` : clé publique de **vérification** (environ 100 bytes).
 
-Les serveurs des applications ne détiennent des _droits d'accès_ **QUE** les propriétés `type target V` et n'ont PAS (sauf exception décrite ci-dessous) accès à le clé `S` correspondante. Un _serveur_ vérifie la validité d'un droit transmis par _l'application terminale_ de la manière suivante:
+Le serveur d'une application gère les _droits d'accès_ mais n'en connaît **QUE** `type target V` et n'a pas (sauf exception décrite ci-dessous) accès à le clé `S` correspondante. Le _serveur_ vérifie la validité d'un droit transmis par _l'application terminale_ de la manière suivante:
 - l'application terminale génère un texte _challenge_ qui n'a jamais été généré et ne sera jamais plus présenté à l'application serveur.
 - elle _signe_ ce _challenge_ par sa clé `S` et transmet au serveur le couple du challenge et de sa signature.
 - le serveur utilise sa clé `V` correspondante à la clé `S` utilisée à la signature et peut vérifier que la signature reçue est bien celle du challenge transmis.
 
-> Cette technique permet au serveur de s'assurer de la validité d'un droit sans avoir eu en mémoire la clé `S` de signature: c'est un avantage de confiance par rapport aux solutions basées sur un mot de passe qui, à un moment ou à un autre, a besoin d'être présent dans la mémoire du serveur, même si un hachage fort (type PBKDF) de mots de passe longs limite le risque.
+> Cette technique permet au serveur de s'assurer de la validité d'un droit sans jamais avoir eu en mémoire la clé `S` de signature: c'est un avantage de confiance par rapport aux solutions basées sur un mot de passe qui, à un moment ou à un autre, a besoin d'être présent dans la mémoire du serveur, même si un hachage fort de mots de passe longs limite le risque.
 
-### Jetons d'accès aux opérations
-Quand une application terminale soumet une opération à un serveur, elle fournit dans sa requête un **jeton d'accès** qui réunit les preuves que son utilisateur dispose des _droits_ requis pour exécuter cette opération. Un jeton comporte:
-- `sessionId` : C'est l'identification d'UNE exécution l'application terminale sur UN _device_, à un instant donné une seule exécution terminale de l'application peut s'en prévaloir.
+### Jetons d'accès
+Quand l'application terminale soumet une opération au serveur, elle fournit dans sa requête un **jeton d'accès** qui réunit les preuves que son utilisateur dispose des _droits_ requis pour exécuter cette opération. Un jeton comporte:
+- `sessionId` : C'est l'identification d'UNE exécution l'application terminale sur UN _device_, à un instant donné une seule exécution terminale de l'application peut s'en prévaloir. Pour une application fonctionnant en web-push, `sessionId` est un hash du (long) `devAppToken` attribué par le browser à l'application.
 - `time` : date-heure en milliseconde de la génération du jeton d'accès. Cette donnée fait partie du _challenge_ des signatures du jeton.
 - une liste de preuves de possession des droits constituée chacune d'un triplet:
   - `type` : du droit,
@@ -41,15 +40,50 @@ Quand une application terminale soumet une opération à un serveur, elle fourni
   - `signatures` : liste de signatures `{var1: sig1, ...}` du couple `sessionId,  time` par chaque variante `var1` de la clé `S` du droit correspondant.
 
 **Remarques**:
-- pour une application _web-push_, `sessionId` est un hash du (long) `devAppToken` attribué par le browser à l'application lors de l'enregistrement de son _service_worker_:  en conséquence `devAppToken` change si l'utilisateur du device supprime le service_worker qui se ré-enregistrera au prochain appel mais avec un token différent. Un _hacker_ un peu entraîné peut obtenir l'identifiant `devAppToken / sessionId` en lançant en _debug_ l'application sur ce _device_.
+- un _hacker_ un peu entraîné peut obtenir l'identifiant `devAppToken` en lançant en _debug_ l'application sur ce _device_.
 - dans la liste des preuves, plusieurs peuvent concerner le même couple `type target`: il suffit que l'une d'elle soit reconnue comme valide pour que le droit le soit. C'est une manière de traiter les situations, temporaires ou non, où un même droit peut avoir plusieurs _variantes_ de clés de signature / vérification (une _ancienne_ et une _nouvelle_, une variante par _pseudo_ ...).
 - un _jeton d'accès_ est crypté par la clé publique d'encryption du serveur applicatif ciblé de sorte que seul celui-ci puisse le lire. Cette clé fait partie de la _configuration_ du serveur que son administrateur technique délivre lors du déploiement et qu'il doit conserver confidentiellement.
 
+#### Solutions: simpliste versus _Safe_
+Quand l'application terminale doit soumettre une opération requérant un _droit_ donné (par exemple `cpt` pour un compte `1234`), elle pourrait en obtenir la clé `S` en la demandant à l'utilisateur. 
+
+Ce dernier effectue une forme ou une autre de _copier / coller_ depuis par exemple un fichier de texte externe détenu sur son _device_ et lui affichant sur une ligne la clé `S` pour le compte `1234`.
+
+Cette solution _simpliste_ est difficile à gérer dans la pratique:
+- comment l'utilisateur gère la disponibilité sur plusieurs appareils ?
+- comment éviter l'écrasement partiel ou perte du fichier lors d'une mise à jour ?
+- comment _sécuriser_ un tel fichier contre le vol ?
+
+Un autre solution est de stocker ces _droits_ par une base de données _Safe_ gérée par un couple de modules, _safe terminal_ embarqué dans _myApp1 terminal_, _safe server_ embarqué _myApp1 server_ en charge de résoudre les questions ci-dessus et de rendre accessible les _droits_ aux applications qu'ils concernent.
+
+#### Les applications terminales ne doivent pas avoir été _piratées_
+Si l'application terminale est une application _pirate_ qui a été lancée en déjouant la vigilance de l'utilisateur (par exemple en le sollicitant d'appuyer sur un lien envoyé par un e-mail frauduleux), elle _peut_ disposer des clés des droits auxquels l'utilisateur lui a donné accès. 
+
+Elle _peut_ les envoyer sur un serveur pirate où elles seront à disposition de pirates pour utilisation dans la _vraie_ application et lui transmettre ces clés _usurpées_.
+
+L'application _légitime_ a dans son code _sa clé de décryptage privée_ qui lui permet de décrypter les droits: mais en exécution en mode _debug_ un hacker un peu habile peut la retrouver. Cette _sécurité_ est plus symbolique qu'effective.
+
+Il n'existe aucun procédé logiciel qui permette de connaître l'origine d'une application, de quelle _source_ elle vient, si elle est _légitime_ ou _pirate_.
+
+Depuis un browser _sain_, l'appel d'une URL en HTTPS reste le procédé le _plus fiable_, encore faut-il,
+- lui avoir transmis la bonne URL et non celle de l'application pirate,
+- s'être assuré que le CDN correspondant distribue bien le source _officiel_ et non pas un _source modifié_. Pour cela il faut,
+  - comparer le hash des fichiers sources distribués avec les hash des fichiers source du repository _officiel_,
+  - avoir obtenu d'un expert indépendant l'assurance que le code _officiel_ est bien légitime et ne redistribue pas de clés d'accès,
+
+> Ces conditions sont toutefois possibles à vérifier pour une _application terminale_ Web. En revanche il n'existe aucun procédé technique permettant à un utilisateur de savoir si l'application _serveur_ hébergée est bien celle dont les sources (en Open Source) seraient disponibles dans un repository public: il faut _faire confiance_ à l'hébergeur ... et avoir une conception globale qui ne transmet pas d'informations sensibles en clair au serveur. 
+
+### Demandes de droits par une application terminale
+En supposant que l'application terminale ait obtenu, en sécurité, la **liste des droits** de l'utilisateur, lorsque celle-ci recherche la clé `S` d'un _droit_, plusieurs situations se présentent:
+- (1) pour le `type` fixé (par exemple `DRTARIF` : _droit à effectuer une modification tarifaire_), il n'existe qu'une clé unique, `target` est vide. Un seul terme de la liste des droits peut s'appliquer.
+- (2) le `type` ET la valeur de `target` sont fixées (par exemple `LOGIN, 1234` : _droit de l'utilisateur 1234 à se connecter_) par l'application. Un seul terme _au plus_ de la liste des droits peut s'appliquer.
+- (3) le `type` est fixé MAIS PAS la valeur de `target` (par exemple `LOGIN`):  l'application recherche **à la fois une cible et sa clé**. Plusieurs droits de la liste peuvent être candidats et l'utilisateur devra **désigner** le login qu'il choisit: dans ce cas un commentaire `about` attaché à chaque droit lui est utile (par exemple en donnant un nom en clair plutôt qu'un code).
+
 ### Validation des _droits_ d'un jeton par le serveur de l'application
-Quand le serveur d'une application traite une opération soumise par l'application _terminale_,
+Quand le serveur de l'application traite une opération,
 - il obtient de la requête le jeton d'accès et le décrypte par sa clé privée de décryptage.
 - le jeton présenté n'est acceptable que si son `time` _n'est pas trop vieux_ (quelques dizaines de secondes). Pour chaque _droit_ de la liste du jeton,
-  - il obtient depuis sa base de données la map dés clés acceptées `{var1: V1, var2:v2 ...}` de vérification associée à sa cible,
+  - il obtient depuis la base de données la map dés clés acceptées `{var1: V1, var2:v2 ...}` de vérification associée à sa cible,
   - il vérifie que la `signature` du couple `sessionId, time` est bien validée par la variante `var1` de `V`, ce qui prouve que l'application terminale en détient effectivement la clé de signature `S` correspondante.
 
 > `sessionId, time` est utilisé comme _challenge_ cryptographique et n'est pas présenté plus d'une fois pour une application donnée.
@@ -69,79 +103,19 @@ La logique applicative peut ainsi prévoir de distribuer plusieurs _variantes_ d
 
 > Ce dispositif permet aussi de gérer un _changement de clé_ pour un droit lorsqu'il a été attribué trop généreusement ou pour un temps limité. La création d'une nouvelle clé peut être faite et sa distribution restreinte aux seuls détenteurs souhaitables dans le futur, le cas échéant après un certain temps où les deux peuvent être admises, _l'ancienne_ peut être supprimée.
 
-### Utilisation de la liste des droits par une application terminale
-Celle-ci a obtenu la **liste des droits** de l'utilisateur: pour une opération donnée elle va devoir choisir celui approprié. Plusieurs situations se présentent:
-- (1) pour le `type` fixé (par exemple `DRTARIF` : _droit à effectuer une modification tarifaire_), il n'existe qu'une clé unique, `target` est vide. Un seul terme de la liste des droits peut s'appliquer.
-- (2) le `type` ET la valeur de `target` sont fixées (par exemple `LOGIN, 1234` : _droit de l'utilisateur 1234 à se connecter_) par l'application. Un seul terme _au plus_ de la liste des droits peut s'appliquer.
-- (3) le `type` est fixé MAIS PAS la valeur de `target` (par exemple `LOGIN`):  l'application terminale recherche **à la fois une cible et sa clé**. Plusieurs droits de la liste pouvant être candidats c'est l'utilisateur qui devra **désigner** le login qu'il choisit: dans ce cas le commentaire `about` attaché à chaque droit lui est utile (par exemple en donnant un nom en clair plutôt qu'un code).
-
-## Applications _légitimes / officielles_ versus _pirates_
-Si une application terminale est une application _pirate_ lancée par exemple depuis un lien envoyé par un e-mail frauduleux, 
-- elle peut demander à l'utilisateur ses justificatifs de droits d'accès en _singeant_ l'application légitime, 
-- elle _peut_ envoyer ces clés usurpées à un serveur pirate où elles seront à disposition de pirates pour se faire délivrer des données par l'application serveur légitime.
-
-> L'application _légitime_ a certes dans son code _sa clé de décryptage privée_ qui lui permet de décrypter les droits: mais en exécution en mode _debug_ un hacker un peu habile peut la retrouver. Cette _sécurité_ est plus symbolique qu'effective.
-
-Il n'existe aucun procédé logiciel _universel_ qui permette de connaître l'origine d'une application, de quelle _source_ elle vient, si elle est _légitime_ ou _pirate_. Toutefois depuis un browser _sain_, l'appel d'une URL en HTTPS reste le procédé le _plus fiable_, encore faut-il,
-- lui avoir transmis la bonne URL et non celle de l'application pirate,
-- s'être assuré que le CDN correspondant distribue bien le source _officiel_ et non pas un _source modifié_. Pour cela il faut,
-  - comparer le hash des fichiers sources distribués par le CDN avec les hash des fichiers source du repository _officiel_,
-  - avoir obtenu d'un expert indépendant l'assurance que le code _officiel_ est bien légitime et ne redistribue pas de clés d'accès,
-
-> Si ces conditions sont possibles à vérifier pour une _application terminale_ Web, en revanche il n'existe aucun procédé technique permettant à un utilisateur de savoir si l'application _serveur_ hébergée est bien celle dont les sources (en Open Source) seraient disponibles dans un repository public: il faut _faire confiance_ à l'hébergeur.
-
 # Les modules _safe terminal_ et _safe server_
 
-Ils sont embarqués respectivement dans _myApp1 terminal_ et _myApp1 server_: les deux modules communiquent entre eux, le _terminal_ pouvant solliciter des opérations du _server_ par des requêtes HTTPS.
+Ils sont embarqués respectivement dans _myApp1 terminal_ et _myApp1 server_: les deux modules communiquent entre eux, le _terminal_ pouvant sollicité des opérations du _server_ par des requêtes HTTPS.
 
-Ils ont pour objet de gérer le _coffre fort_ des utilisateurs.
+Ils ont pour objet de gérer le (ou les) _coffres forts_ des utilisateurs.
 
-> Les modules _safe terminal / server_ ne gèrent pas à proprement parler des _personnes_ mais leurs _coffres forts_: rien n'empêche un _personne_ de posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
+Après avoir lancé l'application _myApp1 terminal_ depuis son appareil, un utilisateur va lui indiquer quel est son _coffre fort_, du moins la partie de son _coffre fort_ dédiée à myApp1 ait accès aux diverses données _sensibles_ de l'utilisateur (ses _droits d'accès_, préférences, options de lancement).
 
-Après avoir lancé l'application _myApp1 terminal_ depuis son appareil, un utilisateur va lui indiquer quel est son _coffre fort_ afin d'accéder en toute sécurité aux données confidentielles qui le concerne.
+Une fois ainsi initialisé, par _myApp1 terminal_, le module embarqué _safe terminal_ peut:
+- gérer ses profils sur des appareils _de confiance_.
+- gérer les données sensibles _droits, préférences ..._ de l'application que l'utilisateur peut utiliser.
 
-### Sessions et _profils_ de sessions
-Quand un utilisateur lance une application _myapp1_ depuis un _device_ il ouvre une session, identifiée de manière unique pour cette application: sur un _device donné_, une seule session peut s'exécuter à un instant donné pour l'application _myapp1_.
-
-A la première toute ouverture d'une session de l'application _myapp1_ l'utilisateur va devoir:
-- citer le ou les droits d'accès dont il se prévaut dans cette session, typiquement en _cochant_ ceux qu'il a déjà acquis et stockés dans son coffre.
-- fixer éventuellement quelques préférences d'ouverture (langue, disposition préférée, etc.).
-
-Si l'utilisateur prévoit de rouvrir un jour plus tard une session dans les mêmes conditions (mêmes droits et mêmes préférences), il peut enregistrer dans son _coffre_ le _profil_ de sa session et lui donner un _à propos_ significatif pour lui: ainsi ultérieurement quand il voudra rouvrir une session similaire, au lieu de re-citer droits et préférences, il désignera simplement ce _profil_.
-
-### Devices _de confiance_
-Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
-- **soit il n'a pas confiance dans cet appareil** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
-  - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
-  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
-- **soit il juge l'appareil _de confiance_**,
-  - il l'utilise régulièrement, que se soit le sien ou celui d'un proche,
-  - il peut y laisser _en cache_ des informations cryptées et espérer raisonnablement les retrouver plus tard.
-
-Un utilisateur peut déclarer sa _confiance_ au _device_ qu'il utilise:
-- son _coffre_ enregistre ce device comme étant de confiance,
-- le _device_ enregistre localement la référence à cette déclaration de confiance.
-
-Lancer une application depuis un appareil _de confiance_ a plusieurs avantages:
-- **authentification simplifiée** de son _coffre_ par un code PIN court donnant accès à ses profils de sessions des applications.
-- **disposer sur ce device de _mémoires caches persistantes et cryptées de documents_** pour chaque _profil_ de session ce qui lui permet d'ouvrir une session,
-  - en mode _réseau_ minimisant le nombre de documents à récupérer des serveurs,
-  - en mode _avion_ (sans accès au réseau) avec accès en lecture aux documents dans l'état où ils se trouvaient lors de la dernière ouverture de session en mode _réseau_.
-
-## Sections des _coffre fort_
-La base de données _Safe_ stocke les données de chaque _safe_ dans un document. Elle est accédée par le module _safe server_ embarqué dans les applications serveur comme _myApp1 server_.
-
-Le document décrivant un _coffre fort_ a plusieurs sections:
-- section `auth`: données d'authentification qui permettent de s'assurer que l'utilisateur en est vraiment le propriétaire légitime.
-- section `creds`: liste des _credentials_ détenus dans le coffre. Chaque _credential_ y est identifié par son numéro d'ordre d'enregistrement dans le coffre et a un _a propos_ texte signifiant pour l'utilisateur.
-- section `profiles`: liste des _profils de session_ que l'utilisateur peut ouvrir (regroupés par application). Un profil est décrit par:
-  - un numéro d'ordre de création identifiant,
-  - un _à propos_, texte signifiant pour l'utilisateur.
-  - la liste des _credentials_ qui seront attachés à une session lors de son ouverture.
-  - une liste éventuelle de _préférences_ utilisées à l'ouverture d'une session.
-- section `devices`: chaque entrée dans cette section identifie un _device de confiance_.
-
-
+> Les modules _safe terminal / server_ ne gèrent pas à proprement parler des _utilisateurs_ mais leurs _coffres forts_: rien n'empêche un _utilisateur_ (une personne) de posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
 
 > Dans la base de données _safe_ chaque coffre fort à une entrée:
 - avec un **header d'authentification** (indépendant des applications) et une clé K immuable pour le _safe_ cryptée.
@@ -150,11 +124,28 @@ Le document décrivant un _coffre fort_ a plusieurs sections:
   - par la clé C de _myApp1_: les autres applications ne peuvent pas les décrypter,
   - par la clé K du _safe identifié_ de sorte que la section n'est lisible que par une application _myApp1_ ayant acquis la clé K du _safe_ depuis la saisie de l'utilisateur soit d'une phrase longue, soit d'un code PIN dans certaines conditions.
 
+## _Profils_ des utilisateurs sur des appareils déclarés _de confiance_
+Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
+- **soit il juge l'appareil _de confiance_**,
+  - il l'utilise régulièrement, que se soit le sien ou celui d'un proche: il en a le _login_ ou a minima quelqu'un accepte de lui prêter l'appareil _session ouverte_.
+  - il peut y laisser quelques informations cryptées et espérer raisonnablement les retrouver plus tard.
+- **soit il n'a pas confiance dans cet appareil** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
+  - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
+  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
 
+**Sur un appareil qu'il a jugé de confiance**, un utilisateur Bob peut déclarer un, voir plusieurs, **profils**. 
+
+Pour Bob initialiser sa session de l'application _myApp1_ depuis un _profil_ préalablement déclaré sur cet appareil a plusieurs autres avantages:
+- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque profil comme _cache_ de ses documents: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
+- **disponibilité des droits** de Bob pour _myApp1_ le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
+- **possibilité d'utiliser _myApp1_ en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
+
+> Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même, même dans un cadre familial ou de couple, l'appareil n'est jamais considéré comme strictement _personnel_.
 
 ## Stockage des _safes_
 
-
+### La base de données _Safe_
+Elle stocke les données de chaque _safe_. Elle est accédée par le module _safe server_ embarqué dans les applications serveur comme _myApp1 server_.
 
 L'accès au _safe_ de Bob par _myApp1 terminal_ est effectué par le module _safe terminal_ embarquée. L'authentification du _safe_ de Bob se fait par de ces deux procédés:
 - depuis tout appareil, la donnée des phrases _longues_ `p0` et `p1` (ou `p2`) connues uniquement de Bob.
