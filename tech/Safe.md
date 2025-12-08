@@ -133,219 +133,161 @@ La base de données _Safe_ stocke les données de chaque _safe_ dans un document
 
 Le document décrivant un _coffre fort_ a plusieurs sections:
 - section `auth`: données d'authentification qui permettent de s'assurer que l'utilisateur en est vraiment le propriétaire légitime.
+- section `devices`: chaque entrée dans cette section identifie un _device de confiance_.
 - section `creds`: liste des _credentials_ détenus dans le coffre. Chaque _credential_ y est identifié par son numéro d'ordre d'enregistrement dans le coffre et a un _a propos_ texte signifiant pour l'utilisateur.
 - section `profiles`: liste des _profils de session_ que l'utilisateur peut ouvrir (regroupés par application). Un profil est décrit par:
   - un numéro d'ordre de création identifiant,
   - un _à propos_, texte signifiant pour l'utilisateur.
   - la liste des _credentials_ qui seront attachés à une session lors de son ouverture.
   - une liste éventuelle de _préférences_ utilisées à l'ouverture d'une session.
-- section `devices`: chaque entrée dans cette section identifie un _device de confiance_.
 
 
+### Section `auth`
 
-> Dans la base de données _safe_ chaque coffre fort à une entrée:
-- avec un **header d'authentification** (indépendant des applications) et une clé K immuable pour le _safe_ cryptée.
-- une **section d'authentification par application** `myApp1` ayant une entrée par _profil_ `idPrf1` déclaré par l'utilisateur cryptée par la clé C de _myApp1_.
-- une **section par application**: la section de _myApp1_ est doublement cryptée,
-  - par la clé C de _myApp1_: les autres applications ne peuvent pas les décrypter,
-  - par la clé K du _safe identifié_ de sorte que la section n'est lisible que par une application _myApp1_ ayant acquis la clé K du _safe_ depuis la saisie de l'utilisateur soit d'une phrase longue, soit d'un code PIN dans certaines conditions.
-
-
-
-## Stockage des _safes_
-
-
-
-L'accès au _safe_ de Bob par _myApp1 terminal_ est effectué par le module _safe terminal_ embarquée. L'authentification du _safe_ de Bob se fait par de ces deux procédés:
-- depuis tout appareil, la donnée des phrases _longues_ `p0` et `p1` (ou `p2`) connues uniquement de Bob.
-- depuis un appareil _de confiance_ sur lequel Bob a déclaré un _profil_ `prf1` la donnée d'un code PIN (au moins 8 signes) beaucoup plus court.
-
-Après avoir identifié et authentifié en sécurité le _safe_ de Bob, l'application _myApp1 terminal_ sollicite son module _safe terminal_ pour qu'il communique avec le module _safe server_ embarqué dans _myApp1 server_ et reçoive sa _section spécifique de myApp1 pour Bob, et la charge en mémoire. L'application _myApp1 terminal_ dispose ainsi des droits d'accès, préférences et options de Bob pour _myApp1_.
-
-Les mises à jour du _safe_ de Bob se répercutent sur la base _safe_ par l'intermédiaire des modules embarqués _safe terminal / server_.
-
-> Depuis un _profil_ _prf1_ de Bob pour _myApp1_ accédé en mode _avion_, le contenu du _safe_ de Bob pour _myApp1_ est lu depuis une micro base de données locale cryptée pour n'être lisible que par _myApp1_ et Bob. Celle-ci a été mise à jour lors de sa dernière utilisation connectée à Internet du profil _prf1_.
-
-### Par un fichier `safe.json` crypté (intérêt à confirmer)
-Au lieu d'obtenir le contenu du _safe_ de son serveur, le module _safe terminal_ peut demander à l'utilisateur de lui fournir un fichier `safe.json` (gzippé et crypté).
-
-Le cryptage est assuré par une _phrase longue_ connue seulement de l'utilisateur.
-
-Après lecture et décryptage, l'application fonctionne comme si le contenu avait été obtenu du _safe_ avec les différences suivantes:
-- les mises à jour sont accumulées en mémoire mais pas transmises au serveur.
-- c'est à l'utilisateur de demander la _sauvegarde_ (après compression et cryptage) dans un fichier externe et de gérer sa communication éventuelle par le cloud ou des clés USB ...
-
-## Organisation d'un document _safe_
-
-### Création d'un _safe_ par un utilisateur
+#### Création d'un _safe_ par un utilisateur
 Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
 
-Un couple de clés `C / D` asymétriques est générée:
+Un couple de clés `C / D` asymétriques est généré:
 - `C` est en clair : son hash court est l'identifiant du _safe_
 - `D_K` est le cryptage de `D` par `K`.
 - `C_KH` est le hash du cryptage de `C` par `K`. Cette donnée permet au module _safe server_ de s'assurer en traitant une requête qu'elle a bien été issue d'un module _safe terminal_ détenant la clé `K`.
 
 L'utilisateur donne:
-- une _phrase_ `p0` qui de facto ne pourra plus être changée.
-- une _phrase_ `p1`:
-  - elle pourra être changée,
-  - `p1_H` est le SHA du `SH(p0, p1)`. Index unique du _safe_.
-- une _phrase_ `p2`:
-  - elle pourra être changée,
-  - `p2_H` est le SHA du `SH(p0, p2)`. Index unique du _safe_.
+- un _couple_ `p0, p1` (qui pourra être changé) _d'authentification_:
+  - `p0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. qui identifie de manière unique le _safe_ (le SH de `p0` est un index unique).
+  - `p1` est une phrase _longue_ d'au moins 24 signes.
+- un _couple_ `r0, r1` (qui pourra être changé) _de récupération_:
+  - `r0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. (12 signes au moins) qui identifie de manière unique le _safe_ (le SH de `r0` est un index unique) et qui peut être égal à `p0`.
+  - `r1` est une phrase _longue_ d'au moins 24 signes. Il n'est pas judicieux qu'elle soit égale à p1 puisqu'elle permet justement la récupération du safe en cas d'oubli de `r0, p0`.
 
-Les _phrases_ sont _longues_, au moins 16 signes pour `p0` et 24 pour `p1` et `p2`. Pour accéder à son _safe_ après création, son propriétaire doit fournir:
-- sa phrase `p0`,
-- l'une de ses deux phrases `p1` OU `p2`.
+La clé `K` du safe est stockée dans les propriétés `Ka` et `Kr` cryptages respectifs par  `SH(p0, p1, SEP)` et `SH(r0, r1, SEP)`.
 
-La clé `K` du safe est stockée dans les propriétés `K1` et `K2` cryptages respectifs par  `SH(p0, p1, SEP)` et `SH(p0, p2, SEP)`.
+A aucun moment `p0 p1 r0 r1` ne sont stockés ni transmis _en clair_. Elles ne figurent _en clair_ que très temporairement à la saisie par l'utilisateur dans le module _safe terminal_ et y sont effacés dès la fin de la saisie.
 
-Après avoir identifié son _safe_ son propriétaire peut:
-- changer `p1` et / ou `p2` à condition de fournir `p1` ou `p2` actuel.
-- de facto il n'est pas possible de changer `p0`, bien que non stockée directement dans le _safe_ sous aucune forme.
+Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
+- soit le couple actuel `p0, p1` OU `r0, r1`.
+- les nouveaux couples `p0, p1` et `r0, r1`. 
 
-#### Remarques:
-- A aucun moment les phrases `p0 p1 p2` ne sont stockés quelque part ni transmis _en clair_. Elles ne figurent _en clair_ que très temporairement à la saisie par l'utilisateur dans le module _safe terminal_ et y sont effacées dès la fin de la saisie.
-- L'existence de deux phrases `p1` et `p2` autorise l'oubli de l'une des deux. En revanche le propriétaire du _safe_ ne doit pas oublier `p0`: il peut donner une adresse _e-mail, son état civil, etc._ Ce texte N'EST JAMAIS exposé extérieurement et même si un hacker essayait la bonne phrase en tablant sur la banalité d'une adresse email, il n'aurait aucune chance de trouver `p1` ou `p2` avant la fin du monde (si un minimum de règles de choix est respecté).
+#### Synthèse des propriétés de la section `auth`
+- `safeId` : identifiant, hash court de C.
+- `maxLife` : durée de vie du _safe_, sachant que toute utilisation recule cette date (_purge_ automatique des _safe_ obsolètes / fantômes).
+- `C` : clé _publique_ de cryptage du _safe_ (`D` est sa clé _privée_ de décryptage).
+- `D_K` est le cryptage de `D` par `K`.
+- `C_KH` est le hash du cryptage de `C` par `K`. ???
+- `hp0` : index unique, SH(p0).
+- `hr0` : index unique, SH(r0).
+- `hp1` : SH(p1).
+- `Ka` : clé `K` du safe cryptée par SH(p0, p1).
+- `Kr` : clé `K` du safe cryptée par SH(r0, r1).
+- `idx` : dernier numéro attribué à un identifiant local de credential / profil.
 
-### Structure du document _safe_
-Il comporte les parties suivantes:
-- **entête** : ce sont les propriétés décrites ci-avant:
-  - `C D_K C_KH K1 K2 p1_H p2_H`
-  - `maxLife` : durée de vie du _safe_, sachant que toute utilisation recule cette date (_purge_ automatique des _safe_ obsolètes / fantômes).
-- **profils**: map avec une entrée par couple `myApp1 / idprf1`, ou `idprf1` est l'identifiant aléatoire d'un profil attribué à sa création. Ces items sont immuables après création.
-- **applications**: map avec une entrée par `myApp1` contant les données spécifiques de Bob pour _myApp1_.
+### Section `devices`
+Chaque _device de confiance_ à une entrée identifiée par `about` dans cette section:
+- `about` : code / texte court donné par l'utilisateur pour qualifier le _device_. Par exemple `Bob sur le PC d'Alice`.
+- `{ Va, cy, sign, nbe }` : propriétés permettant de valider que ce _device_ est de confiance (voir plus loin).
 
-### Ouverture d'un _safe_ sur tout appareil
-L'utilisateur saisit `p0` et `p1` (ou `p2`).
+Après avoir authentifié son accès à son _safe_, l'utilisateur peut retirer sa confiance à n'importe lequel des devices cités dans la liste en en supprimant l'entrée.
 
-L'application _Safe_ accède au _safe_ par la clé d'index `p1_H` (ou `p2_H`).
+### Section `creds`
+Chaque _droit d'accès / credential_ est enregistré dans un item crypté par la clé K du safe sous un numéro d'ordre `idx` qui en devient son identifiant local au safe. Les propriétés sont:
+- `about` : code / texte court donné par l'utilisateur pour qualifier le _credential_. Par exemple `Compte Bob sur circuits courts`. 
+- `type, target, keys: [{var, S, V}, ...]` : données du _credential_, ses clés d'accès.
 
-L'application _Safe_ décode `K1` (ou `K2`) par `SH(p0, p1 (ou p2), SEP)`, et dispose ainsi de la clé `K` requise pour décrypter les items des sections `devices` et `applications`.
+### Section `profiles`
+Elle est organisée avec une **sous-section par application** regroupant une liste d'items identifiés par `idx` le numéro d'ordre de création. Chaque item est crypté par la clé K de _safe_ et a les propriétés suivantes: 
+- `about`: un _à propos_, texte signifiant pour l'utilisateur. Par exemple `Revue des notes d'Alice et Jules`.
+- `creds`: la liste des idx des _credentials_ qui sont attachés à une session de ce profil lors de son ouverture.
+- `prefs`: un objet facultatif donnant les _préférences_ utilisées à l'ouverture d'une session.
 
-### Déclaration d'un profil pour l'application `myApp1` sur un device de confiance
-Un utilisateur peut déclarer ou ou plusieurs _profils_ sur un _device de confiance_ pour une application `myApp1`.
+## Accès d'une application terminale à un _safe_
+### Depuis n'importe quel _device_ (de confiance ou non)
+Le module _safe terminal_ demande à l'utilisateur `p0 p1` et les transmet au module _safe server_ qui:
+- accède au document _safe_ depuis le SH(p0).
+- y décode la clé `Ka` par SH(p0, p1): en cas d'échec c'est que `p1` était incorrecte.
 
-Une base de données locale IDB de nom `safes` a une entrée par application ayant déclaré un profil sur ce device. 
-- Cette entrée `myApp1` est une **liste d'objets _profile_** cryptée par la clé C de l'application `myApp1` qui devrait n'être lisible que par l'application myApp1. 
-  - toutefois sa clé D correspondante étant disponible dans le source de myApp1,  avec un peu d'effort un hacker peut la retrouver, la sécurité est _faible_. 
-- chaque objet _profile_ a les propriétés suivantes:
-  - `idprf`: id aléatoire générée à la création du profil.
-  - `about`: texte donné par l'utilisateur qualifiant son profil et le device sur lequel il se trouve, par exemple: `Bob sur PC Alice, accès à mon compte`.
-  - `safeId`: identifiant du safe de l'utilisateur Bob.
-  - `K1` : clé K du safe cryptée par SH(p0, p1, SEP) la phrase secrète 1 de Bob pour accéder à son safe d'identifiant safeId.
-  - `K2` : clé K du safe cryptée par SH(p0, p2, SEP) la phrase secrète 2 de Bob pour accéder à son safe d'identifiant safeId.
-  - `Kp` : clé K du safe cryptée par SH(pin + cx, cy, SEP) où,
-    - `pin` est le code PIN choisi par Bob pour ce profil (il peut réemployer le même PIN pour plusieurs profils).
-    - `cx`: challenge aléatoire généré à la création du profil.
-    - `cy`: challenge aléatoire généré à la création du profil.
-  - `cx`: challenge cx.
-- **pour chaque _profil_ `idprf`** la base IDB dispose d'un objet `safeData` doublement crypté par la clé C de myApp1 et par la clé K du safe de Bob:
-  - cette entrée est la copie de l'entrée correspondante du _safe de Bob pour myApp1_ effectuée lors du dernier accès à ce profil avec une connexion Internet active.
+### Depuis un _device_ de confiance
+Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une micro base de données IDB nommée `Safes` ayant les tables suivantes:
+- `DEVICE`: chaque row a les colonnes suivantes et correspond à une déclaration de confiance de ce device par un utilisateur:
+  - `safeId`: identifiant du _safe_ de l'utilisateur.
+  - `about`: par exemple `Bob sur le PC d'Alice` identifiant ce device pour cet utilisateur. Le couple `safeId about `est clé primaire.
+  - `cx`: un challenge aléatoire.
+  - `Ka`: clé K du safe de l'utilisateur cryptée par SH(p0, p1) où p0 et p1 sont les termes d'authentification du safe de l'utilisateur.
+  - `Kp`: clé K du safe de l'utilisateur cryptée par SH(PIN + cx, cy) où,
+    - `PIN` est le code PIN fixé par l'utilisateur à la déclaration de confiance et `cx cy` des challenges générés aléatoirement à ce moment.
+- `CACHE`: chaque row identifie un cache de documents et le profil de la session auquel il correspond:
+  - `app`: code l'application correspondante.
+  - `idbId`: identifiant local aléatoire.
+  - `safeId`: identifiant du _safe_ de l'utilisateur.
+  - `idx`: index du profil de la session utilisant ce cache.
+  - `about`: _à propos_ de ce profil, par exemple `Revue des notes d'Alice et Jules`.
+  - il existe une base de données IDB de nom app.idbId contenant les documents en cache pour une session de 
 
-#### Process de déclaration d'un profil
-Depuis l'application myApp1 une page permet de créer un (voire plusieurs) _profil_ d'accès pour l'utilisateur Bob:
-- Bob donne son couple de phrase `p0, p1 ou p2` ce qui permet au module _safe_ de myApp1:
-  - d'obtenir la clé `K` d'accès au safe de Bob et l'identifiant `safeId` de ce safe.
-  - d'obtenir l'entrée dans ce _safe_ pour l'application myApp1, objet crypté par la clé K obtenue ci-dessus et la clé C de myApp1.
-- Bob donne un libellé `about` explicitant à quoi sert le profil et sur quel appareil il se trouve.
+> Les rows de la base IDB Safe sont cryptés par la clé C des modules `safe terminal ` et `safe server` afin de ne pas être directement lisible en _debug_. Toutefois cette _sécurité_ est _molle_: la clé D de décryptage étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker va la retrouver.
 
-> Ces libellés _about_ permettront ensuite à Bob de sélectionner depuis une liste en clair de ses profils, celui ou ceux qu'il voudra détruire.
+#### Déclaration d'un _device_ de confiance
+Depuis le _device_ à déclarer de confiance, l'utilisateur:
+- saisit `about` un nom explicite pour lui, par exemple `Bob sur le PC d'Alice`.
+- saisit un code `PIN` (d'au moins 6 signes).
+- saisit le couple `p0 p1` d'accès à son _safe_.
 
-L'application terminale _myApp1_ : 
-- génère aléatoirement `idprf` et les challenges `cx cy` et enregistre dans la base IDF _safes_ l'objet décrivant le profil généré.
+Le module _safe terminal_ demande au module _safe server_ d'accéder au safe de l'utilisateur identifié par SH(p0) et de lui retourner le `safeId` et `Ka` associé:
+- disposant du couple `p0 p1`, le module _safe terminal_ obtient la clé `K` du safe de l'utilisateur en décryptant `Ka` par le SH(p0, p1).
+
+Le module _safe terminal_,
+- génère les challenges aléatoires `cx cy`.
+- calcule `Kp`, cryptage de cryptage de la clé `K` par le `SH(PIN + cx, cy)`.
 - génère un couple `Sa Va` de clés asymétriques signature / vérification.
-- initialise `nbe`, le nombre d'échecs, à 0.
-- disposant de la clé `K` de cryptage du _safe_ par la donnée par l'utilisateur,
-  - calcule `Kp`, cryptage de la clé `K` par le `SH(PIN + cx, cy, SEP)`.
-  - génère dans `sign` la signature par `Sa` du `SH(PIN, cx)`.
-
-Le module _safe terminal_ inclus dans l'application terminale myApp construit un objet _profile server_ et le transmet au module _safe server_ (inclus dans _myApp server_) pour enregistrement dans l'entrée `safeId` du safe de Bob relatif à ce _profile_ d'identifiant `idprf`:
-  - `about`: le libellé donné par l'utilisateur à propos du profil créé.
-  - `Kp Va cy sign nbe`: les données calculées ci-avant.
-  - cet objet est doublement crypté avant transmission au module _safe server_, par la clé K du safe de Bob et la clé C de l'application.
+- calcule `sign`, signature par `Sa` du `SH(PIN, cx)`.
+- calcule `hp1` comme SH(p1).
+- enregistre dans la table `DEVICE` de la base IDB `Safes` un row avec les colonnes `safeId about cx Ka Kp`.
+- transmet au module _safe terminal_ `safeId, hp1, about, Va, cy, sign` qui,
+  - accède au _safe_ dont l'id est safeId et vérifie que les hp1 correspondent (s'assure que _safe terminal_ détient le bon p1).
+  - y créé dans la section `devices` une entrée about avec les données `Va cy sign nbe = 0`.
 
 > Remarque: `Sa` a servi à générer la signature sign mais n'est plus utilisé ensuite et n'est pas mémorisé. `Va` l'est et servira à authentifier la signature d'un PIN saisi par Bob.
 
 Après ce calcul,
-- le _safe_ a été mis à jour par le module _safe server_ avec un nouvel profil contenant les données cryptographiques permettant à Bob de s'authentifier pour ce profil par un code PIN assez simple.
-- sur le _device_ la base locale IDB _safe_ contient une entrée cryptée relatif au profil créé. 
+- le _safe_ a été mis à jour par le module _safe server_ avec un nouveau device de confiance avec les données cryptographiques permettant à l'utilisateur de s'authentifier par un code PIN.
+- sur le _device_ la base locale IDB _safes_ contient une entrée relative à cette déclaration de confiance avec en particulier la clé K du _safe_ cryptée en Ka et Kp. 
 
-## myApp1 : accès à son entrée dans le safe de Bob depuis un _device_ où il n'a pas de `profil`
-Sur n'importe quel poste, Bob peut se trouver dans la situation,
-- soit où aucun _profil_ n'est déclaré pour l'application _myApp1_,
-- soit où il y a un ou plusieurs profils pour l'application _myApp1_ mais il n'en reconnaît aucun, n'en n'en pas les codes PIN (vraisemblablement parce qu'ils ont été déclarés par d'autres utilisateurs).
+#### Authentification par code PIN depuis un _device déclaré de confiance_
+Le module _safe terminal_ lit la base IDB _Safes_ et, 
+- propose à l'utilisateur de désigner la ligne de DEVICE dont la propriété about correspond à lui: par exemple `Bob sur le PC d'Alice`. Le module dispose ainsi des données `safeId about cx Kp`.
+- demande à l'utilisateur de saisir le PIN associé et calcule `z` = SH(PIN, cx).
+- transmet au module _safe terminal_ `safeId, about, z` qui,
+  - accède au _safe_ dont l'id est `safeId`.
+  - accède dans la section `devices` à l'entrée `about` ce qui lui donne les propriétés `Va cy sign nbe`. Si cette entrée n'existe pas c'est que ce _device_ N'EST PAS / PLUS de confiance,
+    - soit n'a jamais été déclaré,
+    - soit a été supprimé explicitement par l'utilisateur,
+    - soit qu'il a été supprimé du fait d'un nombre excessif d'essai de code PIN.
+  - vérifie par `Va` que `sign` est bien la signature de `z` (SH(PIN, cx)). Nn cas de succès, il met à 0 `nbe` s'il ne l'était pas déjà et sinon incrémente `nbe`.
+  - retourne le challenge `cy` au module _safe terminal_ qui peut ainsi calculer la clé SH(PIN + cx, cy) qui décrypte `Kp` ce qui lui donne la clé K du _safe_.
 
-L'application terminale _myApp1_ ne peut pas accéder p  ar son module inclus _safe terminal_ à l'entrée du _safe_ de Bob depuis la base locale IDB _safe_ (qui peut-être d'ailleurs n'existe pas). 
+##### Échecs
+Quand la signature `sign` n'est pas vérifiée par `Va`, c'est que le code PIN n'est pas le bon. `Va` correspond au `Sa` qui a été utilisé à sa signature, `cx` était bien celui fixé à la déclaration. **Le nombre d'erreurs `nbe` est incrémenté**.
 
-**Bob saisit sa phrase _longue_** `p0 et (p1 ou p2)` et le module _safe server_ inclus dans l'application myApp1 server accédera à l'entrée pour myApp1 dans le safe de Bob:
-- le module _safe server_ retourne,
-  - K1 et K2 (qu'il ne peut pas décrypter),
-  - l'objet pour myApp1 doublement crypté.
-- le module _safe terminal_ connaissant p0 et p1 ou p2, peut décrypter K1 ou K2 et obtenir la clé K du safe de Bob. 
-  - Il peut de ce fait décrypter l'entrée du safe de Bob pour _myApp1_ ayant la clé K et la clé D privée de myApp1.
+Si ce nombre est égal à 2, il y présomption de recherche d'un code PIN par succession d'essais, l'entrée `about` est supprimée. L'utilisateur devra refaire une _déclaration de confiance_ de ce device avec un code PIN (ce qui exigera une authentification _forte_ par `p0` et (`p1` ou `p2`)).
 
-## myApp1 : accès à son entrée dans le safe de Bob depuis un _device_ où il a reconnu / choisi son `profil`
-Le module _safe terminal_ a trouvé la base de donnée locale IDB _safe_ et a présenté à Bob la liste des profils qu'elle contient:
-- Bob choisit son profil.
+### Accès d'une application en mode _avion_ (pas d'accès au réseau)
+La base IDB _Safes_ permet de localiser une base IDB cache de documents: c'est l'utilisateur qui désigne celle-ci d'après le texte `about` de son profil.
 
-### Cas 1: Internet est accessible
-Bob peut authentifier son _safe_,
-- soit en donnant sa phrase _longue_ `p0 et (p1 ou p2)`,
-- **soit en donnant son code PIN beaucoup plus court**.
+MAIS cette base est cryptée par la clé K du safe de l'utilisateur. Ce dernier doit:
+- désigner dans la liste de DEVICE proposés celui de sa convenance (par exemple `Bob sur le PC d'Alice`) ce qui va donner Ka.
+- saisir son couple p0 p1 authentifiant son accès au _safe_ et décrypter Ka par SH(p0, p1) pour obtenir sa clé K.
 
-In fine à la fin de ce processus, 
-- le module _safe terminal_ dispose de l'objet entrée de myApp1 dans le _safe_ de Bob obtenu du module _safe server_ inclus dans _myApp1 server_.
-- cet objet est inscrit dans la base locale IDB pour l'entrée idPrf pour myApp1. Elle permettra un accès en mode _avion_ ultérieur depuis ce profil.
-- myApp1 dispose en clair de cet objet décrypté par le module _safe terminal_ ce qui lui permet de lire les _droits d'accès_ et _préférences_ de Bob pour ce profil et myApp1.
+> En mode _avion_ l'authentification par code PIN n'est pas possible.
 
-#### Processus d'authentification du code PIN
-Le module _safe terminal_ inclus dans myApp1 terminal dispose:
-- de l'identifiant `idprf` du profil sélectionné par Bob,
-- du code PIN sais par Bob,
-- de l'objet `idprf` crypté par la clé C de _myApp1_ avec les propriétés suivantes:
-  - `about`: texte donné par l'utilisateur qualifiant son profil et le device sur lequel il se trouve, par exemple: `Bob sur PC Alice, accès à mon compte`.
-  - `safeId`: identifiant du safe de l'utilisateur Bob.
-  - `K1` : clé K du safe cryptée par SH(p0, p1, SEP) la phrase secrète 1 de Bob pour accéder à son safe d'identifiant safeId.
-  - `K2` : clé K du safe cryptée par SH(p0, p2, SEP) la phrase secrète 2 de Bob pour accéder à son safe d'identifiant safeId.
-  - `Kp` : clé K du safe cryptée par SH(pin + cx, cy, SEP) où,
-    - `pin` est le code PIN choisi par Bob pour ce profil (il peut réemployer le même PIN pour plusieurs profils).
-    - `cx`: challenge aléatoire généré à la création du profil.
-    - `cy`: challenge aléatoire généré à la création du profil.
-  - `cx`: challenge cx. 
-
-Il interroge le module _safe server_ inclus dans _myApp1 server_ en lui passant en paramètres:
-  - `safeId` l'identifiant du _Safe_ de Bob.
-  - `idprf` l'identifiant du _profil_ choisi par Bob.
-  - `SH(PIN, cx)` où `cx` est le challenge trouvé ci-dessus et `PIN` le code PIN saisi par l'utilisateur.
-- le module _safe server_:
-  - accède au _Safe_ de Bob par l'identifiant `safeId`.
-  - vérifie que `idprf` est bien la clé d'une entrée `e` de la map des profils de myApp1.
-  - vérifie par `e.Va` que `e.sign` est bien la signature de `SH(PIN, cx)`.
-  - en cas de succès, il met à 0 `e.nbe` s'il ne l'était pas déjà.
-  - retourne `e.cy, e.Kp` et la section `myApp1` du _safe_ de Bob.
-- le module _safe server_ peut ainsi,
-  - calculer x = SH(pin + cx, cy, SEP) disposant désormais de `cy`.
-  - vérifier que x décrypte bien Kp, ce qui à la fois lui prouve que le challenge cy est le bon, que le code PIN a bien été reconnu et lui donne la clé K du _safe_ de Bob.
-
-### Échecs
-- (1) si le `idprf` reçu du module _safe terminal_ n'est pas dans la map détenue dans le serveur pour l'application myApp1, c'est que cet appareil N'EST PAS / PLUS de confiance, que le _profil_ a été désactivé par Bob.
-- (2) si la signature `sign` n'est pas vérifiée par `Va`, c'est que le code PIN n'est pas le bon. `Va` correspond au `Sa` qui a été utilisé à sa signature, `cx` était bien celui fixé à la déclaration. **Le nombre d'erreurs `nbe` est incrémenté**.
-  - si ce nombre est égal à 2, il y présomption de recherche d'un code PIN par succession d'essais, l'entrée `idprf` est supprimée. L'utilisateur devra refaire une déclaration de _profil_ avec un code PIN (ce qui exigera une authentification _forte_ par `p0` et (`p1` ou `p2`)).
-
-En cas de réussite, le nombre d'échecs `nbe` est remis à 0 s'il ne l'était pas déjà.
-
-#### Remarques sur la _sécurité_ du protocole
+### Remarques sur la _sécurité_ de l'authentification par code PIN depuis un _device déclaré de confiance_
 - le **code PIN** n'est jamais stocké ni passé en clair sur le réseau au module _safe server_: 
   - il ne peut pas être détourné ou être lu depuis la base de données.
-  - il ne figure que temporairement en mémoire dans le module _safe terminal_ inclus dans l'application _myApp1 terminal_ durant la phase d'authentification du _safe_ de `Bob`.
+  - il ne figure que temporairement en mémoire dans le module _safe terminal_ inclus dans l'application _myApp1 terminal_ durant la phase d'authentification du _safe_ de l'utilisateur.
 - pour tenter depuis les données du _Safe server_ d'obtenir le code PIN par force brute, il faut effectuer une vérification de `sign` avec le _challenge_ `SH(PIN, cx)` mais `sign` est crypté par la clé privée de cryptage général du module _safe server_.
 
 Pour que cette dernière attaque pour trouver le PIN de `Bob` par force brute ait des chances de succès, il faut que le hacker ait obtenu frauduleusement:
 - (1) le contenu en clair de l'objet _safe_ en base et pour cela il lui faut conjointement,
   - avoir accès à la base en lecture ce qui requiert, soit une complicité auprès du fournisseur de la base de donnée, soit **la complicité de l'administrateur technique**.
   - avoir la clé de décryptage des contenus de celle-ci inscrite dans la configuration de déploiement des serveurs. Ceci suppose la **complicité de l'administrateur technique** effectuant ces déploiements.
-- (2) le terme `cx` lisible en _debug_ (et un peu d'effort) dans la base de données IDB d'un _device_ **débloqué** (session utilisateur ouverte) de Bob.
+- (2) le terme `cx` lisible en _debug_ (et un peu d'effort) dans la base de données IDB _Safes_ d'un _device_ **débloqué** (session utilisateur ouverte) de Bob.
   - sur un mobile avoir le mobile _déverrouillé_,
   - sur un PC avoir une session ouverte.
 
