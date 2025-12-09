@@ -119,14 +119,14 @@ Un utilisateur qui veut utiliser une application depuis un _device_ est placé d
   - il peut y laisser _en cache_ des informations cryptées et espérer raisonnablement les retrouver plus tard.
 
 Un utilisateur peut déclarer sa _confiance_ au _device_ qu'il utilise:
-- son _coffre_ enregistre ce device comme étant de confiance,
+- son _coffre_ enregistre ce _device_ comme étant de confiance,
 - le _device_ enregistre localement la référence à cette déclaration de confiance.
 
 Lancer une application depuis un appareil _de confiance_ a plusieurs avantages:
-- **authentification simplifiée** de son _coffre_ par un code PIN court donnant accès à ses profils de sessions des applications.
+- **authentification simplifiée** de son _coffre_ par l'utilisateur en donnant un code PIN court (pour accéder à ses profils de sessions des applications et à ses _droits_).
 - **disposer sur ce device de _mémoires caches persistantes et cryptées de documents_** pour chaque _profil_ de session ce qui lui permet d'ouvrir une session,
   - en mode _réseau_ minimisant le nombre de documents à récupérer des serveurs,
-  - en mode _avion_ (sans accès au réseau) avec accès en lecture aux documents dans l'état où ils se trouvaient lors de la dernière ouverture de session en mode _réseau_.
+  - en mode _avion_ (sans accès au réseau) avec accès en lecture aux documents dans l'état où ils se trouvaient lors de la dernière fin de session en mode _réseau_ sur ce _device_.
 
 ## Sections des _coffre fort_
 La base de données _Safe_ stocke les données de chaque _safe_ dans un document. Elle est accédée par le module _safe server_ embarqué dans les applications serveur comme _myApp1 server_.
@@ -134,23 +134,19 @@ La base de données _Safe_ stocke les données de chaque _safe_ dans un document
 Le document décrivant un _coffre fort_ a plusieurs sections:
 - section `auth`: données d'authentification qui permettent de s'assurer que l'utilisateur en est vraiment le propriétaire légitime.
 - section `devices`: chaque entrée dans cette section identifie un _device de confiance_.
-- section `creds`: liste des _credentials_ détenus dans le coffre. Chaque _credential_ y est identifié par son numéro d'ordre d'enregistrement dans le coffre et a un _a propos_ texte signifiant pour l'utilisateur.
+- section `creds`: liste des _credentials_ détenus dans le coffre. Chaque _credential_ y est identifié par une id aléatoire et a un _a propos_ texte signifiant pour l'utilisateur.
 - section `profiles`: liste des _profils de session_ que l'utilisateur peut ouvrir (regroupés par application). Un profil est décrit par:
-  - un numéro d'ordre de création identifiant,
+  - une id aléatoire,
   - un _à propos_, texte signifiant pour l'utilisateur.
   - la liste des _credentials_ qui seront attachés à une session lors de son ouverture.
   - une liste éventuelle de _préférences_ utilisées à l'ouverture d'une session.
 
-
 ### Section `auth`
 
 #### Création d'un _safe_ par un utilisateur
-Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
+Un identifiant safeId est généré aléatoirement.
 
-Un couple de clés `C / D` asymétriques est généré:
-- `C` est en clair : son hash court est l'identifiant du _safe_
-- `D_K` est le cryptage de `D` par `K`.
-- `C_KH` est le hash du cryptage de `C` par `K`. Cette donnée permet au module _safe server_ de s'assurer en traitant une requête qu'elle a bien été issue d'un module _safe terminal_ détenant la clé `K`.
+Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
 
 L'utilisateur donne:
 - un _couple_ `p0, p1` (qui pourra être changé) _d'authentification_:
@@ -160,7 +156,9 @@ L'utilisateur donne:
   - `r0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. (12 signes au moins) qui identifie de manière unique le _safe_ (le SH de `r0` est un index unique) et qui peut être égal à `p0`.
   - `r1` est une phrase _longue_ d'au moins 24 signes. Il n'est pas judicieux qu'elle soit égale à p1 puisqu'elle permet justement la récupération du safe en cas d'oubli de `r0, p0`.
 
-La clé `K` du safe est stockée dans les propriétés `Ka` et `Kr` cryptages respectifs par  `SH(p0, p1, SEP)` et `SH(r0, r1, SEP)`.
+La clé `K` du safe est stockée,
+- dans `Ka` et `Kr` cryptages respectifs par  `SH(p0, p1)` et `SH(r0, r1)`.
+- `hk` : SHA du `SH(K)` permettant au module _safe server_ de vérifier sur chaque opération demandée par _safe terminal_ que celui-ci détient bien la clé K (transmise par SH(K)).
 
 A aucun moment `p0 p1 r0 r1` ne sont stockés ni transmis _en clair_. Elles ne figurent _en clair_ que très temporairement à la saisie par l'utilisateur dans le module _safe terminal_ et y sont effacés dès la fin de la saisie.
 
@@ -169,14 +167,11 @@ Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 - les nouveaux couples `p0, p1` et `r0, r1`. 
 
 #### Synthèse des propriétés de la section `auth`
-- `safeId` : identifiant, hash court de C.
-- `maxLife` : durée de vie du _safe_, sachant que toute utilisation recule cette date (_purge_ automatique des _safe_ obsolètes / fantômes).
-- `C` : clé _publique_ de cryptage du _safe_ (`D` est sa clé _privée_ de décryptage).
-- `D_K` est le cryptage de `D` par `K`.
-- `C_KH` est le hash du cryptage de `C` par `K`. ???
+- `safeId` : identifiant.
+- `maxLife` : durée de vie du _safe_, sachant que toute utilisation recule cette date (permet une _purge_ périodique des _safe_ obsolètes / fantômes).
 - `hp0` : index unique, SH(p0).
 - `hr0` : index unique, SH(r0).
-- `hp1` : SH(p1).
+- `hk` : SHA du `SH(K)`.
 - `Ka` : clé `K` du safe cryptée par SH(p0, p1).
 - `Kr` : clé `K` du safe cryptée par SH(r0, r1).
 - `idx` : dernier numéro attribué à un identifiant local de credential / profil.
@@ -189,21 +184,21 @@ Chaque _device de confiance_ à une entrée identifiée par `about` dans cette s
 Après avoir authentifié son accès à son _safe_, l'utilisateur peut retirer sa confiance à n'importe lequel des devices cités dans la liste en en supprimant l'entrée.
 
 ### Section `creds`
-Chaque _droit d'accès / credential_ est enregistré dans un item crypté par la clé K du safe sous un numéro d'ordre `idx` qui en devient son identifiant local au safe. Les propriétés sont:
+Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par la clé K** du safe sous un identifiant généré aléatoirement à sa création. Ses propriétés sont:
 - `about` : code / texte court donné par l'utilisateur pour qualifier le _credential_. Par exemple `Compte Bob sur circuits courts`. 
 - `type, target, keys: [{var, S, V}, ...]` : données du _credential_, ses clés d'accès.
 
 ### Section `profiles`
-Elle est organisée avec une **sous-section par application** regroupant une liste d'items identifiés par `idx` le numéro d'ordre de création. Chaque item est crypté par la clé K de _safe_ et a les propriétés suivantes: 
+Elle est organisée avec une **sous-section par application** regroupant une liste d'items ayant un identifiant généré aléatoirement à sa création. Chaque item est **crypté par la clé K** de _safe_ et a les propriétés suivantes: 
 - `about`: un _à propos_, texte signifiant pour l'utilisateur. Par exemple `Revue des notes d'Alice et Jules`.
-- `creds`: la liste des idx des _credentials_ qui sont attachés à une session de ce profil lors de son ouverture.
-- `prefs`: un objet facultatif donnant les _préférences_ utilisées à l'ouverture d'une session.
+- `creds`: la liste des id des _credentials_ qui sont attachés à une session de ce profil lors de son ouverture.
+- `prefs`: un objet facultatif donnant les _préférences_ utilisées à l'ouverture d'une session interprétable par l'application.
 
 ## Accès d'une application terminale à un _safe_
 ### Depuis n'importe quel _device_ (de confiance ou non)
-Le module _safe terminal_ demande à l'utilisateur `p0 p1` et les transmet au module _safe server_ qui:
-- accède au document _safe_ depuis le SH(p0).
-- y décode la clé `Ka` par SH(p0, p1): en cas d'échec c'est que `p1` était incorrecte.
+Le module _safe terminal_ demande à l'utilisateur `p0 p1` et les transmet au module _safe server_ qui accède au document _safe_ depuis le `SH(p0)` et retourne `Ka`.
+
+_safe terminal_ décode `Ka` par `SH(p0, p1)`: en cas d'échec c'est que `p1` était incorrect.
 
 ### Depuis un _device_ de confiance
 Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une micro base de données IDB nommée `Safes` ayant les tables suivantes:
@@ -211,18 +206,18 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
   - `safeId`: identifiant du _safe_ de l'utilisateur.
   - `about`: par exemple `Bob sur le PC d'Alice` identifiant ce device pour cet utilisateur. Le couple `safeId about `est clé primaire.
   - `cx`: un challenge aléatoire.
-  - `Ka`: clé K du safe de l'utilisateur cryptée par SH(p0, p1) où p0 et p1 sont les termes d'authentification du safe de l'utilisateur.
-  - `Kp`: clé K du safe de l'utilisateur cryptée par SH(PIN + cx, cy) où,
+  - `Ka`: clé K du safe de l'utilisateur cryptée par `SH(p0, p1)` où `p0` et `p1` sont les termes d'authentification du safe de l'utilisateur.
+  - `Kp`: clé K du safe de l'utilisateur cryptée par `SH(PIN + cx, cy)` où,
     - `PIN` est le code PIN fixé par l'utilisateur à la déclaration de confiance et `cx cy` des challenges générés aléatoirement à ce moment.
 - `CACHE`: chaque row identifie un cache de documents et le profil de la session auquel il correspond:
   - `app`: code l'application correspondante.
-  - `idbId`: identifiant local aléatoire.
+  - `idbId`: nom local aléatoire de la base locale IDB.
   - `safeId`: identifiant du _safe_ de l'utilisateur.
-  - `idx`: index du profil de la session utilisant ce cache.
+  - `id`: id du profil de la session utilisant ce cache.
   - `about`: _à propos_ de ce profil, par exemple `Revue des notes d'Alice et Jules`.
-  - il existe une base de données IDB de nom app.idbId contenant les documents en cache pour une session de 
+  - il existe une base de données IDB de nom `app.idbId` contenant les documents en cache pour une session de ce profil.
 
-> Les rows de la base IDB Safe sont cryptés par la clé C des modules `safe terminal ` et `safe server` afin de ne pas être directement lisible en _debug_. Toutefois cette _sécurité_ est _molle_: la clé D de décryptage étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker va la retrouver.
+> Les rows de la base IDB Safe sont cryptés par une clé C du module _safe terminal_ afin de ne pas être directement lisible en _debug_. Toutefois cette _sécurité_ est _molle_, la clé étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker peut la retrouver.
 
 #### Déclaration d'un _device_ de confiance
 Depuis le _device_ à déclarer de confiance, l'utilisateur:
