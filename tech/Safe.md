@@ -150,15 +150,17 @@ Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas chang
 
 L'utilisateur donne:
 - un _couple_ `p0, p1` (qui pourra être changé) _d'authentification_:
-  - `p0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. qui identifie de manière unique le _safe_ (le SH de `p0` est un index unique).
+  - `p0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. qui identifie de manière unique le _safe_ (`hp0` le SH de `p0` est un index unique).
   - `p1` est une phrase _longue_ d'au moins 24 signes.
+  - `hhp1` est le SHA de `SH(p1)`.
 - un _couple_ `r0, r1` (qui pourra être changé) _de récupération_:
-  - `r0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. (12 signes au moins) qui identifie de manière unique le _safe_ (le SH de `r0` est un index unique) et qui peut être égal à `p0`.
+  - `r0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. (12 signes au moins) qui identifie de manière unique le _safe_ (`hr0` le SH de `r0` est un index unique) et qui peut être égal à `p0`.
   - `r1` est une phrase _longue_ d'au moins 24 signes. Il n'est pas judicieux qu'elle soit égale à p1 puisqu'elle permet justement la récupération du safe en cas d'oubli de `r0, p0`.
+  - `hhr1` est le SHA de `SH(r1)`.
 
 La clé `K` du safe est stockée,
 - dans `Ka` et `Kr` cryptages respectifs par  `SH(p0, p1)` et `SH(r0, r1)`.
-- `hk` : SHA du `SH(K)` permettant au module _safe server_ de vérifier sur chaque opération demandée par _safe terminal_ que celui-ci détient bien la clé K (transmise par SH(K)).
+- `hhk` : SHA du `SH(K)` permettant au module _safe server_ de vérifier sur chaque opération demandée par _safe terminal_ que celui-ci détient bien la clé K (transmise par SH(K)).
 
 A aucun moment `p0 p1 r0 r1` ne sont stockés ni transmis _en clair_. Elles ne figurent _en clair_ que très temporairement à la saisie par l'utilisateur dans le module _safe terminal_ et y sont effacés dès la fin de la saisie.
 
@@ -169,12 +171,13 @@ Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 #### Synthèse des propriétés de la section `auth`
 - `safeId` : identifiant.
 - `maxLife` : durée de vie du _safe_, sachant que toute utilisation recule cette date (permet une _purge_ périodique des _safe_ obsolètes / fantômes).
-- `hp0` : index unique, SH(p0).
-- `hr0` : index unique, SH(r0).
-- `hk` : SHA du `SH(K)`.
-- `Ka` : clé `K` du safe cryptée par SH(p0, p1).
-- `Kr` : clé `K` du safe cryptée par SH(r0, r1).
-- `idx` : dernier numéro attribué à un identifiant local de credential / profil.
+- `hp0` : index unique, `SH(p0)`.
+- `hr0` : index unique, `SH(r0)`.
+- `hhp1` : SHA de `SH(p1)`.
+- `hhr1` : SHA de `SH(r1)`.
+- `hhk` : SHA de `SH(K)`.
+- `Ka` : clé `K` du safe cryptée par `SH(p0, p1)`.
+- `Kr` : clé `K` du safe cryptée par `SH(r0, r1)`.
 
 ### Section `devices`
 Chaque _device de confiance_ à une entrée identifiée par `about` dans cette section:
@@ -197,6 +200,7 @@ Elle est organisée avec une **sous-section par application** regroupant une lis
 ## Accès d'une application terminale à un _safe_
 ### Depuis n'importe quel _device_ (de confiance ou non)
 Le module _safe terminal_ demande à l'utilisateur `p0 p1` et les transmet au module _safe server_ qui accède au document _safe_ depuis le `SH(p0)` et retourne `Ka`.
+- vérification que `hhp1` est bien le SHA de SH(p1) reçu en argument.
 
 _safe terminal_ décode `Ka` par `SH(p0, p1)`: en cas d'échec c'est que `p1` était incorrect.
 
@@ -209,11 +213,11 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
   - `Ka`: clé K du safe de l'utilisateur cryptée par `SH(p0, p1)` où `p0` et `p1` sont les termes d'authentification du safe de l'utilisateur.
   - `Kp`: clé K du safe de l'utilisateur cryptée par `SH(PIN + cx, cy)` où,
     - `PIN` est le code PIN fixé par l'utilisateur à la déclaration de confiance et `cx cy` des challenges générés aléatoirement à ce moment.
-- `CACHE`: chaque row identifie un cache de documents et le profil de la session auquel il correspond:
+- `CACHE`: chaque row identifie un cache de documents et le profil de la session qui l'utilise:
   - `app`: code l'application correspondante.
   - `idbId`: nom local aléatoire de la base locale IDB.
   - `safeId`: identifiant du _safe_ de l'utilisateur.
-  - `id`: id du profil de la session utilisant ce cache.
+  - `idprf`: id du profil de la session utilisant ce cache.
   - `about`: _à propos_ de ce profil, par exemple `Revue des notes d'Alice et Jules`.
   - il existe une base de données IDB de nom `app.idbId` contenant les documents en cache pour une session de ce profil.
 
@@ -225,46 +229,46 @@ Depuis le _device_ à déclarer de confiance, l'utilisateur:
 - saisit un code `PIN` (d'au moins 6 signes).
 - saisit le couple `p0 p1` d'accès à son _safe_.
 
-Le module _safe terminal_ demande au module _safe server_ d'accéder au safe de l'utilisateur identifié par SH(p0) et de lui retourner le `safeId` et `Ka` associé:
-- disposant du couple `p0 p1`, le module _safe terminal_ obtient la clé `K` du safe de l'utilisateur en décryptant `Ka` par le SH(p0, p1).
+Le module _safe terminal_ demande au module _safe server_ d'accéder au safe de l'utilisateur identifié par `SH(p0)` et de lui retourner le `safeId` et `Ka` associé:
+- disposant du couple `p0 p1`, le module _safe terminal_ obtient la clé `K` du safe de l'utilisateur en décryptant `Ka` par le `SH(p0, p1)`.
 
 Le module _safe terminal_,
 - génère les challenges aléatoires `cx cy`.
 - calcule `Kp`, cryptage de cryptage de la clé `K` par le `SH(PIN + cx, cy)`.
 - génère un couple `Sa Va` de clés asymétriques signature / vérification.
 - calcule `sign`, signature par `Sa` du `SH(PIN, cx)`.
-- calcule `hp1` comme SH(p1).
+- calcule `hp1` comme `SH(p1)`.
 - enregistre dans la table `DEVICE` de la base IDB `Safes` un row avec les colonnes `safeId about cx Ka Kp`.
 - transmet au module _safe terminal_ `safeId, hp1, about, Va, cy, sign` qui,
-  - accède au _safe_ dont l'id est safeId et vérifie que les hp1 correspondent (s'assure que _safe terminal_ détient le bon p1).
-  - y créé dans la section `devices` une entrée about avec les données `Va cy sign nbe = 0`.
+  - accède au _safe_ dont l'id est `safeId` et vérifie que `hhp1` est bien le SHA de `hp1` (s'assure que _safe terminal_ détient le bon `p1`).
+  - y créé dans la section `devices` une entrée `about` avec les données `Va cy sign nbe = 0`.
 
-> Remarque: `Sa` a servi à générer la signature sign mais n'est plus utilisé ensuite et n'est pas mémorisé. `Va` l'est et servira à authentifier la signature d'un PIN saisi par Bob.
+> Remarque: `Sa` a servi à générer la signature `sign` mais n'est plus utilisé ensuite et n'est pas mémorisé. `Va` l'est et servira à authentifier la signature d'un PIN saisi par l'utilisateur.
 
 Après ce calcul,
 - le _safe_ a été mis à jour par le module _safe server_ avec un nouveau device de confiance avec les données cryptographiques permettant à l'utilisateur de s'authentifier par un code PIN.
-- sur le _device_ la base locale IDB _safes_ contient une entrée relative à cette déclaration de confiance avec en particulier la clé K du _safe_ cryptée en Ka et Kp. 
+- sur le _device_ la base locale IDB _Safes_ contient une entrée relative à cette déclaration de confiance avec en particulier la clé K du _safe_ cryptée en `Ka` et `Kp`. 
 
 #### Authentification par code PIN depuis un _device déclaré de confiance_
 Le module _safe terminal_ lit la base IDB _Safes_ et, 
-- propose à l'utilisateur de désigner la ligne de DEVICE dont la propriété about correspond à lui: par exemple `Bob sur le PC d'Alice`. Le module dispose ainsi des données `safeId about cx Kp`.
-- demande à l'utilisateur de saisir le PIN associé et calcule `z` = SH(PIN, cx).
+- propose à l'utilisateur de désigner la ligne de DEVICE dont la propriété `about` correspond à lui: par exemple `Bob sur le PC d'Alice`. Le module dispose ainsi des données `safeId about cx Kp`.
+- demande à l'utilisateur de saisir le PIN associé et calcule `z = SH(PIN, cx)`.
 - transmet au module _safe terminal_ `safeId, about, z` qui,
   - accède au _safe_ dont l'id est `safeId`.
   - accède dans la section `devices` à l'entrée `about` ce qui lui donne les propriétés `Va cy sign nbe`. Si cette entrée n'existe pas c'est que ce _device_ N'EST PAS / PLUS de confiance,
     - soit n'a jamais été déclaré,
     - soit a été supprimé explicitement par l'utilisateur,
     - soit qu'il a été supprimé du fait d'un nombre excessif d'essai de code PIN.
-  - vérifie par `Va` que `sign` est bien la signature de `z` (SH(PIN, cx)). Nn cas de succès, il met à 0 `nbe` s'il ne l'était pas déjà et sinon incrémente `nbe`.
-  - retourne le challenge `cy` au module _safe terminal_ qui peut ainsi calculer la clé SH(PIN + cx, cy) qui décrypte `Kp` ce qui lui donne la clé K du _safe_.
+  - vérifie par `Va` que `sign` est bien la signature de `z`. En cas de succès, il met à 0 `nbe` s'il ne l'était pas déjà et sinon incrémente `nbe`.
+  - retourne le challenge `cy` au module _safe terminal_ qui peut ainsi calculer la clé `SH(PIN + cx, cy)` qui décrypte `Kp` ce qui lui donne la clé K du _safe_.
 
 ##### Échecs
-Quand la signature `sign` n'est pas vérifiée par `Va`, c'est que le code PIN n'est pas le bon. `Va` correspond au `Sa` qui a été utilisé à sa signature, `cx` était bien celui fixé à la déclaration. **Le nombre d'erreurs `nbe` est incrémenté**.
+SI la signature `sign` n'est pas vérifiée par `Va`, c'est que le code PIN n'est pas le bon. `Va` correspond au `Sa` qui a été utilisé à sa signature, `cx` était bien celui fixé à la déclaration. **Le nombre d'erreurs `nbe` est incrémenté**.
 
-Si ce nombre est égal à 2, il y présomption de recherche d'un code PIN par succession d'essais, l'entrée `about` est supprimée. L'utilisateur devra refaire une _déclaration de confiance_ de ce device avec un code PIN (ce qui exigera une authentification _forte_ par `p0` et (`p1` ou `p2`)).
+Si ce nombre est égal à 2, il y présomption de recherche d'un code PIN par succession d'essais, l'entrée `about` est supprimée. L'utilisateur devra refaire une _déclaration de confiance_ de ce device avec un code PIN (ce qui exigera une authentification _forte_ par `p0` et `p1`).
 
 ### Accès d'une application en mode _avion_ (pas d'accès au réseau)
-La base IDB _Safes_ permet de localiser une base IDB cache de documents: c'est l'utilisateur qui désigne celle-ci d'après le texte `about` de son profil.
+La table CACHE de la base IDB _Safes_ permet de lister les types des sessions qui ont été ouvertes sur ce _device_ pour cette application: l'utilisateur désigne celle qu'il souhaite rouvrir d'après le texte `about` de son profil, par exemple `Revue des notes d'Alice et Jules`. Ceci lui donne le nom de la base locale IDB de cache de cette session.
 
 MAIS cette base est cryptée par la clé K du safe de l'utilisateur. Ce dernier doit:
 - désigner dans la liste de DEVICE proposés celui de sa convenance (par exemple `Bob sur le PC d'Alice`) ce qui va donner Ka.
