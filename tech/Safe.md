@@ -96,14 +96,14 @@ Ils sont embarqués respectivement dans _myApp1 terminal_ et _myApp1 server_: le
 
 Ils ont pour objet de gérer le _coffre fort_ des utilisateurs.
 
-> Les modules _safe terminal / server_ ne gèrent pas à proprement parler des _personnes_ mais leurs _coffres forts_: rien n'empêche un _personne_ de posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
+> Les modules _safe terminal / server_ ne gèrent pas des _personnes_ mais leurs _coffres forts_: une _personne_ peut posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
 
-Après avoir lancé l'application _myApp1 terminal_ depuis son appareil, un utilisateur va lui indiquer quel est son _coffre fort_ afin d'accéder en toute sécurité aux données confidentielles qui le concerne.
+Après avoir lancé l'application _myApp1 terminal_ depuis son _device_, un utilisateur va lui indiquer quel est son _coffre fort_ afin d'accéder en toute sécurité aux données confidentielles qui le concerne.
 
 ### Sessions et _profils_ de sessions
 Quand un utilisateur lance une application _myapp1_ depuis un _device_ il ouvre une session, identifiée de manière unique pour cette application: sur un _device donné_, une seule session peut s'exécuter à un instant donné pour l'application _myapp1_.
 
-A la première toute ouverture d'une session de l'application _myapp1_ l'utilisateur va devoir:
+A la toute première ouverture d'une session de l'application _myapp1_ l'utilisateur va devoir:
 - citer le ou les droits d'accès dont il se prévaut dans cette session, typiquement en _cochant_ ceux qu'il a déjà acquis et stockés dans son coffre.
 - fixer éventuellement quelques préférences d'ouverture (langue, disposition préférée, etc.).
 
@@ -111,12 +111,12 @@ Si l'utilisateur prévoit de rouvrir un jour plus tard une session dans les mêm
 
 ### Devices _de confiance_
 Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
-- **soit il n'a pas confiance dans cet appareil** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
+- **soit il n'a pas confiance dans ce _device_** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
   - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
   - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
-- **soit il juge l'appareil _de confiance_**,
+- **soit il juge le device _de confiance_**,
   - il l'utilise régulièrement, que se soit le sien ou celui d'un proche,
-  - il peut y laisser _en cache_ des informations cryptées et espérer raisonnablement les retrouver plus tard.
+  - les sessions qu'il y exécute peuvent laisser _en cache_ des informations cryptées et espérer raisonnablement les retrouver plus tard.
 
 Un utilisateur peut déclarer sa _confiance_ au _device_ qu'il utilise:
 - son _coffre_ enregistre ce _device_ comme étant de confiance,
@@ -125,7 +125,7 @@ Un utilisateur peut déclarer sa _confiance_ au _device_ qu'il utilise:
 Lancer une application depuis un appareil _de confiance_ a plusieurs avantages:
 - **authentification simplifiée** de son _coffre_ par l'utilisateur en donnant un code PIN court (pour accéder à ses profils de sessions des applications et à ses _droits_).
 - **disposer sur ce device de _mémoires caches persistantes et cryptées de documents_** pour chaque _profil_ de session ce qui lui permet d'ouvrir une session,
-  - en mode _réseau_ minimisant le nombre de documents à récupérer des serveurs,
+  - en mode _réseau_ en minimisant le nombre de documents à récupérer des serveurs,
   - en mode _avion_ (sans accès au réseau) avec accès en lecture aux documents dans l'état où ils se trouvaient lors de la dernière fin de session en mode _réseau_ sur ce _device_.
 
 ## Sections des _coffre fort_
@@ -333,81 +333,78 @@ Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels de
 
 > Un _login_ des appareils un peu conséquent et un code PIN _un peu durci_ constituent en pratique une barrière **très coûteuse** à casser. Tant qu'à être un _délinquant_ une forte pression directe sur Bob permet en général de lui extorquer ses phrases / PIN à moindre coût 😈.
 
-# Purgatoire
-Le propriétaire d'un _safe_ A peut envoyer un _objet_ confidentiel au propriétaire d'un _safe_ B:
-- la structure de l'objet dépend de son objectif, typiquement ce peut être,
-  - un simple message textuel,
-  - un _droit_ transmis de A à B que B pourra intégrer à ses droits.
-- l'objet est accompagnée d'une propriété `about` fournissant un commentaire textuel court de A à l'intention de B.
-- A peut s'envoyer un objet à lui-même, comme dans un _presse-papier_, confidentiel et persistant (la propriété `from` est absente dans ce cas).
+# Opérations du module _Safe server_
 
-## Opérations de l'application _Safe serveur_
+### Création d'un nouveau _safe_
 
-#### Création d'un nouveau _safe_
-Afin d'éviter une inflation incontrôlable de création de _safes_ fantômes, un utilisateur ne peut créer un _safe_ qu'après avoir reçu de la part d'une application un _code_ de validité limitée.
+#### Changement des clés `p0 p1 r0 r1`
 
-La base de données détient une liste des `SH(c)` des codes `c` en cours de validité avec leur date-heure limite de validité.
+### Suppression d'un _safe_
 
-L'utilisateur est invité à saisir `code, p0, p1, p2, pseudo`.
+### Purge périodique des _safes_ inutilisés / obsolètes
 
-L'application _Safe terminale_ génère les clé `K C D` et calcule les arguments suivants:
-- `SH(code)` : code d'autorisation délivré par une application.
-- `K1, K2, D_K, C_KH` 
-- `SH(p0, p1), SH(p0, p2)`
-- `pseudo_K`, `SH(pseudo) ?`
+### _login_ à un _safe_
+- par `SH(p0) SH(p1)` -> `safeId, K`a -> `K`
+- par `safeId, devId, SH(PIN, cx)` -> `cy` -> `K` décrypté par `SH(PIN + cx, cy)`
 
-Exceptions:
-- `p0` déjà utilisée pour un Safe existant.
-- `pseudo` déjà utilisé.
+### Extractions d'un _safe_
+- liste des devices de confiance
+- liste des droits
+- liste des applications ayant au moins un profil de session
+- liste des profils de session pour une application
 
-#### Suppression d'un _Safe_
-Arguments:
-- soit `SH(p0, p1 (OU p2))`
-- soit `C C_K` : l'identifiant du _safe_ et son cryptage par la clé K comme preuve de la détention de K acquis par exemple par le PIN.
+### Déclaration de confiance d'un _device_ 
+Le changement de PIN correspond à une re-déclaration.
 
-Exceptions:
-- Safe inexistant
+### Suppression de confiance d'un _device_
 
-#### Mise à jour / consultation d'un _Safe_
-Le _safe_ est identifié, soit par `SH(p0, p1 (OU p2))`, soit par son `C C_K`. Les actions possibles sont:
-- obtention de la section applications du _safe_.
-- création, modification, suppression d'un ou plusieurs droits d'une application (import).
-- suppression de tous les droits d'une application.
-- modification de `p1` ou `p2` en donnant la valeur actuelle de `p0` et (`p1` ou `p2`).
-- création, modification, suppression d'un objet d'une application (éventuellement issu d'un autre safe).
+### Settings des droits et des profils de session
+- création d'un profil
+- ajouts / retraits de droits, attribution / retrait à des profils
+- modification du texte _about_
+- settings des préférences
 
-> L'application _Safe serveur_ N'A JAMAIS ACCÈS à aucune des clés de cryptage _en clair_: c'est un module de _stockage opaque_.
+# Questions ouvertes
 
-> Le module _Safe_ terminal est en charge des cryptages / décryptages et des interprétations: il est disponible en _source_ dans un browser en exécution et la validité de son source est vérifiable publiquement.
+### Transférer / acquérir des _droits_
+Comment transférer / acquérir un _droit_ comme _Comptable de asocial/demo_ ouvrant la possibilité à un utilisateur d'agir avec un rôle de _Comptable_ pour l'organisation _demo_ dans l'application _asocial_ ?
+- attribution directe à un _safe_ par son détenteur actuel? Depuis un identifiant externe (p0 ?) ...
+- dépôt du droit dans un _clipboard_ identifié par une phrase secrète de durée de vie limitée échangée hors application.
+- cryptage: couple de clés C / D par safe ?
 
-### Changer le code PIN des appareils de confiance
-Depuis l'appareil Bob doit:
-- soit identifier son _safe_ par `p0` et (`p1` ou `p2`), soit si l'appareil est _déclaré de confiance_ son code PIN actuel.
-- donner le nouveau code PIN.
+### Copier / coller des _droits_ entre _safes_
+En partie une solution à la question précédente, ce dispositif permet aussi de changer de _safe_, de distribuer des droits sur deux autres _safes_, etc.
+- identifier le ou les _safes_ cibles.
+- les droits copiés sont-ils automatiquement valides dans les safe cibles ou doivent-ils être confirmés ? Changent-ils d'id ?
+- dans ce cas il faut une clé C et une clé D par _safe_ : la clé D est-elle la clé K ?
 
-### Supprimer des appareils de confiance
-Depuis l'appareil Bob doit:
-- soit identifier son _safe_ par `p0` et (`p1` ou `p2`), soit si l'appareil est _déclaré de confiance_ son code PIN actuel.
-- désigner dans la liste qui s'affiche les appareils de confiance qui ne le sont plus.
-- s'il n'en reste plus, le code PIN est détruit.
+### Utilisation d'un _safeId_ comme identifiant d'un _compte_ dans une application
+Dans _myApp1 server_ authentifie `safeId SH(K)` en faisant un appel interne au module _safe server_ qui peut garder en cache les couples authentifiés les plus récents.
 
-# Acquisition de droits par un utilisateur
-Il existe plusieurs processus pour acquérir un droit selon le protocole applicatif choisi.
+### Comment éviter une inflation incontrôlable de création de _safes_ fantômes
+Un utilisateur ne pourrait créer un _safe_ qu'après avoir obtenu un ticket d'invitation déposé par un autre _safe_.
+- le ticket a une durée de vie limitée.
+- le code du ticket parvient par un moyen externe (mail ...).
+- le nombre de tickets généré par un safe est limité (N par mois / an ...).
+
+## Processus d'acquisition de droits par un utilisateur
 
 ### Acquisition directe dans l'application terminale
 Dans cette situation c'est l'application terminale qui génère le _droit_.
 
-L'exemple pris ici est _la création d'un compte dans l'application_:
+Par exemple _création d'un "compte" dans l'application_:
 - l'application terminale a généré l'`id` du compte ou l'a obtenu de son serveur et a généré un couple de clés `S / V`.
-  - elle fait enregistrer par le _safe_ de l'utilisateur le couple `id, S`,
-- ENFIN elle _valide_ la création du compte auprès du serveur de l'application pour qu'il enregistre en base le couple `id / V`.
+- elle fait enregistrer par le _safe_ de l'utilisateur un _droit_ avec le couple `id, S`,
+- elle _valide_ la création du compte auprès du serveur de l'application pour qu'il enregistre en base le couple `id / V`.
 
-### Obtention par l'application terminale d'un droit stocké dans le serveur
-Un certain nombre de droits peuvent être _configurés_ dans le serveur de l'application: en d'autres termes ils sont inscrits, soit _en dur_ (et chargés à l'initialisation), soit _en base_ par une autorité _supérieure_ ayant le droit de créer des droits identifiés.
+### Obtention par l'application terminale d'un droit _configuré_ côté serveur
+Un certain nombre de droits peuvent être _configurés_ dans le serveur de l'application, 
+- soit _en dur_ dans le code, 
+- soit _en base_ par un administrateur: ces droits sont chargés (et _cachés_) à première demande.
 
 > Les `S` de ces droits ne sont pas lisibles directement en base afin qu'un détournement de celle-ci ne donne pas accès à ces clés mais sont dans des objets cryptés par une clé fixée par l'administrateur technique. 
 
-Dans ce cas, l'application terminale récupère depuis le serveur le couple `id, S` du droit attribué à  l'utilisateur et le fait enregistrer dans le _safe_ de l'utilisateur ou lui affiche pour incorporation dans son fichier CSV ou autre. 
+Dans ce cas, l'application terminale récupère depuis le serveur le couple `id, S` du droit à attribuer à l'utilisateur et le fait enregistrer comme droit dans le _safe_ de l'utilisateur. 
 
 ### Attachement à un autre droit
 Le serveur dispose pour un droit `dx` non pas d'une clé `S` mais d'une liste d'autres droits `d1, d2 ...` Par exemple:
@@ -415,17 +412,3 @@ Le serveur dispose pour un droit `dx` non pas d'une clé `S` mais d'une liste d'
 - `d1 d2 ...` sont les logins à qui ce droit a été attribué.
 
 Pour exécuter une opération requérant le droit `dx`, il suffit que le _jeton_ ait un des droits `d1 d2 ...`
-
-### Transmission explicite entre détenteurs de droits
-Si une personne P1 dispose d'un droit, il est matérialisé par l'existence _quelque part_ de son couple `id, S` associé.
-
-Basiquement P1 peut par exemple transmettre à une personne P2 ce droit par un simple e-mail à l'adresse de P2 qui l'ajoutera à son _safe_ ou à son fichier CSV.
-
-Ce procédé général _d'export / import_ demande à résoudre les points suivants:
-- comment P1 connaît-elle P2, est-ce que P1 a accès à un media externe (e-mail, SMS, ...) par lequel P2 est joignable ?
-- quelle sécurité cet échange a-t-il, peut-il être _écouté / intercepté_ au milieu, comment s'assurer que seule P2 pourra en faire usage ?
-
-> Quand P1 et P2 sont inscrit sur le _Safe_ et que P1 connaît l'identifiant du _safe_ de P2, elle peut transmettre le droit dans un _objet_ accessible par P2 dans ses _objets reçus_.
-
-# TODO
--lancement par _Safe_ d'une application, préférence, langue / mode sombre
