@@ -223,9 +223,9 @@ Une base de données locale IDB de nom `safes` a une entrée par application aya
 - chaque objet _profile_ a les propriétés suivantes:
   - `idprf`: id aléatoire générée à la création du profil.
   - `about`: texte donné par l'utilisateur qualifiant son profil et le device sur lequel il se trouve, par exemple: `Bob sur PC Alice, accès à mon compte`.
-  - `safeId`: identifiant du safe de l'utilisateur Bob.
-  - `K1` : clé K du safe cryptée par SH(p0, p1, SEP) la phrase secrète 1 de Bob pour accéder à son safe d'identifiant safeId.
-  - `K2` : clé K du safe cryptée par SH(p0, p2, SEP) la phrase secrète 2 de Bob pour accéder à son safe d'identifiant safeId.
+  - `userId`: identifiant du safe de l'utilisateur Bob.
+  - `K1` : clé K du safe cryptée par SH(p0, p1, SEP) la phrase secrète 1 de Bob pour accéder à son safe d'identifiant userId.
+  - `K2` : clé K du safe cryptée par SH(p0, p2, SEP) la phrase secrète 2 de Bob pour accéder à son safe d'identifiant userId.
   - `Kp` : clé K du safe cryptée par SH(pin + cx, cy, SEP) où,
     - `pin` est le code PIN choisi par Bob pour ce profil (il peut réemployer le même PIN pour plusieurs profils).
     - `cx`: challenge aléatoire généré à la création du profil.
@@ -237,7 +237,7 @@ Une base de données locale IDB de nom `safes` a une entrée par application aya
 #### Process de déclaration d'un profil
 Depuis l'application myApp1 une page permet de créer un (voire plusieurs) _profil_ d'accès pour l'utilisateur Bob:
 - Bob donne son couple de phrase `p0, p1 ou p2` ce qui permet au module _safe_ de myApp1:
-  - d'obtenir la clé `K` d'accès au safe de Bob et l'identifiant `safeId` de ce safe.
+  - d'obtenir la clé `K` d'accès au safe de Bob et l'identifiant `userId` de ce safe.
   - d'obtenir l'entrée dans ce _safe_ pour l'application myApp1, objet crypté par la clé K obtenue ci-dessus et la clé C de myApp1.
 - Bob donne un libellé `about` explicitant à quoi sert le profil et sur quel appareil il se trouve.
 
@@ -251,7 +251,7 @@ L'application terminale _myApp1_ :
   - calcule `Kp`, cryptage de la clé `K` par le `SH(PIN + cx, cy, SEP)`.
   - génère dans `sign` la signature par `Sa` du `SH(PIN, cx)`.
 
-Le module _safe terminal_ inclus dans l'application terminale myApp construit un objet _profile server_ et le transmet au module _safe server_ (inclus dans _myApp server_) pour enregistrement dans l'entrée `safeId` du safe de Bob relatif à ce _profile_ d'identifiant `idprf`:
+Le module _safe terminal_ inclus dans l'application terminale myApp construit un objet _profile server_ et le transmet au module _safe server_ (inclus dans _myApp server_) pour enregistrement dans l'entrée `userId` du safe de Bob relatif à ce _profile_ d'identifiant `idprf`:
   - `about`: le libellé donné par l'utilisateur à propos du profil créé.
   - `Kp Va cy sign nbe`: les données calculées ci-avant.
   - cet objet est doublement crypté avant transmission au module _safe server_, par la clé K du safe de Bob et la clé C de l'application.
@@ -296,9 +296,9 @@ Le module _safe terminal_ inclus dans myApp1 terminal dispose:
 - du code PIN sais par Bob,
 - de l'objet `idprf` crypté par la clé C de _myApp1_ avec les propriétés suivantes:
   - `about`: texte donné par l'utilisateur qualifiant son profil et le device sur lequel il se trouve, par exemple: `Bob sur PC Alice, accès à mon compte`.
-  - `safeId`: identifiant du safe de l'utilisateur Bob.
-  - `K1` : clé K du safe cryptée par SH(p0, p1, SEP) la phrase secrète 1 de Bob pour accéder à son safe d'identifiant safeId.
-  - `K2` : clé K du safe cryptée par SH(p0, p2, SEP) la phrase secrète 2 de Bob pour accéder à son safe d'identifiant safeId.
+  - `userId`: identifiant du safe de l'utilisateur Bob.
+  - `K1` : clé K du safe cryptée par SH(p0, p1, SEP) la phrase secrète 1 de Bob pour accéder à son safe d'identifiant userId.
+  - `K2` : clé K du safe cryptée par SH(p0, p2, SEP) la phrase secrète 2 de Bob pour accéder à son safe d'identifiant userId.
   - `Kp` : clé K du safe cryptée par SH(pin + cx, cy, SEP) où,
     - `pin` est le code PIN choisi par Bob pour ce profil (il peut réemployer le même PIN pour plusieurs profils).
     - `cx`: challenge aléatoire généré à la création du profil.
@@ -306,11 +306,11 @@ Le module _safe terminal_ inclus dans myApp1 terminal dispose:
   - `cx`: challenge cx. 
 
 Il interroge le module _safe server_ inclus dans _myApp1 server_ en lui passant en paramètres:
-  - `safeId` l'identifiant du _Safe_ de Bob.
+  - `userId` l'identifiant du _Safe_ de Bob.
   - `idprf` l'identifiant du _profil_ choisi par Bob.
   - `SH(PIN, cx)` où `cx` est le challenge trouvé ci-dessus et `PIN` le code PIN saisi par l'utilisateur.
 - le module _safe server_:
-  - accède au _Safe_ de Bob par l'identifiant `safeId`.
+  - accède au _Safe_ de Bob par l'identifiant `userId`.
   - vérifie que `idprf` est bien la clé d'une entrée `e` de la map des profils de myApp1.
   - vérifie par `e.Va` que `e.sign` est bien la signature de `SH(PIN, cx)`.
   - en cas de succès, il met à 0 `e.nbe` s'il ne l'était pas déjà.

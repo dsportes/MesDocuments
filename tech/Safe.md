@@ -17,6 +17,8 @@ Les opérations exécutées par le serveur comme les données qu'il peut retourn
 ## Vérification des _droits d'accès_ par _jetons signés_
 ### Droit d'accès / _credential_
 Un _droit d'accès_ est matérialisé par les données suivantes:
+- `appli` : sauf rares exceptions (?) un droit est spécifique d'UNE seule application. Le code * indique un droit reconnu par toutes les applications.
+- `org` : sauf exceptions pour certains droits d'administration technique, un droit est spécifique dUNE seule organisation. Le code * indique un droit reconnu par toutes les organisations.
 - `type`, un code correspondant à sa _classe / catégorie_ `cpt, mbr, trf ...`
 - `target` : l'identifiant dans l'application de sa _cible_ qui peut comporter aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire. Par exemple pour un droit `cpt`, l'identifiant du compte.
 - une _liste de clés_, souvent d'un seul terme:
@@ -96,7 +98,7 @@ Ils sont embarqués respectivement dans _myApp1 terminal_ et _myApp1 server_: le
 
 Ils ont pour objet de gérer le _coffre fort_ des utilisateurs.
 
-> Les modules _safe terminal / server_ ne gèrent pas des _personnes_ mais leurs _coffres forts_: une _personne_ peut posséder plus d'un coffre, rien ne relient les coffres entre eux ni à un quelconque signifiant dans le monde réel.
+> Les modules _safe terminal / server_ ne gèrent pas des _personnes_ mais des _user_ ayant chacun un _coffre fort_: une _personne_ peut s'enregistrer sous plus d'un _user_, rien ne relient les _users_ entre eux ni à un quelconque signifiant dans le monde réel.
 
 Après avoir lancé l'application _myApp1 terminal_ depuis son _device_, un utilisateur va lui indiquer quel est son _coffre fort_ afin d'accéder en toute sécurité aux données confidentielles qui le concerne.
 
@@ -143,8 +145,8 @@ Le document décrivant un _coffre fort_ a plusieurs sections:
 
 ### Section `auth`
 
-#### Création d'un _safe_ par un utilisateur
-Un identifiant safeId est généré aléatoirement.
+#### Création d'un _safe_ d'un utilisateur
+Un identifiant userId est généré aléatoirement pour représenter l'utilisateur.
 
 Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
 
@@ -170,7 +172,7 @@ Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 - les nouveaux couples `p0, p1` et `r0, r1`. 
 
 #### Synthèse des propriétés de la section `auth`
-- `safeId` : identifiant.
+- `userId` : identifiant.
 - `maxLife` : durée de vie du _safe_, sachant que toute utilisation recule cette date (permet une _purge_ périodique des _safe_ obsolètes / fantômes).
 - `hp0` : index unique, `SH(p0)`.
 - `hr0` : index unique, `SH(r0)`.
@@ -191,7 +193,7 @@ Après avoir authentifié son accès à son _safe_, l'utilisateur peut retirer s
 ### Section `creds`
 Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par la clé K** du safe sous un identifiant généré aléatoirement à sa création. Ses propriétés sont:
 - `about` : code / texte court donné par l'utilisateur pour qualifier le _credential_. Par exemple `Compte Bob sur circuits courts`. 
-- `type, target, keys: [{var, S, V}, ...]` : données du _credential_, ses clés d'accès.
+- `appli, org, type, target, keys: [{var, S, V}, ...]` : données du _credential_, ses clés d'accès. La _clé primaire_ est `appli, org, type, target`
 
 ### Section `profiles`
 Elle est organisée avec une **sous-section par application** regroupant une liste d'items ayant un identifiant généré aléatoirement à sa création. Chaque item est **crypté par la clé K** de _safe_ et a les propriétés suivantes: 
@@ -212,7 +214,7 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
   - `devId`: un identifiant généré aléatoirement à la création de la base _Safes_ identifiant le _device_.
   - `devName`: le _nom_ du _device_, par exemple `PC d'Alice`, plus parlant que le code technique système pour le propriétaire du _device_ et les quelques personnes pouvant l'utiliser en confiance.
 - `TRUSTING`: chaque row est associé à UN _safe_ ayant déclaré le _device_ de confiance. Il a les colonnes suivantes:
-  - `safeId`: identifiant du _safe_ (clé primaire).
+  - `userId`: identifiant de l'utilisateur (clé primaire).
   - `pseudo`: par exemple `Bob`.
   - `cx`: un challenge aléatoire.
   - `Ka`: clé K du safe de l'utilisateur cryptée par `SH(p0, p1)` où `p0` et `p1` sont les termes d'authentification du safe de l'utilisateur.
@@ -221,11 +223,11 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
     - `cx cy` sont des _challenges_ générés aléatoirement à ce moment.
 - `SESSION`: chaque row décrit une _session_ qui a été ouverte _en confiance_ sur ce _device_:
   - `app`: code l'application correspondante.
-  - `safeId`: identifiant du _safe_ de l'utilisateur.
+  - `userId`: identifiant de l'utilisateur.
   - `profId`: id du profil de la session.
   - `profAbout`: texte significatif pour l'utilisateur **crypté par la clé K du _safe_** décrivant le _profil_ de la session (par exemple `Revue des notes d'Alice et Jules`).
   - `prefs`: les préférences d'ouverture de la session (cryptées par la clé K du _safe_).
-  - Il existe une base de données IDB de nom `app.x` (`x = SHA(safeId / profId)`)contenant les documents en cache de cette session.
+  - Il existe une base de données IDB de nom `app.x` (`x = SHA(userId / profId)`)contenant les documents en cache de cette session.
 
 > Les rows de la base IDB Safe sont cryptés par une clé C du module _safe terminal_ afin de ne pas être directement lisible en _debug_. Toutefois cette _sécurité_ est _molle_, la clé étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker peut la retrouver.
 
@@ -235,7 +237,7 @@ Depuis le _device_ à déclarer de confiance, l'utilisateur:
 - saisit un code `PIN` (d'au moins 6 signes).
 - saisit le couple `p0 p1` d'accès à son _safe_.
 
-Le module _safe terminal_ demande au module _safe server_ d'accéder au safe de l'utilisateur identifié par `SH(p0)` et de lui retourner le `safeId` et `Ka` associé:
+Le module _safe terminal_ demande au module _safe server_ d'accéder au safe de l'utilisateur identifié par `SH(p0)` et de lui retourner le `userId` et `Ka` associé:
 - disposant du couple `p0 p1`, le module _safe terminal_ obtient la clé `K` du safe de l'utilisateur en décryptant `Ka` par le `SH(p0, p1)`.
 
 Le module _safe terminal_,
@@ -245,9 +247,9 @@ Le module _safe terminal_,
 - génère un couple `Sa Va` de clés asymétriques signature / vérification.
 - calcule `sign`, signature par `Sa` du `SH(PIN, cx)`.
 - calcule `hp1` comme `SH(p1)`.
-- enregistre dans la table `TRUSTING` de la base IDB `Safes` un row avec les colonnes `safeId pseudo cx Ka Kp`.
-- transmet au module _safe terminal_ `safeId, devId, hp1, devName(crypté par K), Va, cy, sign` qui,
-  - accède au _safe_ dont l'id est `safeId` et vérifie que `hhp1` est bien le SHA de `hp1` (s'assure que _safe terminal_ détient le bon `p1`).
+- enregistre dans la table `TRUSTING` de la base IDB `Safes` un row avec les colonnes `userId pseudo cx Ka Kp`.
+- transmet au module _safe terminal_ `userId, devId, hp1, devName(crypté par K), Va, cy, sign` qui,
+  - accède au _safe_ dont l'id est `userId` et vérifie que `hhp1` est bien le SHA de `hp1` (s'assure que _safe terminal_ détient le bon `p1`).
   - y créé dans la section `devices` une entrée `devId` avec les données `devName Va cy sign nbe = 0`.
 
 > Remarque: `Sa` a servi à générer la signature `sign` mais n'est plus utilisé ensuite et n'est pas mémorisé alors que `Va` l'est et servira à authentifier la signature d'un PIN saisi par l'utilisateur.
@@ -258,10 +260,10 @@ Après ce calcul,
 
 #### Authentification par code PIN depuis un _device déclaré de confiance_
 Le module _safe terminal_ lit la base IDB _Safes_ et, 
-- propose à l'utilisateur de désigner la ligne de `TRUSTING` dont la propriété `pseudo` (par exemple `Bob`) lui correspond. Le module dispose ainsi des données `safeId cx Kp`.
+- propose à l'utilisateur de désigner la ligne de `TRUSTING` dont la propriété `pseudo` (par exemple `Bob`) lui correspond. Le module dispose ainsi des données `userId cx Kp`.
 - demande à l'utilisateur de saisir le PIN associé et calcule `z = SH(PIN, cx)`.
-- transmet au module _safe terminal_ `safeId, devId, z` qui,
-  - accède au _safe_ dont l'id est `safeId`.
+- transmet au module _safe terminal_ `userId, devId, z` qui,
+  - accède au _safe_ dont l'id est `userId`.
   - accède dans la section `devices` à l'entrée `devId` ce qui lui donne les propriétés `Va cy sign nbe`. Si cette entrée n'existe pas c'est que le _device_ N'EST PAS / PLUS de confiance pour ce _safe_,
     - soit n'a jamais été déclaré comme tel,
     - soit la confiance en lui a été retirée explicitement par l'utilisateur,
@@ -280,7 +282,7 @@ La table `SESSION` de la base IDB _Safes_ permet de lister les sessions qui ont 
 - pseudo du _safe_ correspondant, par exemple `Bob`.
 
 L'utilisateur désigne la session qu'il souhaite rouvrir ce qui lui donne:
-- le `safeId` de cette session,
+- le `userId` de cette session,
 - le `profId` du profil de cette session,
 - `Ka` la clé K de ce _safe_ mais cryptée par `p0 p1` d'authentification du _safe_.
 - `prefs` les préférences de la session cryptées par la clé K.
@@ -344,8 +346,8 @@ Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels de
 ### Purge périodique des _safes_ inutilisés / obsolètes
 
 ### _login_ à un _safe_
-- par `SH(p0) SH(p1)` -> `safeId, K`a -> `K`
-- par `safeId, devId, SH(PIN, cx)` -> `cy` -> `K` décrypté par `SH(PIN + cx, cy)`
+- par `SH(p0) SH(p1)` -> `userId, K`a -> `K`
+- par `userId, devId, SH(PIN, cx)` -> `cy` -> `K` décrypté par `SH(PIN + cx, cy)`
 
 ### Extractions d'un _safe_
 - liste des devices de confiance
@@ -378,8 +380,8 @@ En partie une solution à la question précédente, ce dispositif permet aussi d
 - les droits copiés sont-ils automatiquement valides dans les safe cibles ou doivent-ils être confirmés ? Changent-ils d'id ?
 - dans ce cas il faut une clé C et une clé D par _safe_ : la clé D est-elle la clé K ?
 
-### Utilisation d'un _safeId_ comme identifiant d'un _compte_ dans une application
-Dans _myApp1 server_ authentifie `safeId SH(K)` en faisant un appel interne au module _safe server_ qui peut garder en cache les couples authentifiés les plus récents.
+### Utilisation d'un _userId_ comme identifiant d'un _compte_ dans une application
+Dans _myApp1 server_ authentifie `userId SH(K)` en faisant un appel interne au module _safe server_ qui peut garder en cache les couples authentifiés les plus récents.
 
 ### Comment éviter une inflation incontrôlable de création de _safes_ fantômes
 Un utilisateur ne pourrait créer un _safe_ qu'après avoir obtenu un ticket d'invitation déposé par un autre _safe_.
