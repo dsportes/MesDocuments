@@ -173,7 +173,7 @@ Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 
 #### Synthèse des propriétés de la section `auth`
 - `userId` : identifiant.
-- `maxLife` : durée de vie du _safe_, sachant que toute utilisation recule cette date (permet une _purge_ périodique des _safe_ obsolètes / fantômes).
+- `lam` : dernier mois d'accès YYYYMM au _safe_: toute utilisation recule cette date qui permet une _purge_ périodique des _safe_ obsolètes / fantômes.
 - `hp0` : index unique, `SH(p0)`.
 - `hr0` : index unique, `SH(r0)`.
 - `hhp1` : SHA de `SH(p1)`.
