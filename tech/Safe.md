@@ -165,7 +165,7 @@ La clé `K` du safe est stockée,
 - dans `Ka` et `Kr` cryptages respectifs par  `SH(p0, p1)` et `SH(r0, r1)`.
 - `hhk` : SHA du `SH(K)` permettant au module _safe server_ de vérifier sur chaque opération demandée par _safe terminal_ que celui-ci détient bien la clé K (transmise par `SH(K)`).
 
-A aucun moment les propriétés `p0 p1 r0 r1` ne sont stockés ni transmis _en clair_: elles ne sont _lisibles_ que très temporairement lors la saisie par l'utilisateur dans le module _safe terminal_ et cryptées dès la fin de la saisie.
+A aucun moment les propriétés `p0 p1 r0 r1` ne sont ni stockées ni transmises _en clair_: elles ne sont _lisibles_ que très temporairement lors la saisie par l'utilisateur dans le module _safe terminal_ et cryptées dès la fin de la saisie.
 
 Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 - soit le couple actuel `p0, p1` OU `r0, r1`.
