@@ -218,6 +218,7 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
   - `pseudo`: par exemple `Bob`.
   - `cx`: un challenge aléatoire.
   - `Ka`: clé K du safe de l'utilisateur cryptée par `SH(p0, p1)` où `p0` et `p1` sont les termes d'authentification du safe de l'utilisateur.
+  - `Kr`: clé K du safe de l'utilisateur cryptée par `SH(r0, r)`.
   - `Kp`: clé K du safe de l'utilisateur cryptée par `SH(PIN + cx, cy)` où,
     - `PIN` est le code PIN fixé par l'utilisateur à la déclaration de confiance,
     - `cx cy` sont des _challenges_ générés aléatoirement à ce moment.
@@ -246,10 +247,10 @@ Le module _safe terminal_,
 - calcule `Kp`, cryptage de cryptage de la clé `K` par le `SH(PIN + cx, cy)`.
 - génère un couple `Sa Va` de clés asymétriques signature / vérification.
 - calcule `sign`, signature par `Sa` du `SH(PIN, cx)`.
-- calcule `hp1` comme `SH(p1)`.
-- enregistre dans la table `TRUSTING` de la base IDB `Safes` un row avec les colonnes `userId pseudo cx Ka Kp`.
-- transmet au module _safe terminal_ `userId, devId, hp1, devName(crypté par K), Va, cy, sign` qui,
-  - accède au _safe_ dont l'id est `userId` et vérifie que `hhp1` est bien le SHA de `hp1` (s'assure que _safe terminal_ détient le bon `p1`).
+- calcule `sh1p / sh1r` comme `SH(p1) / SH(r1)`.
+- enregistre dans la table `TRUSTING` de la base IDB `Safes` un row avec les colonnes `userId pseudo cx Ka Kr Kp`.
+- transmet au module _safe terminal_ `userId, devId, sh1p, sh1r, devName(crypté par K), Va, cy, sign` qui,
+  - accède au _safe_ dont l'id est `userId` et vérifie que `hhp1 / hhr1` est bien le SHA de `sh1p / sh1r` (s'assure que _safe terminal_ détient le bon `p1 / r1`).
   - y créé dans la section `devices` une entrée `devId` avec les données `devName Va cy sign nbe = 0`.
 
 > Remarque: `Sa` a servi à générer la signature `sign` mais n'est plus utilisé ensuite et n'est pas mémorisé alors que `Va` l'est et servira à authentifier la signature d'un PIN saisi par l'utilisateur.
