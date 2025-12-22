@@ -191,9 +191,10 @@ Chaque _device de confiance_ à une entrée  dans cette section identifiée par 
 Après avoir authentifié son accès à son _safe_, l'utilisateur peut retirer sa confiance à n'importe lequel des devices cités dans la liste en en supprimant l'entrée.
 
 ### Section `creds`
-Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par la clé K** du safe sous un identifiant généré aléatoirement à sa création. Ses propriétés sont:
+Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par la clé K**. Ses propriétés sont:
 - `about` : code / texte court donné par l'utilisateur pour qualifier le _credential_. Par exemple `Compte Bob sur circuits courts`. 
-- `appli, org, type, target, keys: [{var, S, V}, ...]` : données du _credential_, ses clés d'accès. La _clé primaire_ est `appli, org, type, target`
+- `appli, org, type, target, keys: {}` : données du _credential_, ses clés d'accès. La structure de keys dépend de la nature technique du _credential_ utilisé.
+- son **identifiant** est le hash _court_ de `[appli, org, type, target]`.
 
 ### Section `profiles`
 Elle est organisée avec une **sous-section par application** regroupant une liste d'items ayant un identifiant généré aléatoirement à sa création. Chaque item est **crypté par la clé K** de _safe_ et a les propriétés suivantes: 
@@ -203,10 +204,10 @@ Elle est organisée avec une **sous-section par application** regroupant une lis
 
 ## Accès d'une application terminale à un _safe_
 ### Depuis n'importe quel _device_ (de confiance ou non)
-Le module _safe terminal_ demande à l'utilisateur `p0 p1` et transmet `SH(p0) SH(p1)` au module _safe server_ qui,
+Le module _safe terminal_ demande à l'utilisateur `p0 p1` (ou `ro, r1`) et transmet `SH(p0) SH(p1)` au module _safe server_ qui,
 - accède au document _safe_ depuis le `SH(p0)` (index unique).
-- vérification que `hhp1` est bien le SHA de SH(p1) reçu en argument.
-- retourne `Ka`: le module _safe terminal_ décode `Ka` par `SH(p0, p1)`. En cas d'échec c'est que `p0 / p1` était incorrect.
+- vérification que `hhp1` est bien le hash court de `SH(p1)` reçu en argument.
+- retourne `Ka Kr`: le module _safe terminal_ décode `Ka` par `SH(p0, p1)`. En cas d'échec c'est que `p0 / p1` était incorrect.
 
 ### Depuis un _device_ de confiance
 Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une micro base de données IDB nommée `Safes` ayant les tables suivantes:
@@ -228,7 +229,8 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
   - `profId`: id du profil de la session.
   - `profAbout`: texte significatif pour l'utilisateur **crypté par la clé K du _safe_** décrivant le _profil_ de la session (par exemple `Revue des notes d'Alice et Jules`).
   - `prefs`: les préférences d'ouverture de la session (cryptées par la clé K du _safe_).
-  - Il existe une base de données IDB de nom `app.x` (`x = SHA(userId / profId)`)contenant les documents en cache de cette session.
+  - `size`: volume _utile_ des données de la base IDB lors de la dernière session ouverte sur ce _device_.
+  - Il existe une base de données IDB de nom `app.x` (`x = hash court de (userId / profId)`)contenant les documents en cache de cette session.
 
 > Les rows de la base IDB Safe sont cryptés par une clé C du module _safe terminal_ afin de ne pas être directement lisible en _debug_. Toutefois cette _sécurité_ est _molle_, la clé étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker peut la retrouver.
 
