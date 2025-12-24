@@ -17,16 +17,30 @@ Les opérations exécutées par le serveur comme les données qu'il peut retourn
 ## Vérification des _droits d'accès_ par _jetons signés_
 ### Droit d'accès / _credential_
 Un _droit d'accès_ est matérialisé par les données suivantes:
-- `appli` : sauf rares exceptions (?) un droit est spécifique d'UNE seule application. Le code * indique un droit reconnu par toutes les applications.
-- `org` : sauf exceptions pour certains droits d'administration technique, un droit est spécifique dUNE seule organisation. Le code * indique un droit reconnu par toutes les organisations.
-- `type`, un code correspondant à sa _classe / catégorie_ `cpt, mbr, trf ...`
-- `target` : l'identifiant dans l'application de sa _cible_ qui peut comporter aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire. Par exemple pour un droit `cpt`, l'identifiant du compte.
-- une _liste de clés_, souvent d'un seul terme:
-  - `var` : un code (vide par défaut) permettant de disposer de plusieurs clés pour un même droit identifié par `type / target`.
-  - `S` : clé privée de **signature** (environ 400 bytes).
-  - `V` : clé publique de **vérification** (environ 100 bytes).
+- `appli` : sauf rares exceptions pour des usages administratifs / techniques génériques, un droit est spécifique d'UNE application. Le code * indique un droit reconnu par toutes les applications.
+- `org` : sauf exceptions pour certains droits d'administration technique, un droit est spécifique d'UNE organisation. Le code * indique un droit reconnu par toutes les organisations.
+- `type`, un code correspondant à sa _classe / catégorie_ `cpt, mbr, trf ...`.
+- **un droit correspond à une autorisations d'effectuer une ou des opérations** et non pas à identifier un utilisateur: toutefois l'opération _connexion d'un utilisateur_ revient de facto à une identification. Un droit est défini par a) la _cible_ des opérations qu'il autorise, b) la _source_, qui initie l'opération, c) les permissions, les catégories d'opérations qu'il autorise.
+  - `target` : identifiant dans l'application de la _cible_ des opérations. Ce peut être aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire. Par exemple pour un droit `cpt`, l'identifiant du compte.
+  - `source` : identifiant dans l'application de l'entité qui enclenche l'opération. Un droit est relatif au couple _qui_ demande l'opération, sur _quoi/qui_ porte l'opération. Quand la source est aussi la cible, elle n'est pas donnée.
+  - `perms` : `rwa` par exemple. Droit à effectuer les opérations `r` de lecture / consultation, `w` d'écriture / mise à jour, `a` d'administration. Les lettres sont spécifiques de chaque type de droit.
+- `aes` : une clé _facultative_ de cryptage symétrique utilisée par les opérations usant de ce droit, par exemple la clé confidentielle d'un _login_ ou la clé cryptant les textes d'un chat associé à ce droit. 
+- **Selon la technique d'authentification employée:**
+  - un couple `SV` de clés:
+    - `S` : clé privée de **signature** (environ 400 bytes).
+    - `V` : clé publique de **vérification** (environ 100 bytes).
+  - `hph` : le hash d'une _pass-phrase / mot de passe_.
+    - si la pass-phrase est générée aléatoirement, le hsh peut être un SHA, sinon c'est un SH (PBKDF...).
+    - l'opération vérifiant le droit doit s'assurer qu'il dispose en base de données du SHA (voire raccourci) de hph.
+    - la pass_phrase n'est ainsi jamais stockée d'aucun côté.
 
-Les serveurs des applications ne détiennent des _droits d'accès_ **QUE** les propriétés `type target V` et n'ont PAS (sauf exception décrite ci-dessous) accès à le clé `S` correspondante. Un _serveur_ vérifie la validité d'un droit transmis par _l'application terminale_ de la manière suivante:
+La _clé_ identifiante d'UN droit est `[appli, org, type, target, source, perms]` (son SHA raccourci par exemple).
+
+La _valeur_ d'un droit dépend de sa nature technique, par exemple `{aes, SV}` où 
+`{aes, hph}`.
+
+#### Cas d'un droit de nature _SV_
+Les serveurs des applications ne détiennent des _droits d'accès_ de cette nature technique connaissent la clé `V` mais n'ont PAS (sauf exception décrite ci-dessous) accès à le clé `S` correspondante. Un _serveur_ vérifie la validité d'un droit transmis par _l'application terminale_ de la manière suivante:
 - l'application terminale génère un texte _challenge_ qui n'a jamais été généré et ne sera jamais plus présenté à l'application serveur.
 - elle _signe_ ce _challenge_ par sa clé `S` et transmet au serveur le couple du challenge et de sa signature.
 - le serveur utilise sa clé `V` correspondante à la clé `S` utilisée à la signature et peut vérifier que la signature reçue est bien celle du challenge transmis.
@@ -37,39 +51,37 @@ Les serveurs des applications ne détiennent des _droits d'accès_ **QUE** les p
 Quand une application terminale soumet une opération à un serveur, elle fournit dans sa requête un **jeton d'accès** qui réunit les preuves que son utilisateur dispose des _droits_ requis pour exécuter cette opération. Un jeton comporte:
 - `sessionId` : C'est l'identification d'UNE exécution l'application terminale sur UN _device_, à un instant donné une seule exécution terminale de l'application peut s'en prévaloir.
 - `time` : date-heure en milliseconde de la génération du jeton d'accès. Cette donnée fait partie du _challenge_ des signatures du jeton.
-- une liste de preuves de possession des droits constituée chacune d'un triplet:
-  - `type` : du droit,
-  - `target` : _identifiant_ de la cible à laquelle le droit s'applique,
-  - `signatures` : liste de signatures `{var1: sig1, ...}` du couple `sessionId,  time` par chaque variante `var1` de la clé `S` du droit correspondant.
+- une liste de preuves de possession des droits constituée chacune de:
+  - l'identifiant du droit: `[appli, org, type, target, source, perms]` (le contexte dispense de facto de transmettre `appli` et souvent `org`).
+  - selon la nature technique du droit:
+    - `sign` : signature du couple `sessionId,  time` par la clé `S` du droit.
+    - `hph` : le hash de la pass-phrase
 
 **Remarques**:
 - pour une application _web-push_, `sessionId` est un hash du (long) `devAppToken` attribué par le browser à l'application lors de l'enregistrement de son _service_worker_:  en conséquence `devAppToken` change si l'utilisateur du device supprime le service_worker qui se ré-enregistrera au prochain appel mais avec un token différent. Un _hacker_ un peu entraîné peut obtenir l'identifiant `devAppToken / sessionId` en lançant en _debug_ l'application sur ce _device_.
-- dans la liste des preuves, plusieurs peuvent concerner le même couple `type target`: il suffit que l'une d'elle soit reconnue comme valide pour que le droit le soit. C'est une manière de traiter les situations, temporaires ou non, où un même droit peut avoir plusieurs _variantes_ de clés de signature / vérification (une _ancienne_ et une _nouvelle_, une variante par _pseudo_ ...).
 - un _jeton d'accès_ est crypté par la clé publique d'encryption du serveur applicatif ciblé de sorte que seul celui-ci puisse le lire. Cette clé fait partie de la _configuration_ du serveur que son administrateur technique délivre lors du déploiement et qu'il doit conserver confidentiellement.
 
-### Validation des _droits_ d'un jeton par le serveur de l'application
+### Validation des _droits_ d'un jeton SV par le serveur de l'application
 Quand le serveur d'une application traite une opération soumise par l'application _terminale_,
 - il obtient de la requête le jeton d'accès et le décrypte par sa clé privée de décryptage.
 - le jeton présenté n'est acceptable que si son `time` _n'est pas trop vieux_ (quelques dizaines de secondes). Pour chaque _droit_ de la liste du jeton,
-  - il obtient depuis sa base de données la map dés clés acceptées `{var1: V1, var2:v2 ...}` de vérification associée à sa cible,
-  - il vérifie que la `signature` du couple `sessionId, time` est bien validée par la variante `var1` de `V`, ce qui prouve que l'application terminale en détient effectivement la clé de signature `S` correspondante.
+  - il obtient depuis sa base de données, pour un couple `target, source, perms` une clé `V`, ou une liste de clés `V`, de vérification associée.
+  - il vérifie que la `signature` du couple `sessionId, time` est bien validée par la, ou une des clés `V`, ce qui prouve que l'application terminale en détient effectivement la clé de signature `S` correspondante.
 
 > `sessionId, time` est utilisé comme _challenge_ cryptographique et n'est pas présenté plus d'une fois pour une application donnée.
 
+> Pour un couple donné target source, il est tout à fait normal de définir un droit pour une permission `r` de lecture et **un autre droit** pour la permission `wa` d'écriture et d'administration.
+
 **Remarques de performances:**
-- le serveur peut conserver en _cache_ pour chaque `target` d'un `type` de droit la dernière map dés clés acceptées `{var1: V1, var2:v2 ...}` lu de la base. En cas d'échec de la vérification il relit la base de données pour s'assurer d'avoir bien la dernière version de `{var1: V1, var2:v2 ...}`, et en cas de changement refait une vérification avant de valider / invalider le droit correspondant.
+- le serveur peut conserver en _cache_ pour chaque `target, source, perms` d'un `type` de droit la dernière liste de clés acceptées `[V1, V2 ...]` lu de la base. En cas d'échec de la vérification il relit la base de données pour s'assurer d'avoir bien la dernière version de `[V1, V2 ...]`, et en cas de changement refait une vérification avant de valider / invalider le droit correspondant.
 - le serveur conserve en cache pour chaque `sessionId` le dernier `time` présenté en vérification: l'application terminale doit présenter des _time_ toujours croissants afin d'éviter un éventuel vol de _vieilles_ signatures qui seraient présentées à nouveau par un hacker.
 
 > En cas de soumissions de nombreuses requêtes d'une application depuis un device requérant les mêmes droits, leur _validation_ ne requiert qu'un calcul en mémoire sans accès à la base pour obtenir les clés de vérification.
 
 ### "Un" droit, "plusieurs" clés
-Le serveur _peut_ mémoriser pour un droit non pas une clé `V` mais une liste de clés `{var1:V1, var2:v2 ...}`: pour être validé, un droit d'un jeton d'accès doit fournir une signature qui a été établie par la clé `Si` correspondant à la variante acceptée. 
-- Si la variante acceptée ne figure pas dans le jeton d'accès, c'est que l'application terminale N'A PLUS ACCÈS au droit qui a été changé par l'application serveur et n'a pas jugé pertinent de retransmettre cette information à l'utilisateur pour qu'il la stocke dans ses droits.
-- Si la variante figure mais que la vérification échoue, c'est une tentative de fraude.
+Le serveur _peut_ mémoriser pour un droit non pas une clé `V` mais une liste de clés `V1 V2 ...`: pour être validé, un droit d'un jeton d'accès doit fournir une signature qui a été établie par la clé `Si` correspondante. 
 
-La logique applicative peut ainsi prévoir de distribuer plusieurs _variantes_ de clés à des détenteurs différents selon ses propres critères (par exemple un _pseudo court_ du détenteur): elle peut aussi au cours du temps _désactiver_ certaines variantes dans le serveur et inhiber ainsi les détenteurs qui les possédaient.
-
-> Ce dispositif permet aussi de gérer un _changement de clé_ pour un droit lorsqu'il a été attribué trop généreusement ou pour un temps limité. La création d'une nouvelle clé peut être faite et sa distribution restreinte aux seuls détenteurs souhaitables dans le futur, le cas échéant après un certain temps où les deux peuvent être admises, _l'ancienne_ peut être supprimée.
+Ce dispositif permet de gérer un _changement de clé_ pour un droit lorsqu'il a été attribué trop généreusement ou pour un temps limité. La création d'une nouvelle clé peut être faite et sa distribution restreinte aux seuls détenteurs souhaitables dans le futur, le cas échéant après un certain temps où les deux peuvent être admises, _l'ancienne_ peut être supprimée.
 
 ### Utilisation de la liste des droits par une application terminale
 Celle-ci a obtenu la **liste des droits** de l'utilisateur: pour une opération donnée elle va devoir choisir celui approprié. Plusieurs situations se présentent:
@@ -105,11 +117,20 @@ Après avoir lancé l'application _myApp1 terminal_ depuis son _device_, un util
 ### Sessions et _profils_ de sessions
 Quand un utilisateur lance une application _myapp1_ depuis un _device_ il ouvre une session, identifiée de manière unique pour cette application: sur un _device donné_, une seule session peut s'exécuter à un instant donné pour l'application _myapp1_.
 
-A la toute première ouverture d'une session de l'application _myapp1_ l'utilisateur va devoir:
-- citer le ou les droits d'accès dont il se prévaut dans cette session, typiquement en _cochant_ ceux qu'il a déjà acquis et stockés dans son coffre.
-- fixer éventuellement quelques préférences d'ouverture (langue, disposition préférée, etc.).
+A la toute première ouverture d'une session de l'application _myapp1_ l'utilisateur dispose potentiellement d'une liste de droits déjà acquis antérieurement:
+- chaque droit _peut_ être associé à une remontée important de données du serveur associé à son org.
+- afin d'éviter une surcharge inutile pour le travail qu'il souhaite engager, l'utilisateur va restreindre cette liste en _cochant_ les seuls droits qui l'intéresse à cet instant. Ce faisant il définit ainsi un _profil_ de sa session.
 
-Si l'utilisateur prévoit de rouvrir un jour plus tard une session dans les mêmes conditions (mêmes droits et mêmes préférences), il peut enregistrer dans son _coffre_ le _profil_ de sa session et lui donner un _à propos_ significatif pour lui: ainsi ultérieurement quand il voudra rouvrir une session similaire, au lieu de re-citer droits et préférences, il désignera simplement ce _profil_.
+Si l'utilisateur prévoit de ré-ouvrir un jour une session dans les mêmes conditions (mêmes droits), il peut enregistrer dans son _coffre_ le _profil_ de sa session et lui donner un _à propos_ significatif pour lui: ainsi ultérieurement quand il voudra ré-ouvrir une session similaire, au lieu de re-citer droits et préférences, il désignera simplement ce _profil_.
+
+#### _Préférences_ associées à un _profil_
+Au cours d'une session, l'utilisateur peut fixer un certain nombre de _préférences_,
+- la langue de travail,
+- le mode clair ou foncé,
+- des flags de présentation divers,
+- des nombres de lignes d'affichages, etc.
+
+Cet objet de préférence est aussi stocké dans le _profil_: ainsi à la ré-ouverture d'une session, elles s'appliqueront automatiquement.
 
 ### Devices _de confiance_
 Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
