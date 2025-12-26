@@ -53,15 +53,15 @@ Quand une application terminale soumet une opération à un serveur, elle fourni
 - `time` : date-heure en milliseconde de la génération du jeton d'accès. Cette donnée fait partie du _challenge_ des signatures du jeton.
 - une liste de preuves de possession des droits constituée chacune de:
   - l'identifiant du droit: `[appli, org, type, target, source, perms]` (le contexte dispense de facto de transmettre `appli` et souvent `org`).
-  - selon la nature technique du droit:
-    - `sign` : signature du couple `sessionId,  time` par la clé `S` du droit.
-    - `hph` : le hash de la pass-phrase
+  - selon la nature technique du droit (chaque `type` a une nature technique associée):
+    - `sign` : signature du couple `sessionId, time` par la clé `S` du droit.
+    - `hph` : le hash ou _strong-hash_ de la pass-phrase `ph` obtenue d'une manière ou d'une autre de l'utilisateur.
 
 **Remarques**:
 - pour une application _web-push_, `sessionId` est un hash du (long) `devAppToken` attribué par le browser à l'application lors de l'enregistrement de son _service_worker_:  en conséquence `devAppToken` change si l'utilisateur du device supprime le service_worker qui se ré-enregistrera au prochain appel mais avec un token différent. Un _hacker_ un peu entraîné peut obtenir l'identifiant `devAppToken / sessionId` en lançant en _debug_ l'application sur ce _device_.
 - un _jeton d'accès_ est crypté par la clé publique d'encryption du serveur applicatif ciblé de sorte que seul celui-ci puisse le lire. Cette clé fait partie de la _configuration_ du serveur que son administrateur technique délivre lors du déploiement et qu'il doit conserver confidentiellement.
 
-### Validation des _droits_ d'un jeton SV par le serveur de l'application
+### Validation des _droits_ d'un jeton SV (resp. PH) par le serveur de l'application
 Quand le serveur d'une application traite une opération soumise par l'application _terminale_,
 - il obtient de la requête le jeton d'accès et le décrypte par sa clé privée de décryptage.
 - le jeton présenté n'est acceptable que si son `time` _n'est pas trop vieux_ (quelques dizaines de secondes). Pour chaque _droit_ de la liste du jeton,
@@ -72,6 +72,8 @@ Quand le serveur d'une application traite une opération soumise par l'applicati
 
 > Pour un couple donné target source, il est tout à fait normal de définir un droit pour une permission `r` de lecture et **un autre droit** pour la permission `wa` d'écriture et d'administration.
 
+> Pour une authentification par _pass-phrase_ `ph`: au lieu de `sign` c'est `hph` (le hash ou `SH(ph)`) qui est passé sur le jeton par l'application et c'est le `SHA(hph)` qui est mémorisé par le serveur (et confronté au `hph` reçu de l'application).
+
 **Remarques de performances:**
 - le serveur peut conserver en _cache_ pour chaque `target, source, perms` d'un `type` de droit la dernière liste de clés acceptées `[V1, V2 ...]` lu de la base. En cas d'échec de la vérification il relit la base de données pour s'assurer d'avoir bien la dernière version de `[V1, V2 ...]`, et en cas de changement refait une vérification avant de valider / invalider le droit correspondant.
 - le serveur conserve en cache pour chaque `sessionId` le dernier `time` présenté en vérification: l'application terminale doit présenter des _time_ toujours croissants afin d'éviter un éventuel vol de _vieilles_ signatures qui seraient présentées à nouveau par un hacker.
@@ -79,9 +81,9 @@ Quand le serveur d'une application traite une opération soumise par l'applicati
 > En cas de soumissions de nombreuses requêtes d'une application depuis un device requérant les mêmes droits, leur _validation_ ne requiert qu'un calcul en mémoire sans accès à la base pour obtenir les clés de vérification.
 
 ### "Un" droit, "plusieurs" clés
-Le serveur _peut_ mémoriser pour un droit non pas une clé `V` mais une liste de clés `V1 V2 ...`: pour être validé, un droit d'un jeton d'accès doit fournir une signature qui a été établie par la clé `Si` correspondante. 
+Le serveur _peut_ mémoriser pour _un_ droit non pas _une_ clé `V` mais _une liste de clés_ `V1 V2 ...`: pour être validé, un droit d'un jeton d'accès doit fournir une signature qui a été établie par la clé `Si` correspondante à l'une des `[V1 V2 ...]`. 
 
-Ce dispositif permet de gérer un _changement de clé_ pour un droit lorsqu'il a été attribué trop généreusement ou pour un temps limité. La création d'une nouvelle clé peut être faite et sa distribution restreinte aux seuls détenteurs souhaitables dans le futur, le cas échéant après un certain temps où les deux peuvent être admises, _l'ancienne_ peut être supprimée.
+Gérer un _changement de clé_ pour un droit attribué trop généreusement ou pour un temps limité s'effectue en créant une nouvelle clé dont la distribution est restreinte aux seuls détenteurs souhaitables dans le futur. Pendant un certain temps les deux peuvent être admises, puis _l'ancienne_ supprimée.
 
 ### Utilisation de la liste des droits par une application terminale
 Celle-ci a obtenu la **liste des droits** de l'utilisateur: pour une opération donnée elle va devoir choisir celui approprié. Plusieurs situations se présentent:
@@ -121,16 +123,24 @@ A la toute première ouverture d'une session de l'application _myapp1_ l'utilisa
 - chaque droit _peut_ être associé à une remontée important de données du serveur associé à son org.
 - afin d'éviter une surcharge inutile pour le travail qu'il souhaite engager, l'utilisateur va restreindre cette liste en _cochant_ les seuls droits qui l'intéresse à cet instant. Ce faisant il définit ainsi un _profil_ de sa session.
 
-Si l'utilisateur prévoit de ré-ouvrir un jour une session dans les mêmes conditions (mêmes droits), il peut enregistrer dans son _coffre_ le _profil_ de sa session et lui donner un _à propos_ significatif pour lui: ainsi ultérieurement quand il voudra ré-ouvrir une session similaire, au lieu de re-citer droits et préférences, il désignera simplement ce _profil_.
+Si l'utilisateur prévoit de ré-ouvrir un jour une session dans les mêmes conditions (mêmes droits), il peut enregistrer dans son _coffre_ le _profil_ de sa session et lui donner un _à propos_ significatif pour lui: ainsi ultérieurement quand il voudra ré-ouvrir une session similaire, au lieu de re-citer les droits qui l'intéressent, il désignera ce _profil_.
 
-#### _Préférences_ associées à un _profil_
-Au cours d'une session, l'utilisateur peut fixer un certain nombre de _préférences_,
+### _Préférences_ d'un utilisateur
+Au cours d'une session d'une application _myapp1_, l'utilisateur peut fixer un certain nombre de _préférences_,
 - la langue de travail,
 - le mode clair ou foncé,
-- des flags de présentation divers,
+- page d'accueil souhaitée,
+- des flags de présentation divers (portrait / paysage),
 - des nombres de lignes d'affichages, etc.
 
-Cet objet de préférence est aussi stocké dans le _profil_: ainsi à la ré-ouverture d'une session, elles s'appliqueront automatiquement.
+Un _objet_ de préférence stocke ces paramètres.
+
+Un utilisateur peut enregistrer quelques jeu de préférences en leur donnant un code comme `mobile tablette PC simple expert ...`, chaque jeu étant adapté à un couple désignant autant le profil technique optimisé pour un  type de _device_, qu'un mode d'utilisation.
+
+En ré-ouvrant une session de l'application _myapp1_ l'utilisateur peut de cette façon utiliser,
+- soit le jeu de préférences utilisé la fois précédente sur ce _device_,
+- soit le jeu de préférences utilisé la fois précédente depuis un _device_ anonyme,
+- soit choisir dans une courte liste celui qu'il préfère.
 
 ### Devices _de confiance_
 Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
@@ -146,7 +156,7 @@ Un utilisateur peut déclarer sa _confiance_ au _device_ qu'il utilise:
 - le _device_ enregistre localement la référence à cette déclaration de confiance.
 
 Lancer une application depuis un appareil _de confiance_ a plusieurs avantages:
-- **authentification simplifiée** de son _coffre_ par l'utilisateur en donnant un code PIN court (pour accéder à ses profils de sessions des applications et à ses _droits_).
+- **authentification simplifiée** de l'utilisateur en donnant un code PIN court (pour accéder à ses profils de sessions des applications et à ses _droits_).
 - **disposer sur ce device de _mémoires caches persistantes et cryptées de documents_** pour chaque _profil_ de session ce qui lui permet d'ouvrir une session,
   - en mode _réseau_ en minimisant le nombre de documents à récupérer des serveurs,
   - en mode _avion_ (sans accès au réseau) avec accès en lecture aux documents dans l'état où ils se trouvaient lors de la dernière fin de session en mode _réseau_ sur ce _device_.
@@ -162,14 +172,17 @@ Le document décrivant un _coffre fort_ a plusieurs sections:
   - une id aléatoire,
   - un _à propos_, texte signifiant pour l'utilisateur.
   - la liste des _credentials_ qui seront attachés à une session lors de son ouverture.
-  - une liste éventuelle de _préférences_ utilisées à l'ouverture d'une session.
+- section `prefs`: liste de _jeux de préférences_ nommés par un code court, dans l'ordre anté-chronologique de dernière référence.
 
 ### Section `auth`
 
 #### Création d'un _safe_ d'un utilisateur
-Un identifiant userId est généré aléatoirement pour représenter l'utilisateur.
-
 Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
+
+Un couple de clés C (cryptage - publique) / D (décryptage - privée).
+- l'identifiant userId pour représenter l'utilisateur est le SHA raccourci de la clé C.
+- la clé `C` est stockée en clair (elle est _publique_).
+- la clé D est stockée crypté par la clé K dans `DK`.
 
 L'utilisateur donne:
 - un _couple_ `p0, p1` (qui pourra être changé) _d'authentification_:
@@ -195,6 +208,8 @@ Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 #### Synthèse des propriétés de la section `auth`
 - `userId` : identifiant.
 - `lam` : dernier mois d'accès YYYYMM au _safe_: toute utilisation recule cette date qui permet une _purge_ périodique des _safe_ obsolètes / fantômes.
+- `C` : clé de cryptage en clair (`userId` est son SHA raccourci).
+- `DK` : clé de décryptage cryptée par la clé `K`.
 - `hp0` : index unique, `SH(p0)`.
 - `hr0` : index unique, `SH(r0)`.
 - `hhp1` : SHA de `SH(p1)`.
@@ -221,7 +236,11 @@ Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par 
 Elle est organisée avec une **sous-section par application** regroupant une liste d'items ayant un identifiant généré aléatoirement à sa création. Chaque item est **crypté par la clé K** de _safe_ et a les propriétés suivantes: 
 - `about`: texte significatif pour l'utilisateur **crypté par la clé K** décrivant le _profil_ d'une session (par exemple `Revue des notes d'Alice et Jules`).
 - `creds`: la liste des id des _credentials_ qui sont attachés à une session de ce profil lors de son ouverture.
-- `prefs`: un objet facultatif **crypté par la clé K** donnant les _préférences_ utilisées à l'ouverture d'une session interprétable par l'application.
+
+### Section `prefs`
+Elle est organisée avec une **sous-section par application** donnant une liste de couples `code, pref` ordonnée par dernière utilisation:
+- `code` : texte court parlant pour l'utilisateur correspondant à un de ses usages habituels de l'application comme `mobile, large, simple, expert ...`.
+- `pref`: un objet **crypté par la clé K** donnant les valeurs des _préférences_ à utiliser à l'ouverture d'une session.
 
 ## Accès d'une application terminale à un _safe_
 ### Depuis n'importe quel _device_ (de confiance ou non)
@@ -249,11 +268,14 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
   - `userId`: identifiant de l'utilisateur.
   - `profId`: id du profil de la session.
   - `profAbout`: texte significatif pour l'utilisateur **crypté par la clé K du _safe_** décrivant le _profil_ de la session (par exemple `Revue des notes d'Alice et Jules`).
-  - `prefs`: les préférences d'ouverture de la session (cryptées par la clé K du _safe_).
   - `size`: volume _utile_ des données de la base IDB lors de la dernière session ouverte sur ce _device_.
   - Il existe une base de données IDB de nom `app.x` (`x = hash court de (userId / profId)`)contenant les documents en cache de cette session.
+- `PREFS` : chaque row décrit pour une _session_ qui a été ouverte _en confiance_ sur ce _device_:
+  - `app`: code l'application correspondante.
+  - `userId`: identifiant de l'utilisateur.
+  - `[code, pref]`: le code et les valeurs de préférences utilisées lors de la dernière session ouverte (de manière à les retrouver par défaut la prochaine fois). `pref` est crypté par la clé K de l'utilisateur.
 
-> Les rows de la base IDB Safe sont cryptés par une clé C du module _safe terminal_ afin de ne pas être directement lisible en _debug_. Toutefois cette _sécurité_ est _molle_, la clé étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker peut la retrouver.
+> Les rows de la base IDB Safe sont cryptés par une clé AES du module _safe terminal_ afin de ne pas être directement lisible en _debug_: cette _sécurité_ est _molle_, la clé étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker motivé peut la retrouver.
 
 #### Déclaration d'un _device_ de confiance
 Depuis le _device_ à déclarer de confiance, l'utilisateur:
@@ -305,11 +327,11 @@ La table `SESSION` de la base IDB _Safes_ permet de lister les sessions qui ont 
 - le texte `profName` de son profil, par exemple `Revue des notes d'Alice et Jules`,
 - pseudo du _safe_ correspondant, par exemple `Bob`.
 
-L'utilisateur désigne la session qu'il souhaite rouvrir ce qui lui donne:
+L'utilisateur désigne la session qu'il souhaite ré-ouvrir ce qui lui donne:
 - le `userId` de cette session,
 - le `profId` du profil de cette session,
 - `Ka` la clé K de ce _safe_ mais cryptée par `p0 p1` d'authentification du _safe_.
-- `prefs` les préférences de la session cryptées par la clé K.
+- `pref` les valeurs de _préférences- de la session cryptées par la clé K.
 - le nom de la base IDB cache des documents.
 
 L'utilisateur saisit son couple `p0 p1` pour obtenir sa clé K:
@@ -369,6 +391,14 @@ Si le code PIN fait une douzaine de signes et qu'il évite les mots habituels de
 
 ### Purge périodique des _safes_ inutilisés / obsolètes
 
+### Clé publique de cryptage d'un _safe_
+- depuis son `userId`.
+
+Soit deux utilisateurs A et B, ayant chacun leurs clés publique Ca et Cb et leurs clés privées Da et Db:
+- B peut écrire un texte secret T à destination de A en utilisant la clé AES construite depuis Ca et Db. Pour obtenir Ca le userId de A est suffisant.
+- A peut décrypter le texte T à condition de savoir que B en est l'auteur. Il obtient la même clé AES que celle utilisée pour crypter T depuis Cb et Da. Pour obtenir Cb le userId de B est suffisant.
+- le texte T _peut_ (sans risque) être transmis accompagné de Cb (qui donne le userId de B) et permet au destinataire A de décrypter immédiatement T.
+
 ### _login_ à un _safe_
 - par `SH(p0) SH(p1)` -> `userId, K`a -> `K`
 - par `userId, devId, SH(PIN, cx)` -> `cy` -> `K` décrypté par `SH(PIN + cx, cy)`
@@ -388,7 +418,8 @@ Le changement de PIN correspond à une re-déclaration.
 - création d'un profil
 - ajouts / retraits de droits, attribution / retrait à des profils
 - modification du texte _about_
-- settings des préférences
+
+### Settings de préférences
 
 # Questions ouvertes
 
@@ -396,7 +427,14 @@ Le changement de PIN correspond à une re-déclaration.
 Comment transférer / acquérir un _droit_ comme _Comptable de asocial/demo_ ouvrant la possibilité à un utilisateur d'agir avec un rôle de _Comptable_ pour l'organisation _demo_ dans l'application _asocial_ ?
 - attribution directe à un _safe_ par son détenteur actuel? Depuis un identifiant externe (p0 ?) ...
 - dépôt du droit dans un _clipboard_ identifié par une phrase secrète de durée de vie limitée échangée hors application.
-- cryptage: couple de clés C / D par safe ?
+- cryptage: couple de clés C / D par safe.
+
+### Phrase de contact temporaire
+Un user A peut se déclarer une _phrase de contact temporaire_ (p0, p1) indexée (unique) par SH(p0) s'autodétruisant au bout de quelques jours: ainsi B peut _poster_ un message (par exemple avec un _droit_ attaché) à A, sans avoir à connaître son userId mais seulement une _phrase_ compréhensible.
+
+Si A ne veut plus être dérangé par B, il supprime sa phrase temporaire.
+
+**Plusieurs** _phrases temporaires_ ?
 
 ### Copier / coller des _droits_ entre _safes_
 En partie une solution à la question précédente, ce dispositif permet aussi de changer de _safe_, de distribuer des droits sur deux autres _safes_, etc.
