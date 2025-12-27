@@ -238,9 +238,9 @@ Elle est organisée avec une **sous-section par application** regroupant une lis
 - `creds`: la liste des id des _credentials_ qui sont attachés à une session de ce profil lors de son ouverture.
 
 ### Section `prefs`
-Elle est organisée avec une **sous-section par application** donnant une liste de couples `code, pref` ordonnée par dernière utilisation:
+Elle est organisée avec une **sous-section par application** donnant une liste de couples `code, pref` ( **cryptés par la clé K**) ordonnée par dernière utilisation:
 - `code` : texte court parlant pour l'utilisateur correspondant à un de ses usages habituels de l'application comme `mobile, large, simple, expert ...`.
-- `pref`: un objet **crypté par la clé K** donnant les valeurs des _préférences_ à utiliser à l'ouverture d'une session.
+- `pref`: un objet donnant les valeurs des _préférences_ à utiliser à l'ouverture d'une session.
 
 ## Accès d'une application terminale à un _safe_
 ### Depuis n'importe quel _device_ (de confiance ou non)
@@ -269,8 +269,9 @@ Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une
   - `profId`: id du profil de la session.
   - `profAbout`: texte significatif pour l'utilisateur **crypté par la clé K du _safe_** décrivant le _profil_ de la session (par exemple `Revue des notes d'Alice et Jules`).
   - `size`: volume _utile_ des données de la base IDB lors de la dernière session ouverte sur ce _device_.
+  - `time`: dernière date-heure d'ouverture de cette session sur ce terminal.
   - Il existe une base de données IDB de nom `app.x` (`x = hash court de (userId / profId)`)contenant les documents en cache de cette session.
-- `PREFS` : chaque row décrit pour une _session_ qui a été ouverte _en confiance_ sur ce _device_:
+- `PREFS` : chaque row décrit pour une _session_ (`app, userId`) qui a été ouverte _en confiance_ sur ce _device_:
   - `app`: code l'application correspondante.
   - `userId`: identifiant de l'utilisateur.
   - `[code, pref]`: le code et les valeurs de préférences utilisées lors de la dernière session ouverte (de manière à les retrouver par défaut la prochaine fois). `pref` est crypté par la clé K de l'utilisateur.
