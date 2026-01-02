@@ -80,6 +80,34 @@ Quand le serveur d'une application traite une opération soumise par l'applicati
 
 > En cas de soumissions de nombreuses requêtes d'une application depuis un device requérant les mêmes droits, leur _validation_ ne requiert qu'un calcul en mémoire sans accès à la base pour obtenir les clés de vérification.
 
+### Différences de confidentialité entre SV et HPH
+#### En mode HPH
+L'application cliente joint à sa requête un jeton contenant `hph = SH(ps)`, le strong hash d'une phrase secrète `ps` connue seulement de l'utilisateur:
+- l'application serveur calcule le `sha(hph)` et le compare avec la valeur stockée pour valider ce droit d'accès `da1`.
+- pour ce droit `da1` le `hph` reçu par le serveur **est toujours le même**: le serveur _peut_ le mémoriser et le dérouter vers un hacker qui peut l'employer depuis une autre application terminale (pirate) et faire croire à l'application serveur que l'utilisateur est à l'origine de la phrase secrète dont le hash a été transmis.
+- la phrase secrète de l'utilisateur est dans tous les cas inviolée.
+
+> il faut en conséquence avoir confiance dans l'application terminale et le fait qu'elle ne mémorise / déroute pas le `hph = SH(ps)`.
+
+#### En mode SV
+L'application terminale _signe_ par la clé S un texte _challenge_ transmis dans la requête **et garanti différent à chaque fois**.
+- l'application serveur utilise la clé V pour vérifier que le challenge reçu a bien été signé par la clé correspondante à la clé V qu'il détient.
+- comme le _challenge_ est différent à chaque requête et ne peut pas être présenté deux fois, l'application terminale ne pourrait que mémoriser les signatures _passées_ ce qui est totalement inutile. Même avec une mauvaise intention elle ne pourrait rien transmettre d'utile à un hacker qui ne parviendra jamais à se faire passer pour l'utilisateur faute d'en connaître la clé S.
+
+> L'application terminale ne pouvant jamais _identifier_ un utilisateur _piraté_ pourrait que retourner des informations confidentielles pour l'utilisateur que cryptées par sa clé AES personnelle qui ne sort pas de l'application terminale.
+
+**Le mode HPH a donc une confidentialité _dégradée_ par rapport au mode SV** et impose d'accorder sa confiance à l'application serveur dans le fait qu'elle ne mémorisera / déroutera pas les _jetons_ d'authentification.
+
+#### Inviolabilité des clés SV
+Si le protocole SV apparaît comme bien plus _sécuritaire_ que le mode HPH, il repose toutefois sur le fait que seul l'utilisateur est en état de délivrer la clé S: or celle-ci fait environ 350 bytes aléatoires, il est donc impensable pour un humain standard de la connaître de mémoire.
+- d'une manière ou d'une autre il va la stocker dans une _sorte de fichier_ externe.
+- soit ce dernier réside sur un support physique amovible détenu physiquement par l'utilisateur: la sécurité repose sur la détention de ce support.
+- soit il est _crypté_:
+  - soit il n'est lisible que par quelqu'un donnant sa clé de cryptage, plus courte que 350 bytes et surtout basée sur un texte _qui fait sens_ pour l'utilisateur et qu'il peut connaître _de mémoire_.
+  - soit la clé de cryptage résulte d'une caractéristique physique de l'utilisateur (empreinte, fond d'oeil ...).
+
+> Le protocole SV ne fait que **reporter** la sécurité globale un cran au-dessus, dans une application _tierce_ (comme les modules Safe ou un ZIP crypté), indépendante des applications terminales, capable de gérer la confidentialité des clés de signature. Encore faut-il avoir confiance ... dans l'application Safe terminale (ce qui limite le nombre d'applications dans lesquelles on doit avoir _confiance_).
+
 ### "Un" droit, "plusieurs" clés
 Le serveur _peut_ mémoriser pour _un_ droit non pas _une_ clé `V` mais _une liste de clés_ `V1 V2 ...`: pour être validé, un droit d'un jeton d'accès doit fournir une signature qui a été établie par la clé `Si` correspondante à l'une des `[V1 V2 ...]`. 
 
@@ -108,11 +136,11 @@ Il n'existe aucun procédé logiciel _universel_ qui permette de connaître l'or
 
 # Les modules _safe terminal_ et _safe server_
 
-Ils sont embarqués respectivement dans _myApp1 terminal_ et _myApp1 server_: les deux modules communiquent entre eux, le _terminal_ pouvant solliciter des opérations du _server_ par des requêtes HTTPS.
+Ils sont embarqués respectivement dans _myApp1 terminal_ et _myApp1 serveur_: les deux modules communiquent entre eux, le _terminal_ pouvant solliciter des opérations du _serveur_ par des requêtes HTTPS.
 
 Ils ont pour objet de gérer le _coffre fort_ des utilisateurs.
 
-> Les modules _safe terminal / server_ ne gèrent pas des _personnes_ mais des _user_ ayant chacun un _coffre fort_: une _personne_ peut s'enregistrer sous plus d'un _user_, rien ne relient les _users_ entre eux ni à un quelconque signifiant dans le monde réel.
+> Les modules _safe terminal / serveur_ ne gèrent pas des _personnes_ en tant que telles mais des _user_ ayant chacun un _coffre fort_: une _personne_ peut s'enregistrer sous plus d'un _user_, rien ne relient les _users_ entre eux ni à un quelconque signifiant dans le monde réel.
 
 Après avoir lancé l'application _myApp1 terminal_ depuis son _device_, un utilisateur va lui indiquer quel est son _coffre fort_ afin d'accéder en toute sécurité aux données confidentielles qui le concerne.
 
