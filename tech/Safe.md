@@ -205,12 +205,17 @@ Le document décrivant un _coffre fort_ a plusieurs sections:
 ### Section `auth`
 
 #### Création d'un _safe_ d'un utilisateur
+L'identifiant userId pour représenter l'utilisateur est généré aléatoirement `shaS(random(32))`.
+
 Une clé AES `K` de 32 bytes est tirée aléatoirement: elle ne pourra pas changer et est la clé de cryptage du _safe_.
 
-Un couple de clés C (cryptage - publique) / D (décryptage - privée).
-- l'identifiant userId pour représenter l'utilisateur est le SHA raccourci de la clé C.
+Un couple de clés `C` (cryptage - publique) / `D` (décryptage - privée).
 - la clé `C` est stockée en clair (elle est _publique_).
-- la clé D est stockée crypté par la clé K dans `DK`.
+- la clé `D` est stockée crypté par la clé K dans `DK`.
+
+Un couple de clés `S` (signature - publique) / `D` (vérification - privée).
+- la clé `S` est stockée en clair (elle est _publique_).
+- la clé `V` est stockée crypté par la clé K dans `VK`.
 
 L'utilisateur donne:
 - un _couple_ `p0, p1` (qui pourra être changé) _d'authentification_:
@@ -236,8 +241,10 @@ Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 #### Synthèse des propriétés de la section `auth`
 - `userId` : identifiant.
 - `lam` : dernier mois d'accès YYYYMM au _safe_: toute utilisation recule cette date qui permet une _purge_ périodique des _safe_ obsolètes / fantômes.
-- `C` : clé de cryptage en clair (`userId` est son SHA raccourci).
+- `C` : clé de cryptage en clair.
 - `DK` : clé de décryptage cryptée par la clé `K`.
+- `S` : clé de signature en clair (`userId` est son SHA raccourci).
+- `VK` : clé de vérification cryptée par la clé `K`.
 - `hp0` : index unique, `SH(p0)`.
 - `hr0` : index unique, `SH(r0)`.
 - `hhp1` : SHA de `SH(p1)`.
@@ -257,8 +264,9 @@ Après avoir authentifié son accès à son _safe_, l'utilisateur peut retirer s
 ### Section `creds`
 Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par la clé K**. Ses propriétés sont:
 - `about` : code / texte court donné par l'utilisateur pour qualifier le _credential_. Par exemple `Compte Bob sur circuits courts`. 
-- `appli, org, type, target, keys: {}` : données du _credential_, ses clés d'accès. La structure de keys dépend de la nature technique du _credential_ utilisé.
-- son **identifiant** est le hash _court_ de `[appli, org, type, target]`.
+- `appli, org, type, target, source, perms, aes, key` : données du _credential_, ses clés d'accès. 
+  - `key` dépend de la nature technique du _credential_ utilisé, soit une signature (nature SV), soit le hash d'une phrase secrète (nature hph).
+- son **identifiant** est le hash _court_ de `[appli, org, type, target, source, perms]`.
 
 ### Section `profiles`
 Elle est organisée avec une **sous-section par application** regroupant une liste d'items ayant un identifiant généré aléatoirement à sa création. Chaque item est **crypté par la clé K** de _safe_ et a les propriétés suivantes: 
