@@ -262,11 +262,15 @@ Chaque _device de confiance_ à une entrée  dans cette section identifiée par 
 Après avoir authentifié son accès à son _safe_, l'utilisateur peut retirer sa confiance à n'importe lequel des devices cités dans la liste en en supprimant l'entrée.
 
 ### Section `creds`
-Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par la clé K**. Ses propriétés sont:
-- `about` : code / texte court donné par l'utilisateur pour qualifier le _credential_. Par exemple `Compte Bob sur circuits courts`. 
+Chaque _droit d'accès / credential_ est enregistré dans un item **crypté par la clé K**: son **identifiant** est le hash _court_ de `[appli, org, type, target, source, perms]`
+
+Ses propriétés (cryptées par la clé de l'utilisateur) sont:
+- `about` : code / texte court donné par l'utilisateur pour qualifier le _credential_. Par exemple `Compte Bob sur circuits courts`.
+- `data`: sérialisation du détail du _credential_:
+
+Détail: 
 - `appli, org, type, target, source, perms, aes, key` : données du _credential_, ses clés d'accès. 
-  - `key` dépend de la nature technique du _credential_ utilisé, soit une signature (nature SV), soit le hash d'une phrase secrète (nature hph).
-- son **identifiant** est le hash _court_ de `[appli, org, type, target, source, perms]`.
+- `key` dépend de la nature technique du _credential_ utilisé, soit une signature (nature SV), soit le hash d'une phrase secrète (nature hph).
 
 ### Section `profiles`
 Elle est organisée avec une **sous-section par application** regroupant une liste d'items ayant un identifiant généré aléatoirement à sa création. Chaque item est **crypté par la clé K** de _safe_ et a les propriétés suivantes: 
@@ -274,9 +278,9 @@ Elle est organisée avec une **sous-section par application** regroupant une lis
 - `creds`: la liste des id des _credentials_ qui sont attachés à une session de ce profil lors de son ouverture.
 
 ### Section `prefs`
-Elle est organisée avec une **sous-section par application** donnant une liste de couples `code, pref` ( **cryptés par la clé K**) ordonnée par dernière utilisation:
+Elle est organisée avec une **sous-section par application** donnant une map (**cryptée par la clé K**) de clé `code` et de valeur `data`:
 - `code` : texte court parlant pour l'utilisateur correspondant à un de ses usages habituels de l'application comme `mobile, large, simple, expert ...`.
-- `pref`: un objet donnant les valeurs des _préférences_ à utiliser à l'ouverture d'une session.
+- `data`: un objet sérialisé donnant les valeurs des _préférences_ à utiliser à l'ouverture d'une session.
 
 ## Accès d'une application terminale à un _safe_
 ### Depuis n'importe quel _device_ (de confiance ou non)
@@ -285,32 +289,61 @@ Le module _safe terminal_ demande à l'utilisateur `p0 p1` (ou `ro, r1`) et tran
 - vérification que `hhp1` est bien le hash court de `SH(p1)` reçu en argument.
 - retourne `Ka Kr`: le module _safe terminal_ décode `Ka` par `SH(p0, p1)`. En cas d'échec c'est que `p0 / p1` était incorrect.
 
-### Depuis un _device_ de confiance
-Un device qui a été déclaré _de confiance_ par au moins un utilisateur a une micro base de données IDB nommée `Safes` ayant les tables suivantes:
-- `HEADER`: cette table _singleton_ a deux colonnes:
-  - `devId`: un identifiant généré aléatoirement à la création de la base _Safes_ identifiant le _device_.
-  - `devName`: le _nom_ du _device_, par exemple `PC d'Alice`, plus parlant que le code technique système pour le propriétaire du _device_ et les quelques personnes pouvant l'utiliser en confiance.
-- `TRUSTING`: chaque row est associé à UN _safe_ ayant déclaré le _device_ de confiance. Il a les colonnes suivantes:
-  - `userId`: identifiant de l'utilisateur (clé primaire).
-  - `pseudo`: par exemple `Bob`.
-  - `cx`: un challenge aléatoire.
-  - `Ka`: clé K du safe de l'utilisateur cryptée par `SH(p0, p1)` où `p0` et `p1` sont les termes d'authentification du safe de l'utilisateur.
-  - `Kr`: clé K du safe de l'utilisateur cryptée par `SH(r0, r)`.
-  - `Kp`: clé K du safe de l'utilisateur cryptée par `SH(PIN + cx, cy)` où,
-    - `PIN` est le code PIN fixé par l'utilisateur à la déclaration de confiance,
-    - `cx cy` sont des _challenges_ générés aléatoirement à ce moment.
-- `SESSION`: chaque row décrit une _session_ qui a été ouverte _en confiance_ sur ce _device_:
-  - `app`: code l'application correspondante.
-  - `userId`: identifiant de l'utilisateur.
-  - `profId`: id du profil de la session.
-  - `profAbout`: texte significatif pour l'utilisateur **crypté par la clé K du _safe_** décrivant le _profil_ de la session (par exemple `Revue des notes d'Alice et Jules`).
-  - `size`: volume _utile_ des données de la base IDB lors de la dernière session ouverte sur ce _device_.
-  - `time`: dernière date-heure d'ouverture de cette session sur ce terminal.
-  - Il existe une base de données IDB de nom `app.x` (`x = hash court de (userId / profId)`)contenant les documents en cache de cette session.
-- `PREFS` : chaque row décrit pour une _session_ (`app, userId`) qui a été ouverte _en confiance_ sur ce _device_:
-  - `app`: code l'application correspondante.
-  - `userId`: identifiant de l'utilisateur.
-  - `[code, pref]`: le code et les valeurs de préférences utilisées lors de la dernière session ouverte (de manière à les retrouver par défaut la prochaine fois). `pref` est crypté par la clé K de l'utilisateur.
+### Micro base locale IDB `safe`
+Un device qui a été déclaré _de confiance_ par au moins un utilisateur ou qui a eu un _utilisateur local_ a une micro base de données IDB nommée `safe` ayant les tables suivantes.
+
+#### `header`
+Cette table _singleton_ a deux colonnes:
+- `devId`: un identifiant généré aléatoirement à la création de la base _Safes_ identifiant le _device_.
+- `devName`: le _nom_ du _device_, par exemple `PC d'Alice`, plus parlant que le code technique système pour le propriétaire du _device_ et les quelques personnes pouvant l'utiliser en confiance.
+
+#### `trustings`
+Chaque row est associé à UN _utilisateur_: a) soit enregistré et ayant déclaré le _device_ de confiance, b) soit _local_. Il a les colonnes suivantes:
+- `userId`: identifiant de l'utilisateur (clé primaire).
+- `pseudo`: par exemple `Bob`.
+
+Pour un _utilisateur enregistré_:
+- `cx`: un challenge aléatoire.
+- `Ka`: clé K du safe de l'utilisateur cryptée par `SH(p0, p1)` où `p0` et `p1` sont les termes d'authentification du safe de l'utilisateur.
+- `Kr`: clé K du safe de l'utilisateur cryptée par `SH(r0, r)`.
+- `Kp`: clé K du safe de l'utilisateur cryptée par `SH(PIN + cx, cy)` où,
+  - `PIN` est le code PIN fixé par l'utilisateur à la déclaration de confiance,
+  - `cx cy` sont des _challenges_ générés aléatoirement à ce moment.
+
+Pour un _utilisateur local_:
+- `hsh`: sha du SH(PS) (PS: phrase secrète de l'utilisateur)
+
+#### `tsessions`
+Chaque row décrit une _session épinglée_. Les sessions des utilisateurs locaux sont toutes épinglées par nature.
+- `app`: code l'application correspondante.
+- `userId`: identifiant de l'utilisateur.
+- `profId`: id du profil de la session pour un utilisateur enregistré.
+- `about aboutStr`: texte significatif pour l'utilisateur **crypté par la clé de l'utilisateur** décrivant l'usage de sa session (par exemple `Revue des notes d'Alice et Jules`).
+  - `aboutStr`: seulement en mémoire de travail.
+  - pour un _utilisateur enregistré_ c'est la copie de `about` de son profil lors de la dernière ouverture.
+- `size`: volume _utile_ des données de la base IDB lors de la dernière session ouverte sur ce _device_.
+- `time`: dernière date-heure d'ouverture de cette session sur ce terminal.
+- `credIds`: pour un _utilisateur local_ seulement, liste des codes des credentials. Pour un utilisateur enregistré elle figure dans son _profile_.
+- `prefCode`: code de la "préférence" utilisée la dernière fois.
+
+Il existe une base de données IDB de nom `app_x` où `x` est le hash court de (userId / profId): elle contient les documents en cache de cette session.
+
+#### `tprefs`
+Chaque row décrit un _objet de "préférences"_:
+- `app`: code de l'application
+- `userId`: id de l'utilisateur
+- `code`: texte court parlant pour l'utilisateur correspondant à un de ses usages habituels de l'application comme `mobile, large, simple, expert ...`.
+- `data`: objet sérialisé crypté par la clé de l'utilisateur.
+
+#### `tcreds`
+Chaque row décrit un _credential_ d'un utilisateur _local_:
+- `app`: code de l'application
+- `userId`: id de l'utilisateur
+- `credId`: identifiant du _credential_
+- `about`: texte significatif pour l'utilisateur **crypté par la clé de l'utilisateur** décrivant la portée du _credential_.
+- `data`: objet credential sérialisé **crypté par la clé de l'utilisateur**.
+
+> Les utilisateurs _enregistrés_ les ont dans leur `Safe` central: en mode _avion_ ils n'y ont pas accès, mais les credentials n'y sont pas utilisés / pertinents.
 
 > Les rows de la base IDB Safe sont cryptés par une clé AES du module _safe terminal_ afin de ne pas être directement lisible en _debug_: cette _sécurité_ est _molle_, la clé étant d'une manière ou d'une autre inscrite dans le code, avec un peu de fatigue un hacker motivé peut la retrouver.
 
