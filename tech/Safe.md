@@ -269,7 +269,7 @@ Ses propriétés (cryptées par la clé de l'utilisateur) sont:
 - `data`: sérialisation du détail du _credential_:
 
 Détail: 
-- `appli, org, type, target, source, perms, aes, key` : données du _credential_, ses clés d'accès. 
+- `app, org, type, flags, limit, source, target, aes, key` : données du _credential_, ses clés d'accès. 
 - `key` dépend de la nature technique du _credential_ utilisé, soit une signature (nature SV), soit le hash d'une phrase secrète (nature hph).
 
 ### Section `profiles`
