@@ -17,62 +17,85 @@ Les opérations exécutées par le serveur comme les données qu'il peut retourn
 ## Vérification des _droits d'accès_ par _jetons signés_
 ### Droit d'accès / _credential_
 Un _droit d'accès_ est matérialisé par les données suivantes:
-- `appli` : sauf rares exceptions pour des usages administratifs / techniques génériques, un droit est spécifique d'UNE application. Le code * indique un droit reconnu par toutes les applications.
+- `appli` : Un droit est spécifique d'UNE application.
 - `org` : sauf exceptions pour certains droits d'administration technique, un droit est spécifique d'UNE organisation. Le code * indique un droit reconnu par toutes les organisations.
-- `type`, un code correspondant à sa _classe / catégorie_ `cpt, mbr, trf ...`.
-- **un droit correspond à une autorisations d'effectuer une ou des opérations** et non pas à identifier un utilisateur: toutefois l'opération _connexion d'un utilisateur_ revient de facto à une identification. Un droit est défini par a) la _cible_ des opérations qu'il autorise, b) la _source_, qui initie l'opération, c) les permissions, les catégories d'opérations qu'il autorise.
-  - `target` : identifiant dans l'application de la _cible_ des opérations. Ce peut être aussi bien des données lisibles (une adresse e-mail, un numéro de mobile ...) qu'être le résultat d'une génération aléatoire. Par exemple pour un droit `cpt`, l'identifiant du compte.
-  - `source` : identifiant dans l'application de l'entité qui enclenche l'opération. Un droit est relatif au couple _qui_ demande l'opération, sur _quoi/qui_ porte l'opération. Quand la source est aussi la cible, elle n'est pas donnée.
-  - `perms` : `rwa` par exemple. Droit à effectuer les opérations `r` de lecture / consultation, `w` d'écriture / mise à jour, `a` d'administration. Les lettres sont spécifiques de chaque type de droit.
-- `aes` : une clé _facultative_ de cryptage symétrique utilisée par les opérations usant de ce droit, par exemple la clé confidentielle d'un _login_ ou la clé cryptant les textes d'un chat associé à ce droit. 
-- **Selon la technique d'authentification employée:**
-  - un couple `SV` de clés:
-    - `S` : clé privée de **signature** (environ 400 bytes).
-    - `V` : clé publique de **vérification** (environ 100 bytes).
-  - `hph` : le hash d'une _pass-phrase / mot de passe_.
-    - si la pass-phrase est générée aléatoirement, le hsh peut être un SHA, sinon c'est un SH (PBKDF...).
-    - l'opération vérifiant le droit doit s'assurer qu'il dispose en base de données du SHA (voire raccourci) de hph.
-    - la pass_phrase n'est ainsi jamais stockée d'aucun côté.
+- `type`: ce code détermine le traitement à appliquer pour enregistrer / valider un droit d'accès (voire techniquement une classe): par exemple `cpt, mbr, trf ...`.
+- `scope`: un set de couples clés / valeurs (string) qui permettent au serveur de déterminer à quelles entités et pour quelles actions le droit s'applique. Exemples:
+  - _empId_ : identifiant d'un employé.
+  - _storeId_ : identifiant d'un magasin.
+  - _role_ : role / habilitations de l'employé à exercer des actions dans le cadre de ce magasin.
 
-La _clé_ identifiante d'UN droit est `[appli, org, type, target, source, perms]` (son SHA raccourci par exemple).
+> Un droit d'accès est immuable, ne se met pas à jour.
+>- son identifiant `crId` est le hash de `[type, c1, v1, c2, v2 ...]`, les clés étant prises dans l'ordre lexicographique. Le serveur peut vérifier la sincérité de l'id d'un droit depuis son contenu.
 
-La _valeur_ d'un droit dépend de sa nature technique, par exemple `{aes, SV}` où 
-`{aes, hph}`.
+#### Stockage des droits d'accès dans le _safe_
+Les droits sont stockés dans le **coffre fort / safe** de l'utilisateur détenteur (regroupés par application). Chaque droit y est mémorisé, accessible par son id avec les propriétés suivantes:
+- `org type scope` : la définition du droit.
+- `about` : un commentaire permettant à l'utilisateur de comprendre la portée / usage du droit: ce commentaire peut être mis à jour.
+- `sign` : clé privée de signature.
+- OU `pp` : pass-phrase, une suite de 32 bytes,
+  - soit ayant été généré plus ou moins aléatoirement (mémorisation impossible).
+  - soit correspondant au _strong hash_ d'une phrase humainement intelligible (capable d'être mémorisé).
+
+> Pour un droit mémorisé dans le safe d'un utilisateur, seul `about` peut être mis à jour, `sign / pp` ont été généré à la création du droit d'accès et sont immuables.
+
+A la création d'un droit d'accès un couple de clés de signature / vérification est généré:
+- `sign` (clé privée) est stocké avec le droit d'accès dans le _safe_ de l'utilisateur.
+- `verif` (clé publique) est stocké dans la base de données du serveur.
+
+#### Stockage en base de données du serveur des droits d'accès validés par le serveur
+Quand une opération du serveur _valide_ un droit d'accès il le mémorise dans un document `CREDENTIAL`:
+- de clé primaire `userId crId` ou userId est l'identifiant de l'utilisateur pour cette application / organisation.
+- les autres propriétés étant:
+  - `type scope` : le descriptif du droit d'accès.
+  - `verif` OU `hpp` :
+    - si le droit d'accès a une clé de signature, `verif` en est la clé de vérification.
+    - si le droit a une pass-phrase, `hpp` en est le SHA.
+
+> Ce document étant immuable, les serveurs peuvent en disposer d'un cache en mémoire évitant d'accéder à la base quand il a été récemment référencé.
+
+Le _cache_ en mémoire des serveurs des droits d'accès conserve le `time` de sa dernière vérification. Toute requête de validation d'un droit est accompagnée d'une date-heure,
+- qui ne doit pas être trop antérieure à la date-heure courante,
+- qui doit être strictement supérieure au time en mémoire cache pour ce userId / crId. 
+
+> Toute requête doit en conséquence être accompagnée d'une date-heure récente et toujours en progression.
+
+#### Opérations de _validation_ d'un droit d'accès par le serveur
+Un utilisateur peut toujours généré autant de droits d'accès qu'il le souhaite mais seuls ceux ayant été **validés** par l'application serveur sont utilisables.
+Pour cela l'utilisateur émet une requête de _validation_ qui a pour objectif de faire enregistrer le droit d'accès dans un document CREDENTIAL correspondant aux droits _validés_.
+
+La requête transmet:
+- `userId`: l'identifiant de l'utilisateur.
+- `crId` type scope: le descriptif du droit (id peut être recalculé par le serveur - ou ne pas être transmis).
+- `verif` OU `hpp` : la clé de vérification ou le SHA de la pass-phrase.
+- **d'autres arguments** nécessaires à l'opération pour s'assurer que ce droit est _valide_. Par exemple, un code d'invitation, des justificatifs divers ...
+
+L'opération s'assure qu'en fonction de ces données le droit d'accès peut être accepté:
+- si c'est le cas, le droit d'accès est enregistré dans un document CREDENTIAL.
+- sinon l'opération retourne une erreur, le droit n'est pas validé (et l'application terminale demanderesse le fait effacer du _safe_ de l'utilisateur).
+
+#### Vérification des droits d'accès lors d'une requête quelconque
+Toute requête peut référencer un ou plusieurs droits d'accès prouvant que l'utilisateur est fondé à exécuter l'opération correspondante.
+- `userId`: son identifiant pour l'application / organisation.
+- `time` : la date-heure de la requête, en progression par rapport à la précédente émise.
+- une liste de couples `[crId, s OU pp]` où chaque couple donne:
+  - _crId_: l'identifiant du droit d'accès.
+  - _s_: la _signature_ par la clé du droit par l'application terminale du couple `userId time`,
+  - OU _pp_, la pass-phrase pp du droit.
+
+Le serveur est alors en mesure pour chaque droit cité,
+- d'accéder au document CREDENTIAL correspondant (très souvent _en cache_),
+- vérifier la signature s du _challenge_ `userId time` ou la correspondance du SHA de `pp` avec le `hpp` mémorisé.
+- d'enregistrer dans le contexte de la requête le `type scope` du droit qui permettra au traitement de savoir ce qu'il peut ou non faire et sur quoi. 
 
 #### Cas d'un droit de nature _SV_
-Les serveurs des applications ne détiennent des _droits d'accès_ de cette nature technique connaissent la clé `V` mais n'ont PAS (sauf exception décrite ci-dessous) accès à le clé `S` correspondante. Un _serveur_ vérifie la validité d'un droit transmis par _l'application terminale_ de la manière suivante:
+Les serveurs des applications ne détiennent des _droits d'accès_ de cette nature technique connaissent la clé `V` mais n'ont PAS accès à le clé `S` correspondante. Un _serveur_ vérifie la validité d'un droit transmis par _l'application terminale_ de la manière suivante:
 - l'application terminale génère un texte _challenge_ qui n'a jamais été généré et ne sera jamais plus présenté à l'application serveur.
 - elle _signe_ ce _challenge_ par sa clé `S` et transmet au serveur le couple du challenge et de sa signature.
 - le serveur utilise sa clé `V` correspondante à la clé `S` utilisée à la signature et peut vérifier que la signature reçue est bien celle du challenge transmis.
 
 > Cette technique permet au serveur de s'assurer de la validité d'un droit sans avoir eu en mémoire la clé `S` de signature: c'est un avantage de confiance par rapport aux solutions basées sur un mot de passe qui, à un moment ou à un autre, a besoin d'être présent dans la mémoire du serveur, même si un hachage fort (type PBKDF) de mots de passe longs limite le risque.
 
-### Jetons d'accès aux opérations
-Quand une application terminale soumet une opération à un serveur, elle fournit dans sa requête un **jeton d'accès** qui réunit les preuves que son utilisateur dispose des _droits_ requis pour exécuter cette opération. Un jeton comporte:
-- `sessionId` : C'est l'identification d'UNE exécution l'application terminale sur UN _device_, à un instant donné une seule exécution terminale de l'application peut s'en prévaloir.
-- `time` : date-heure en milliseconde de la génération du jeton d'accès. Cette donnée fait partie du _challenge_ des signatures du jeton.
-- une liste de preuves de possession des droits constituée chacune de:
-  - l'identifiant du droit: `[appli, org, type, target, source, perms]` (le contexte dispense de facto de transmettre `appli` et souvent `org`).
-  - selon la nature technique du droit (chaque `type` a une nature technique associée):
-    - `sign` : signature du couple `sessionId, time` par la clé `S` du droit.
-    - `hph` : le hash ou _strong-hash_ de la pass-phrase `ph` obtenue d'une manière ou d'une autre de l'utilisateur.
-
-**Remarques**:
-- pour une application _web-push_, `sessionId` est un hash du (long) `devAppToken` attribué par le browser à l'application lors de l'enregistrement de son _service_worker_:  en conséquence `devAppToken` change si l'utilisateur du device supprime le service_worker qui se ré-enregistrera au prochain appel mais avec un token différent. Un _hacker_ un peu entraîné peut obtenir l'identifiant `devAppToken / sessionId` en lançant en _debug_ l'application sur ce _device_.
-- un _jeton d'accès_ est crypté par la clé publique d'encryption du serveur applicatif ciblé de sorte que seul celui-ci puisse le lire. Cette clé fait partie de la _configuration_ du serveur que son administrateur technique délivre lors du déploiement et qu'il doit conserver confidentiellement.
-
-### Validation des _droits_ d'un jeton SV (resp. PH) par le serveur de l'application
-Quand le serveur d'une application traite une opération soumise par l'application _terminale_,
-- il obtient de la requête le jeton d'accès et le décrypte par sa clé privée de décryptage.
-- le jeton présenté n'est acceptable que si son `time` _n'est pas trop vieux_ (quelques dizaines de secondes). Pour chaque _droit_ de la liste du jeton,
-  - il obtient depuis sa base de données, pour un couple `target, source, perms` une clé `V`, ou une liste de clés `V`, de vérification associée.
-  - il vérifie que la `signature` du couple `sessionId, time` est bien validée par la, ou une des clés `V`, ce qui prouve que l'application terminale en détient effectivement la clé de signature `S` correspondante.
-
-> `sessionId, time` est utilisé comme _challenge_ cryptographique et n'est pas présenté plus d'une fois pour une application donnée.
-
-> Pour un couple donné target source, il est tout à fait normal de définir un droit pour une permission `r` de lecture et **un autre droit** pour la permission `wa` d'écriture et d'administration.
-
-> Pour une authentification par _pass-phrase_ `ph`: au lieu de `sign` c'est `hph` (le hash ou `SH(ph)`) qui est passé sur le jeton par l'application et c'est le `SHA(hph)` qui est mémorisé par le serveur (et confronté au `hph` reçu de l'application).
 
 **Remarques de performances:**
 - le serveur peut conserver en _cache_ pour chaque `target, source, perms` d'un `type` de droit la dernière liste de clés acceptées `[V1, V2 ...]` lu de la base. En cas d'échec de la vérification il relit la base de données pour s'assurer d'avoir bien la dernière version de `[V1, V2 ...]`, et en cas de changement refait une vérification avant de valider / invalider le droit correspondant.
@@ -80,26 +103,26 @@ Quand le serveur d'une application traite une opération soumise par l'applicati
 
 > En cas de soumissions de nombreuses requêtes d'une application depuis un device requérant les mêmes droits, leur _validation_ ne requiert qu'un calcul en mémoire sans accès à la base pour obtenir les clés de vérification.
 
-### Différences de confidentialité entre SV et HPH
-#### En mode HPH
-L'application cliente joint à sa requête un jeton contenant `hph = SH(ps)`, le strong hash d'une phrase secrète `ps` connue seulement de l'utilisateur:
-- l'application serveur calcule le `sha(hph)` et le compare avec la valeur stockée pour valider ce droit d'accès `da1`.
-- pour ce droit `da1` le `hph` reçu par le serveur **est toujours le même**: le serveur _peut_ le mémoriser et le dérouter vers un hacker qui peut l'employer depuis une autre application terminale (pirate) et faire croire à l'application serveur que l'utilisateur est à l'origine de la phrase secrète dont le hash a été transmis.
+### Différences de confidentialité entre SV et PP
+#### En mode PP
+L'application cliente joint à sa requête un jeton contenant `pp` aléatoire ou strong hash d'une phrase secrète `ps` connue seulement de l'utilisateur:
+- l'application serveur calcule le `sha(hpp)` et le compare avec la valeur stockée pour valider ce droit d'accès.
+- pour ce droit le `pp` reçu par le serveur **est toujours le même**: le serveur _peut_ le mémoriser et le dérouter vers un hacker qui peut l'employer depuis une autre application terminale (pirate) et faire croire à l'application serveur que l'utilisateur est à l'origine de la phrase secrète dont le hash a été transmis.
 - la phrase secrète de l'utilisateur est dans tous les cas inviolée.
 
-> il faut en conséquence avoir confiance dans l'application terminale et le fait qu'elle ne mémorise / déroute pas le `hph = SH(ps)`.
+> Il faut en conséquence avoir confiance dans l'application terminale et le fait qu'elle ne mémorise / déroute pas le `hpp = SH(ps)`.
 
 #### En mode SV
-L'application terminale _signe_ par la clé S un texte _challenge_ transmis dans la requête **et garanti différent à chaque fois**.
-- l'application serveur utilise la clé V pour vérifier que le challenge reçu a bien été signé par la clé correspondante à la clé V qu'il détient.
-- comme le _challenge_ est différent à chaque requête et ne peut pas être présenté deux fois, l'application terminale ne pourrait que mémoriser les signatures _passées_ ce qui est totalement inutile. Même avec une mauvaise intention elle ne pourrait rien transmettre d'utile à un hacker qui ne parviendra jamais à se faire passer pour l'utilisateur faute d'en connaître la clé S.
+L'application terminale _signe_ par la clé `S` un texte _challenge_ transmis dans la requête **et garanti différent à chaque fois**.
+- l'application serveur utilise la clé `V` pour vérifier que le challenge reçu a bien été signé par la clé correspondante à la clé `V` qu'il détient.
+- comme le _challenge_ est différent à chaque requête et ne peut pas être présenté deux fois, l'application terminale ne pourrait que mémoriser les signatures _passées_ ce qui est totalement inutile. Même avec une mauvaise intention elle ne pourrait rien transmettre d'utile à un hacker qui ne parviendra jamais à se faire passer pour l'utilisateur faute d'en connaître la clé `S`.
 
-> L'application terminale ne pouvant jamais _identifier_ un utilisateur _piraté_ pourrait que retourner des informations confidentielles pour l'utilisateur que cryptées par sa clé AES personnelle qui ne sort pas de l'application terminale.
+> L'application terminale ne pouvant jamais _identifier_ un utilisateur _piraté_ ne pourrait que retourner des informations confidentielles pour l'utilisateur que cryptées par sa clé AES personnelle qui ne sort pas de l'application terminale.
 
-**Le mode HPH a donc une confidentialité _dégradée_ par rapport au mode SV** et impose d'accorder sa confiance à l'application serveur dans le fait qu'elle ne mémorisera / déroutera pas les _jetons_ d'authentification.
+**Le mode PP a donc une confidentialité _dégradée_ par rapport au mode SV** et impose d'accorder sa confiance à l'application serveur dans le fait qu'elle ne mémorisera / déroutera pas les _jetons_ d'authentification.
 
 #### Inviolabilité des clés SV
-Si le protocole SV apparaît comme bien plus _sécuritaire_ que le mode HPH, il repose toutefois sur le fait que seul l'utilisateur est en état de délivrer la clé S: or celle-ci fait environ 350 bytes aléatoires, il est donc impensable pour un humain standard de la connaître de mémoire.
+Si le protocole SV apparaît comme bien plus _sécuritaire_ que le mode PP, il repose toutefois sur le fait que seul l'utilisateur est en état de délivrer la clé S: or celle-ci fait environ 350 bytes aléatoires, il est donc impensable pour un humain standard de la connaître de mémoire.
 - d'une manière ou d'une autre il va la stocker dans une _sorte de fichier_ externe.
 - soit ce dernier réside sur un support physique amovible détenu physiquement par l'utilisateur: la sécurité repose sur la détention de ce support.
 - soit il est _crypté_:
