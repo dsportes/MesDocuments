@@ -1,11 +1,107 @@
 ---
 layout: page
-title: Conceptions d'applications réactives selon le paradigme de "Documents synchronisées"
+title: Les applications réactives
 ---
 
-Le mot _application_ (Facebook, TikTok ...) correspond à une architecture schématiquement en deux niveaux:
-- des _serveurs centraux_ détiennent les données et effectuent les calculs sollicités par des demandes émises par ...
-- des _applications terminales_ s'exécutant sur les terminaux / appareils des utilisateurs et sollicitant les serveurs centraux.
+Le fonctionnement d'une **application réactive** fait intervenir plusieurs éléments logiciels.
+
+### Les "applications"
+Les utilisateurs peuvent exécuter une **application** sur un de leurs _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...). Selon la variante technique choisie, un utilisateur lance une application portant un nom (comme `monAppli`):
+- soit dans un browser _en ouvrant la page Web_ de l'application: l'URL désigne où le logiciel de l'application est stocké.
+- soit _en l'installant_ sur un de ses appareils depuis un _magasin d'applications_ puis en la lançant.
+
+> Sur un terminal donné, l'application `monAppli` est ou n'est pas en exécution, il n'est pas possible d'en lancer plusieurs simultanément.
+
+### Les "services" de traitement des données
+Un **service** porte un nom et est localisé par une URL:
+- un service supporte plusieurs **opérations**. 
+- les opérations sont demandées par une application. Une opération reçoit en entrée des paramètres, effectue le traitement demandé et retourne un résultat qui en général va influer sur l'affichage de l'application l'ayant sollicitée.
+
+En première approche lorsqu'une opération d'un **service** est invoquée, un programme démarre _quelque part sur Internet_, exécute le traitement demandé puis s'arrête.
+
+Si logiquement ceci est perçu comme tel vu de l'extérieur, le scénario _technique_ est un peu différent:
+- au lieu de se terminer après la fin de l'opération, le programme reste _vivant_ en attendant qu'une autre opération soit demandée afin que l'énergie de calcul dépensée pour le chargement du programme soit _amortie_ sur un plus grand nombre d'opérations.
+- le programme de plus est capable de traiter plusieurs opérations en parallèle.
+- de facto le programme ne s'arrête que quand aucune demande d'opérations n'est parvenue _pendant un certain temps_.
+- si le service est très sollicité, plusieurs programmes peuvent être lancé, sur des calculateurs différents le cas échéant, afin d'écouler le trafic des demandes d'opérations.
+
+> Le temps au bout duquel un programme de traitement du service s'arrête en l'absence de trafic est un des paramètres de configuration de l'installation du service, de même que le nombre maximal de programmes s'exécutant en parallèle. 
+
+>Certaines configurations peuvent fixer un nombre fixe de ces exécutions et spécifier que les programmes ne s'arrêtent pas même en l'absence de trafic: les choix résultent d'une valorisation économique dépendant des tarifs des fournisseurs de traitements à distance.
+
+> UNE **application** donnée, par exemple `monAppli`, peut faire appel à plusieurs **services**, par exemple `compta` et `rando`. Une application qui ne fait appel à aucun service a un comportement de _calculette_ et n'utilise aucune donnée externe.
+
+### La "base de donnée d'un service", sa partition par "organisation"
+En première approche un **service** (`rando` par exemple) a **SA** base de données (`rando-1` par exemple): deux services différent ne partagent pas une même base.
+
+La base de données est **partitionnée** par **organisation**:
+- Les données relatives à une organisation `IDF` sont totalement disjointes de celles de l'organisation `PACA` mais la structure des données est unique.
+- **une opération d'un service est strictement spécifique à UNE organisation** et n'accède dans la base de données qu'aux données de celle-ci.
+
+> Ce dispositif _multi-tenant_ rend possible d'ajouter une nouvelle organisation sans interruption des services (même ceux en cours d'exécution).
+
+Toutefois, ce mécanisme peut conduire à avoir une base de données trop volumineuse quand un grand nombre d'organisations sont supportées. Pour éviter ce problème, un **service** peut accéder à plusieurs bases de données, chaque organisation étant _hébergée_ dans une de ces bases (et une seule).
+
+> Vu de l'extérieur c'est _comme si_ il n'y avait qu'une base unique et même c'est _comme si_ celle-ci était dédiée à l'organisation spécifiée en paramètre de chaque opération du service.
+
+> **L'intégration des données provenant de plusieurs services** se fait au niveau des applications. Ceci n'est toutefois pas une contrainte _technique_ mais de clarté de conception.
+
+> L'intégration des données provenant de plusieurs organisations pour un service donné se fait au niveau des applications.
+
+### Les "Utilisateurs" et leurs _droits d'accès / credential_ 
+Les **utilisateurs** sont identifiés par un identifiant aléatoire et anonyme, sans référence avec des identifiants personnels dans la _vraie_ vie.
+
+Depuis un appareil quelconque un utilisateur peut lancer une application dès lors qu'il en connaît l'URL. Celle-ci peut invoquer des **services** et leurs opérations MAIS toute opération exige en général que l'utilisateur exhibe un ou des _droits d'accès_ appropriés par rapport à l'opération demandée et ses paramètres.
+
+Par exemple une opération d'accès aux données d'un `adhérent` identifié `abcd` va exiger que l'application communique à l'opération un _jeton_ qui prouve que l'utilisateur dispose du droit d'accéder aux données de cet adhérent. Le _droit_ requis peut être différent selon que l'opération effectue une lecture ou une mise à jour de l'adhérent.
+
+Un _droit d'accès_ comporte deux parties:
+- **une partie conservée par l'utilisateur** dont le texte comporte les éléments cryptographiques lui permettant de _signer_ chaque jeton attaché une demande d'une opération.
+- **une partie conservée dans la base de données** qui permet à l'opération de _vérifier_ que le _jeton_ reçu en paramètre de l'opération est effectivement valide et contient bien les données qu'il prétend détenir.
+
+Ce mécanisme détaillé par ailleurs permet,
+- de ne pas stocker dans la base de données les éléments de _signature_,
+- de pouvoir refuser des _jetons usurpés_, c'est à dire ayant été présentés une fois et représentés plus tard.
+
+### Coffre-fort / _safe_ d'un utilisateur
+Chaque _droit d'accès_ est un texte long, comportant des textes d'apparence aléatoire, bref impossibles à mémoriser (et à inventer par _force brute_). 
+
+L'utilisateur pourrait certes disposer d'un fichier personnel où il les rangerait mais la sécurité et l'accès depuis plusieurs terminaux à ce fichier exposerait ces données de sécurité _critiques_ aux pertes et aux vols.
+
+Chaque utilisateur dispose à cet effet d'un _coffre-fort_ personnel où ses droits d'accès seront rangés, cryptés et sécurisés. Le _coffre-fort_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou l'inverse un utilisateur est identifié par le numéro de son coffre). Il comporte plusieurs _rubriques_:
+- son **entête** qui détient les éléments cryptographiques techniques nécessaires à son fonctionnement.
+- la **liste de ses droits d'accès** regroupés par _application_.
+- une **liste de terminaux de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
+- une **liste de préférences** de comportement et d'affichage de son choix afin de retrouver en lançant une nouvelle session, l'organisation de l'écran qu'il souhaite, les options de son choix, sa langue de travail, etc.
+
+#### Dépôts des coffres-forts : _standard_  ou _personnels_
+Un **dépôt _standard_** est géré: tout utilisateur peut y disposer de son _coffre-fort_.
+
+Mais certains utilisateurs sont prudents / paranoïaques et peuvent ne pas vouloir que leurs droits d'accès soient conservés par une entité qu'ils ne maîtrisent pas ou qui pourrait être défaillante ... 
+
+Chaque utilisateur (ou groupes d'utilisateurs) peut installer son propre dépôt de _coffres-forts_ dans une base de données MySQL d'un site Web de son choix (et sous son entière responsabilité d'administration) muni d'un script PHP standard mais dont il peut lire le texte et s'assurer de sa non nocivité. 
+
+Des moyens sont données pour basculer du dépôt _standard_ vers un dépôt spécifique (et réciproquement), ainsi que pour effectuer un _backup_ de l'un vers l'autre.
+
+> Le _contenu_ d'un coffre-fort est lisible _en clair_ **pour son propriétaire et seulement lui**, sauf que étant plein de données cryptographiques le terme _en clair_ est une vue de l'esprit.
+
+### Exécution d'une application en _mode AVION_
+Quand un utilisateur a déclaré un ou des terminaux **de confiance** quand il y lance une session d'une application celle-ci peut utiliser une **mémoire cache de documents et fichiers**, cryptée et sécurisée sur le terminal.
+
+Depuis ce même terminal, l'utilisateur peut rouvrir une session qui s'est antérieurement exécutée sur ce terminal:
+- s'il a accès au réseau Internet, le lancement sera rapide du fait que beaucoup de documents n'auront pas à être redemandés aux services, étant déjà _en cache_.
+- s'il n'a pas accès au réseau Internet il peut rouvrir son application en **mode AVION** et accéder (en lcture seulement) aux documents disponibles en cache su fait d'une exécution antérieure.
+
+### Synthèse
+Les applications sont nommées et s'exécutent sur le terminal de l'utilisateur où elles ont été chargées par leur URL.
+
+Les applications font appels à des **services de traitement des données** distant. Chaque service à un jeu d'opérations pouvant lire / écrire SA base de données (éventuellement SES bases en cas de volume excessif).
+
+Chaque demande opération spécifie UNE organisation et n'accède qu'à la partition de la base de données dédiée à cette organisation.
+
+Chaque utilisateur dispose d'un **coffre-fort** détenant en particulier ses _droits d'accès_ requis à l'appel de chaque opération d'un service par une application. Chaque utilisateur peut décider de confier la gestion de SON coffre-fort, soit au **dépôt standard**, soit à celui géré par le site Web de son choix.
+
+# A SUIVRE
 
 ### Installation de l'application sur un appareil / terminal (_device_)
 Un PC, une tablette, un mobile sont des _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...).
