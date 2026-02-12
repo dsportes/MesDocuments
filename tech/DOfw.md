@@ -23,11 +23,11 @@ Si logiquement ceci est perçu comme tel vu de l'extérieur, le scénario _techn
 - au lieu de se terminer après la fin de l'opération, le programme reste _vivant_ en attendant qu'une autre opération soit demandée afin que l'énergie de calcul dépensée pour le chargement du programme soit _amortie_ sur un plus grand nombre d'opérations.
 - le programme de plus est capable de traiter plusieurs opérations en parallèle.
 - de facto le programme ne s'arrête que quand aucune demande d'opérations n'est parvenue _pendant un certain temps_.
-- si le service est très sollicité, plusieurs programmes peuvent être lancé, sur des calculateurs différents le cas échéant, afin d'écouler le trafic des demandes d'opérations.
+- si le service est très sollicité, plusieurs programmes peuvent être lancés, sur des calculateurs différents le cas échéant, afin d'écouler le trafic des demandes d'opérations.
 
 > Le temps au bout duquel un programme de traitement du service s'arrête en l'absence de trafic est un des paramètres de configuration de l'installation du service, de même que le nombre maximal de programmes s'exécutant en parallèle. 
 
->Certaines configurations peuvent fixer un nombre fixe de ces exécutions et spécifier que les programmes ne s'arrêtent pas même en l'absence de trafic: les choix résultent d'une valorisation économique dépendant des tarifs des fournisseurs de traitements à distance.
+> Certaines configurations peuvent fixer un nombre fixe de ces exécutions et spécifier que les programmes ne s'arrêtent pas même en l'absence de trafic: les choix résultent d'une valorisation économique dépendant des tarifs des fournisseurs de traitements à distance.
 
 > UNE **application** donnée, par exemple `monAppli`, peut faire appel à plusieurs **services**, par exemple `compta` et `rando`. Une application qui ne fait appel à aucun service a un comportement de _calculette_ et n'utilise aucune donnée externe.
 
@@ -44,14 +44,30 @@ Toutefois, ce mécanisme peut conduire à avoir une base de données trop volumi
 
 > Vu de l'extérieur c'est _comme si_ il n'y avait qu'une base unique et même c'est _comme si_ celle-ci était dédiée à l'organisation spécifiée en paramètre de chaque opération du service.
 
-> **L'intégration des données provenant de plusieurs services** se fait au niveau des applications. Ceci n'est toutefois pas une contrainte _technique_ mais de clarté de conception.
+> **L'intégration des données provenant de plusieurs services** se fait au niveau des applications. Par clarté de conception mais surtout parce qu'invoquer une opération demandes _credentials_ cryptés qui ne sont détenus que par les applications mais jamais par les services.
 
-> L'intégration des données provenant de plusieurs organisations pour un service donné se fait au niveau des applications.
+> L'intégration des données provenant de plusieurs organisations pour un service donné se fait au niveau des applications: une _opération_ ne traite qu'une organisation.
+
+### Le "storage de fichiers d'un service", sa partition par "organisation"
+Un _storage_ a une structure qui s'apparente à un _file-system_.
+- le stockage d'un _fichier_ (contenu binaire crypté) se fait en une opération atomique,
+- le stockage de plusieurs fichiers ne fait pas l'objet d'un commit de type ACID (chacun peut ou non avoir été mis à jour).
+
+Le _storage_ est également partitionné par _organisation_.
+
+Comme pour une base de données, au cas où le volume l'exigerait, plusieurs _storages_ peuvent exister, chacun avec sa propre technologie le cas échéant.
+
+> Un _storage_ n'est pas non plus partagés par plusieurs _services_.
+
+> Un storage permet de mémoriser des volumes considérables de données,
+- peu ou pas mises à jour après stockage,
+- dont le contenu est en général _opaque_ pour les services (mais ce n'est pas obligatoire),
+- adapté à l'archivage de données de _legacy_.
 
 ### Les "Utilisateurs" et leurs _droits d'accès / credential_ 
 Les **utilisateurs** sont identifiés par un identifiant aléatoire et anonyme, sans référence avec des identifiants personnels dans la _vraie_ vie.
 
-Depuis un appareil quelconque un utilisateur peut lancer une application dès lors qu'il en connaît l'URL. Celle-ci peut invoquer des **services** et leurs opérations MAIS toute opération exige en général que l'utilisateur exhibe un ou des _droits d'accès_ appropriés par rapport à l'opération demandée et ses paramètres.
+Depuis un appareil quelconque un utilisateur peut lancer une application dès lors qu'il en connaît l'URL. Celle-ci peut invoquer des **services** et leurs opérations MAIS toute opération exige en général que l'utilisateur exhibe un ou des _droits d'accès_ appropriés pour l'opération demandée et ses paramètres.
 
 Par exemple une opération d'accès aux données d'un `adhérent` identifié `abcd` va exiger que l'application communique à l'opération un _jeton_ qui prouve que l'utilisateur dispose du droit d'accéder aux données de cet adhérent. Le _droit_ requis peut être différent selon que l'opération effectue une lecture ou une mise à jour de l'adhérent.
 
@@ -61,14 +77,16 @@ Un _droit d'accès_ comporte deux parties:
 
 Ce mécanisme détaillé par ailleurs permet,
 - de ne pas stocker dans la base de données les éléments de _signature_,
-- de pouvoir refuser des _jetons usurpés_, c'est à dire ayant été présentés une fois et représentés plus tard.
+- de pouvoir refuser des _jetons usurpés_, c'est à dire ayant déjà été présentés une fois et représentés plus tard.
 
 ### Coffre-fort / _safe_ d'un utilisateur
 Chaque _droit d'accès_ est un texte long, comportant des textes d'apparence aléatoire, bref impossibles à mémoriser (et à inventer par _force brute_). 
 
 L'utilisateur pourrait certes disposer d'un fichier personnel où il les rangerait mais la sécurité et l'accès depuis plusieurs terminaux à ce fichier exposerait ces données de sécurité _critiques_ aux pertes et aux vols.
 
-Chaque utilisateur dispose à cet effet d'un _coffre-fort_ personnel où ses droits d'accès seront rangés, cryptés et sécurisés. Le _coffre-fort_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou l'inverse un utilisateur est identifié par le numéro de son coffre). Il comporte plusieurs _rubriques_:
+Chaque utilisateur dispose à cet effet d'un _coffre-fort_ personnel où ses droits d'accès seront rangés, cryptés et sécurisés. 
+
+Le _coffre-fort_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou l'inverse un utilisateur est identifié par le numéro de son coffre). Il comporte plusieurs _rubriques_:
 - son **entête** qui détient les éléments cryptographiques techniques nécessaires à son fonctionnement.
 - la **liste de ses droits d'accès** regroupés par _application_.
 - une **liste de terminaux de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
@@ -81,7 +99,7 @@ Mais certains utilisateurs sont prudents / paranoïaques et peuvent ne pas voulo
 
 Chaque utilisateur (ou groupes d'utilisateurs) peut installer son propre dépôt de _coffres-forts_ dans une base de données MySQL d'un site Web de son choix (et sous son entière responsabilité d'administration) muni d'un script PHP standard mais dont il peut lire le texte et s'assurer de sa non nocivité. 
 
-Des moyens sont données pour basculer du dépôt _standard_ vers un dépôt spécifique (et réciproquement), ainsi que pour effectuer un _backup_ de l'un vers l'autre.
+Des moyens sont données pour basculer du dépôt _standard_ vers un _dépôt spécifique_ (et réciproquement), ainsi que pour effectuer des _backup_: l'image d'un _coffre-fort_ peut être exportée crypté par une clé détenue par le seul utilisateur.
 
 > Le _contenu_ d'un coffre-fort est lisible _en clair_ **pour son propriétaire et seulement lui**, sauf que étant plein de données cryptographiques le terme _en clair_ est une vue de l'esprit.
 
@@ -90,14 +108,14 @@ Quand un utilisateur a déclaré un ou des terminaux **de confiance** quand il y
 
 Depuis ce même terminal, l'utilisateur peut rouvrir une session qui s'est antérieurement exécutée sur ce terminal:
 - s'il a accès au réseau Internet, le lancement sera rapide du fait que beaucoup de documents n'auront pas à être redemandés aux services, étant déjà _en cache_.
-- s'il n'a pas accès au réseau Internet il peut rouvrir son application en **mode AVION** et accéder (en lcture seulement) aux documents disponibles en cache su fait d'une exécution antérieure.
+- s'il n'a pas accès au réseau Internet il peut rouvrir son application en **mode AVION** et accéder (en lecture seulement) aux documents disponibles en cache du fait d'une exécution antérieure.
 
 ### Synthèse
 Les applications sont nommées et s'exécutent sur le terminal de l'utilisateur où elles ont été chargées par leur URL.
 
-Les applications font appels à des **services de traitement des données** distant. Chaque service à un jeu d'opérations pouvant lire / écrire SA base de données (éventuellement SES bases en cas de volume excessif).
+Les applications font appels à des **services de traitement des données** distant. Chaque service à un jeu d'opérations pouvant lire / écrire SA base de données (éventuellement SES bases en cas de volume excessif) et SON storage de fichiers (éventuellement SES).
 
-Chaque demande opération spécifie UNE organisation et n'accède qu'à la partition de la base de données dédiée à cette organisation.
+Chaque demande opération spécifie UNE organisation et n'accède qu'à la partition de la base de données dédiée à cette organisation et / ou du storage dédié à cette organisation.
 
 Chaque utilisateur dispose d'un **coffre-fort** détenant en particulier ses _droits d'accès_ requis à l'appel de chaque opération d'un service par une application. Chaque utilisateur peut décider de confier la gestion de SON coffre-fort, soit au **dépôt standard**, soit à celui géré par le site Web de son choix.
 
