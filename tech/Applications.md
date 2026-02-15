@@ -55,7 +55,7 @@ Un _storage_ a une structure qui s'apparente à un _file-system_.
 
 Le _storage_ est également partitionné par _organisation_.
 
-Comme pour une base de données, au cas où le volume l'exigerait, plusieurs _storages_ peuvent exister, chacun avec sa propre technologie le cas échéant.
+Comme pour une base de données, au cas où le volume l'exigerait, plusieurs _storage_ peuvent exister, chacun avec sa propre technologie le cas échéant.
 
 > Un _storage_ n'est pas non plus partagés par plusieurs _services_.
 
@@ -79,7 +79,7 @@ Ce mécanisme détaillé par ailleurs permet,
 - de ne pas stocker dans la base de données les éléments de _signature_,
 - de pouvoir refuser des _jetons usurpés_, c'est à dire ayant déjà été présentés une fois et représentés plus tard.
 
-### Coffre-fort / _safe_ d'un utilisateur
+### _Coffre fort_ / _safe_ d'un utilisateur
 Chaque _droit d'accès_ est un texte long, comportant des textes d'apparence aléatoire, bref impossibles à mémoriser (et à inventer par _force brute_). 
 
 L'utilisateur pourrait certes disposer d'un fichier personnel où il les rangerait mais la sécurité et l'accès depuis plusieurs terminaux à ce fichier exposerait ces données de sécurité _critiques_ aux pertes et aux vols.
