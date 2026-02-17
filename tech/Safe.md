@@ -104,6 +104,7 @@ C'est un enregistrement de type PEM définissant une **clé privée de signature
 Un **hash court** sur 15 caractères de cette clé l'identifie sans la citer.
 
 **Synthèse:** un _droit d'accès / credential_ pour un service donné a les propriétés suivantes:
+- `svc` : code du service.
 - `id` : hash court de `[role, org, entid]`.
 - `about`: un texte court _à propos_ du `entid`.
 - `role`: un des codes de rôle connu du service.
@@ -382,10 +383,10 @@ Cette section est un objet _map_,
 - _clé_ : id de l'application,
 - _valeur_: objet / map des droits:
   - **variante 1 (normale)**
-    - _clé_: id du droit,
+    - _clé_: service + `.` + id du droit,
     - _valeur_: contenu du droit sérialisé et **crypté par la clé K de l'utilisateur** et encodé en base 64.
   - **variante 2 (droit transmis)**
-    - _clé_: `$` + id du droit,
+    - _clé_: `$` + service + `.` + id du droit,
     - _valeur_: sérialisation du couple `[crobj, pubCT]`
       - `pubC` : clé publique de cryptage de l'utilisateur ayant transmis le droit.
       - `crobj` : contenu du droit sérialisé par la clé `AES` suivante et encodé en base 64.
@@ -403,7 +404,7 @@ Cette section est un objet _map_,
   - _clé_: id du profil,
   - _valeur_: sérialisation de `{ profId, about, crIds }` encodé en base 64, où:
     - `about` : commentaire / à propos du profil crypté par la clé de l'utilisateur et encodé en base 64.
-    - `crIds`: liste des ids des credentials inclus dans le profil.
+    - `crIds`: liste des ids des credentials (service + `.` + id du credential) inclus dans le profil.
 
 ### Section `prefs`
 Cette section est un objet _map_,

@@ -88,7 +88,7 @@ Chaque utilisateur dispose à cet effet d'un _coffre-fort_ personnel où ses dro
 
 Le _coffre-fort_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou l'inverse un utilisateur est identifié par le numéro de son coffre). Il comporte plusieurs _rubriques_:
 - son **entête** qui détient les éléments cryptographiques techniques nécessaires à son fonctionnement.
-- la **liste de ses droits d'accès** regroupés par _application_.
+- la **liste de ses droits d'accès**.
 - une **liste de terminaux de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
 - une **liste de préférences** de comportement et d'affichage de son choix afin de retrouver en lançant une nouvelle session, l'organisation de l'écran qu'il souhaite, les options de son choix, sa langue de travail, etc.
 
