@@ -165,24 +165,25 @@ A partir de ces données et de l'état des documents en base de données, l'opé
 - _des seuils_ et limites diverses: _volume maximal, seuil d'autorisation de commande ..._
 - _une date limite de validité_ ...
 
-### Enregistrement par le service dans un document `CREDENTIAL`
-Vis à vis d'une organisation, un utilisateur est identifié par `orguserId` une id locale spécifique hash de `[org, userId]` afin d'éviter d'enregistrer en base de données des références précises aux id des utilisateurs et d'éviter des recoupements inappropriés.
+### Enregistrement par le service dans un document `Credential`
+Vis à vis d'une organisation, un utilisateur est identifié par `orguserId` une id locale spécifique hash court de `org.userId` afin d'éviter d'enregistrer en base de données des références précises aux id des utilisateurs source de recoupements inappropriés.
 
-Un document `CREDENTIAL` traduit la validité d'un credential et fixe ses conditions spécifiques d'exercice par les propriétés suivantes:
+Un document `Credential` traduit la validité d'un credential et fixe ses conditions spécifiques d'exercice par les propriétés suivantes:
 - Groupe de propriétés identifiantes:
   - `orguserId` : identifiant localisé de l'utilisateur.
-  - `credId`: identifiant du credential.
+  - `role` : rôle du droit.
+  - `entid` : identifiant de l'entité cible. Le couple `[role , entid]` est indexé afin de pouvoir retrouver tous les droits attribués à une entité donnée.
   - `hpems`: hash du PEM de signature.
-- `role` : rôle du droit.
-- `entid` : identifiant de l'entité cible. Le couple `[role , entid]` est indexé afin de pouvoir retrouver tous les droits attribués à une entité donnée.
 - `pemv`: PEM de la clé de validation.
 - `cond`: conditions spécifiques d'exercice.
 
-Le `credId` d'un credential spécifie sa **cible**: _l'utilisateur agit en tant qu'employé Bob ..._ Pour une même cible, l'utilisateur peut _éventuellement_ avoir fait enregistré plusieurs _versions_ d'un droit dans le cas d'un droit à renouveler périodiquement où l'utilisateur détient le droit actuel valide jusqu'au 15 janvier et le droit futur valide depuis le 2 janvier par exemple. L'identifiant unique d'un droit est en fait le couple `[credId, hpems]`.
+La **cible** d'un credential  est le couple `role entid`: _l'utilisateur agit en tant qu'employé Bob ..._ Pour une même cible, l'utilisateur _peut_  avoir fait enregistré plusieurs _versions_ d'un droit dans le cas d'un droit à renouveler périodiquement: par exemple il détient le droit actuel valide jusqu'au 15 janvier et le droit futur valide depuis le 2 janvier par exemple. `hpems` est nécessaire dans l'identifiant d'un credential attribué à un utilisateur.
 
-Un document CREDENTIAL ne peut que subir deux types de mise à jour:
-- `cond` peut évoluer. Des opérations peuvent restreindre / augmenter les conditions d'exercice en fonction de critères fonctionnels.
+Un document Credential ne peut que subir deux types de mise à jour:
+- `cond` peut évoluer. Des opérations peuvent restreindre / augmenter les conditions d'exercice en fonction de critères fonctionnels, en particulier en jouant sur une propriété _date limite de validité_.
 - **destruction**: le document peut être détruit, son droit associé est révoqué.
+
+> La destruction ne laisse pas de trace historique, le changement d'une date limite laisse apparaître les périodes successives de validité.
 
 ## Jetons signés attachés à l'appel d'une opération
 Toute opération a un argument `authTokens` qui vise à lui permettre de décider ce qu'elle peut faire sur quoi. Ses propriétés sont les suivantes:
@@ -190,11 +191,13 @@ Toute opération a un argument `authTokens` qui vise à lui permettre de décide
 - `time`: date-heure de demande de l'opération.
   - pour un `orguserId` donné elle est toujours en croissance stricte,
   - elle n'est pas _trop_ en retard par rapport à la date-heure technique connue du service.
-- `tokens`: une liste de jetons de la forme `{ credId, hpems, sign }`:
-  - `credId` `hpems` donne au service avec `orguserId` la clé d'accès au document `CREDENTIAL` enregistré correspondant. S'il n'existe pas le droit est refusé.
+- `tokens`: un objet structuré pour stoker des jetons contenant `{ role, credId, hpems, sign }`:
+  - `credId` `hpems` donne au service avec `orguserId` la clé d'accès au document `Credential` enregistré correspondant. S'il n'existe pas le droit est refusé.
   - `sign` est la signature du couple `[orguserId, time]` par la clé de signature du droit. Cette signature est vérifiée par la clé `pemv` trouvée dans le document.
     - si la vérification échoue, le droit est refusé.
-    - si elle réussit, le triplet `{ role, entid, cond }` est ajouté au contexte d'exécution de l'opération qui pourra ainsi décider ce qu'elle peut ou non faire et retourner comme données.
+    - si elle réussit,
+      - le document `Credential` est récupéré (sauf dans le cas de rôle de type admin), et ses données de cond sont confrontées à celle du token pour déterminer, a) si le droit est validé, b) si oui dans quelles conditions d'exercice, le résultat étant consigné dans un objet `info`.
+      - cet objet est ajouté au _token_ qui est accessible dans le contexte d'exécution de l'opération `role, entid`. L'opération peut ainsi décider ce qu'elle peut ou non faire et retourner comme données en fonction des propriétés de `info`.
 
 Un _cache_ en mémoire des services conserve le `time` de la dernière opération émise pour chaque `orguserId` afin de pouvoir vérifier que les `time` sont bien en croissance. 
 
