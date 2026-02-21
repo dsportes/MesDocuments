@@ -33,6 +33,15 @@ Un coffre fort peut:
 
 La suite du document suppose l'usage du _dépôt générique_.
 
+### Clés _publiques_ d'un utilisateur
+Chaque utilisateur reçoit à sa création deux couples de clés asymétriques qui seront immuables, intrinsèques, de l'utilisateur:
+- couple C D:  `crypt` (publique) / `decrypt` privée.
+- couple S V: `sign` (privée) / `verify` (publique).
+
+Ces clés sont stockées dans l'objet _coffre fort_ de l'utilisateur, donc dans un _dépôt_ générique ou spécifique.
+
+**Les deux clés publiques C et V sont systématiquement stockées dans le dépôt générique** afin de rendre possible partout par exemple l'encryption d'un texte écrit par A à destination de B de manière à ce que B seul puisse le lire et être certain qu'il a été écrit par A (idem pour la signature / vérification d'un texte).
+
 ### Authentification _forte_ d'un utilisateur
 Un utilisateur enregistre son _coffre fort_ en fournissant,
 - un couple _pseudo / phrase secrète_ **principal**,
@@ -166,38 +175,50 @@ A partir de ces données et de l'état des documents en base de données, l'opé
 - _une date limite de validité_ ...
 
 ### Enregistrement par le service dans un document `Credential`
-Vis à vis d'une organisation, un utilisateur est identifié par `orguserId` une id locale spécifique hash court de `org.userId` afin d'éviter d'enregistrer en base de données des références précises aux id des utilisateurs source de recoupements inappropriés.
-
 Un document `Credential` traduit la validité d'un credential et fixe ses conditions spécifiques d'exercice par les propriétés suivantes:
-- Groupe de propriétés identifiantes:
-  - `orguserId` : identifiant localisé de l'utilisateur.
-  - `role` : rôle du droit.
-  - `entid` : identifiant de l'entité cible. Le couple `[role , entid]` est indexé afin de pouvoir retrouver tous les droits attribués à une entité donnée.
-  - `hpems`: hash du PEM de signature.
-- `pemv`: PEM de la clé de validation.
-- `cond`: conditions spécifiques d'exercice.
 
-La **cible** d'un credential  est le couple `role entid`: _l'utilisateur agit en tant qu'employé Bob ..._ Pour une même cible, l'utilisateur _peut_  avoir fait enregistré plusieurs _versions_ d'un droit dans le cas d'un droit à renouveler périodiquement: par exemple il détient le droit actuel valide jusqu'au 15 janvier et le droit futur valide depuis le 2 janvier par exemple. `hpems` est nécessaire dans l'identifiant d'un credential attribué à un utilisateur.
+Groupe de propriétés identifiantes:
+- `userId` : identifiant de l'utilisateur. Définit une _collection_: un utilisateur peut s'abonner à la liste de **ses** _credentials_ et être notifié des nouveaux credentials qui ont pu être inscrits pour lui.
+- `role` : rôle du credential.
+- `entid` : identifiant de l'entité cible. 
+  - Le couple `[role , entid]` est indexé afin de pouvoir retrouver tous les droits attribués à une entité donnée.
+- `hpems`: hash du PEM de signature.
+
+Autres propriétés:
+- `pemv`: PEM de la clé de validation.
+- `setterId`: identifiant localisé de l'utilisateur ayant enregistré le credential. Cette propriété est indexée de manière à ce qu'un utilisateur puisse retrouver la liste des _credentials_ qu'il a émis.
+- `cond`: conditions spécifiques d'exercice: _flags_, _seuils et limites_, etc.
+- `limit`: date-heure limite de validité du credential.
+
+Informations textuelles:
+- `infos`:  celle que l'émetteur `setterId` a inscrit pour lui-même pour retrouver plus tard à qui et pourquoi il a déclaré ce credential. Elle est cryptée pour lui-même (par sa clé K). 
+- `infou` : celle non cryptée que l'émetteur a inscrite pour l'utilisateur réceptionnaire du credential cryptée par la clé publique de cryptage de `userId`.
+
+La **cible** d'un credential  est le couple `role entid`: _l'utilisateur agit en tant qu'employé Bob ..._ Pour une même cible, l'utilisateur _peut_  avoir fait enregistrer plusieurs _versions_ d'un droit dans le cas d'un droit à renouveler périodiquement: 
+- par exemple il détient le droit actuel valide jusqu'au 15 janvier et le droit futur valide depuis le 2 janvier par exemple. 
+- `hpems` est nécessaire pour compléter l'identifiant d'un credential attribué à un utilisateur.
 
 Un document Credential ne peut que subir deux types de mise à jour:
-- `cond` peut évoluer. Des opérations peuvent restreindre / augmenter les conditions d'exercice en fonction de critères fonctionnels, en particulier en jouant sur une propriété _date limite de validité_.
+- **mise à jour par l'utilisateur déclarant** `setterId` du credential de:
+  - `cond` peut évoluer. Des opérations peuvent restreindre / augmenter les conditions d'exercice en fonction de critères fonctionnels, en particulier en jouant sur une propriété _date limite de validité_.
+  - `limit infos infou`.
 - **destruction**: le document peut être détruit, son droit associé est révoqué.
 
-> La destruction ne laisse pas de trace historique, le changement d'une date limite laisse apparaître les périodes successives de validité.
+> La destruction ne laisse pas de trace historique: la _destruction logique_ par changement de la date limite et réattribution d'un autre droit avec une limite différente laisse apparaître les périodes successives de validité.
 
 ## Jetons signés attachés à l'appel d'une opération
 Toute opération a un argument `authTokens` qui vise à lui permettre de décider ce qu'elle peut faire sur quoi. Ses propriétés sont les suivantes:
-- `orguserId` : identifiant localisé de l'utilisateur.
+- `userId` : identifiant localisé de l'utilisateur.
 - `time`: date-heure de demande de l'opération.
-  - pour un `orguserId` donné elle est toujours en croissance stricte,
+  - pour un `userId` donné elle est toujours en croissance stricte,
   - elle n'est pas _trop_ en retard par rapport à la date-heure technique connue du service.
 - `tokens`: un objet structuré pour stoker des jetons contenant `{ role, credId, hpems, sign }`:
-  - `credId` `hpems` donne au service avec `orguserId` la clé d'accès au document `Credential` enregistré correspondant. S'il n'existe pas le droit est refusé.
-  - `sign` est la signature du couple `[orguserId, time]` par la clé de signature du droit. Cette signature est vérifiée par la clé `pemv` trouvée dans le document.
+  - `credId` `hpems` donne au service avec `userId` la clé d'accès au document `Credential` enregistré correspondant. S'il n'existe pas le droit est refusé.
+  - `sign` est la signature du couple `[userId, time]` par la clé de signature du droit. Cette signature est vérifiée par la clé `pemv` trouvée dans le document.
     - si la vérification échoue, le droit est refusé.
     - si elle réussit,
-      - le document `Credential` est récupéré (sauf dans le cas de rôle de type admin), et ses données de cond sont confrontées à celle du token pour déterminer, a) si le droit est validé, b) si oui dans quelles conditions d'exercice, le résultat étant consigné dans un objet `info`.
-      - cet objet est ajouté au _token_ qui est accessible dans le contexte d'exécution de l'opération `role, entid`. L'opération peut ainsi décider ce qu'elle peut ou non faire et retourner comme données en fonction des propriétés de `info`.
+      - le document `Credential` est récupéré (sauf dans le cas de rôle de type admin), et ses données de cond sont confrontées à celle du token pour déterminer, a) si le droit est validé, b) si oui dans quelles conditions d'exercice, le résultat étant le couple `cond limit`.
+      - cet objet est ajouté au _token_ qui est accessible dans le contexte d'exécution de l'opération `role, entid`. L'opération peut ainsi décider ce qu'elle peut ou non faire et retourner comme données en fonction des propriétés de `cond limit`.
 
 Un _cache_ en mémoire des services conserve le `time` de la dernière opération émise pour chaque `orguserId` afin de pouvoir vérifier que les `time` sont bien en croissance. 
 
@@ -217,7 +238,7 @@ L'application terminale _signe_ par la clé `S` un texte _challenge_ transmis da
 - l'application serveur utilise la clé `V` pour vérifier que le challenge reçu a bien été signé par la clé correspondante à la clé `V` qu'il détient.
 - comme le _challenge_ est différent à chaque requête et ne peut pas être présenté deux fois, un service _indélicat_ ne pourrait que mémoriser des signatures _passées_ : même avec une mauvaise intention il ne pourrait rien transmettre d'utile à un hacker qui ne parviendra jamais à se faire passer pour l'utilisateur faute d'en connaître la clé `S`. 
 
-Tout repose sur le caractère _inédit_ des challenges présentés, ce qu'on obtient en y mettant une estampille datée à la milliseconde et une durée de validité courte des tokens. En cas de paranoïa, il faut enregistrer dans une base ou un service de _share memory_ le dernier `time` utilisé par chaque `orguserId`.
+Tout repose sur le caractère _inédit_ des challenges présentés, ce qu'on obtient en y mettant une estampille datée à la milliseconde et une durée de validité courte des tokens. En cas de paranoïa, il faut enregistrer dans une base ou un service de _share memory_ le dernier `time` utilisé par chaque `userId`.
 
 **Le mode _pass-phrase_ a donc une confidentialité _dégradée_ par rapport au mode _signature / vérification_** et impose d'accorder sa confiance au service dans le fait qu'il ne mémorisera / déroutera pas les _jetons_ d'authentification.
 
