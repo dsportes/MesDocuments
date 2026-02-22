@@ -185,7 +185,7 @@ Groupe de propriétés identifiantes:
 - `hpems`: hash du PEM de signature.
 
 Autres propriétés:
-- `pemv`: PEM de la clé de validation.
+- `pemv`: PEM de la clé de vérification.
 - `setterId`: identifiant localisé de l'utilisateur ayant enregistré le credential. Cette propriété est indexée de manière à ce qu'un utilisateur puisse retrouver la liste des _credentials_ qu'il a émis.
 - `cond`: conditions spécifiques d'exercice: _flags_, _seuils et limites_, etc.
 - `limit`: date-heure limite de validité du credential.
