@@ -292,3 +292,123 @@ Le Storage permet de disposer d'un volume pratiquement 10 fois plus important à
 ### _[Documents et fichiers, souscriptions et synchronisations"](tech/Documents.html)_
 
 ### _[Utilisateurs et 'coffres forts'"](tech/Safe.html)_
+
+# Services, opérateurs, organisations, opérations, credentials
+### Service
+Définit une liste d'opérations qui peuvent être invoquées avec leurs signatures.
+- code `SVC` sur 3 lettres / chiffres : `AS2`
+
+### Opérateur
+Un opérateur fournit des prestations de calcul / stockage de données pour plusieurs services.
+- code `$OP`: $ + 3 à 10 lettres majuscules / chiffres : `$RED1`
+- chaque service supporté à son URL.
+- l'URL d'un `service opérateur` peut changer.
+
+### Organisation
+Une organisation dispose de ses propres données regroupées par **service**.
+- son code `org`: 4 à 10 lettres / chiffres: `test demo dodacoltes`
+- pour chaque **service** elle a choisi un **opérateur**. 
+- l'opérateur d'un `organisation service` peut changer.
+
+Un `service opérateur`(une URL) dispose d'un document `singletons` de clé primaire `orgs` donnant pour chaque organisation le couple des codes de la base de données et du storage hébergeant ses données.
+
+    { "demo": ["sqlite_A", "storage_a"], "doda": [...] }
+
+### Opération
+L'identifiant complet d'une opération est le couple service opération.
+- le code d'une opération est un nom de classe.
+- elle est invoquée par l'URL du `service opérateur` avec:
+  - son **code d'opération** (relatif à son service),
+  - un **code organisation** : une opération est strictement dédiée à une seule organisation.
+
+#### Opérations d'administration d'un service d'un opérateur
+Son URL est celle de son `service opérateur` avec:
+- un **code d'opération** `$op` (relatif à son service) qui commence par `$`,
+- un code d'organisation symbolique `*`.
+
+## Le directory central DIR
+Il est hébergé dans la base de données gérant le _safe générique_, dont l'URL est donnée dans la configuration statique de chaque application.
+
+Comme pour le _Safe générique_, il n'y a qu'un seul DIR de production mais il peut y avoir autant de DIR de test que souhaité par les développeurs pouvant ainsi disposer chacun d'environnements totalement privatifs.
+
+#### Table `SAFEURLS`
+- `svc` : clé primaire, le code d'un service.
+- `json`: un texte JSON donnant pour chaque opérateur son URL:
+
+    { "$RED1": "https://...", "$BLUE": "https:// ..."}
+
+#### Table `SAFEORGS`
+- `org` : clé primaire, le code d'une organisation.
+- `json`: un texte JSON donnant pour chaque service le code de l'opérateur qui l'assure:
+
+    { "AS2": "$BLUE", "CG1": "$RED" }
+
+## Credentials
+Un credential est **propriété d'un utilisateur** et stocké dans son _safe_. Ses propriétés identifiantes sont:
+- `svc` : code `SVC` du service ayant enregistré ce credential.
+- `org` : le code,
+  - soit `org` de l'organisation.
+  - soit `$OP` de l'opérateur pour un credential `admin`.   
+- `role` : le code du rôle endossé par l'utilisateur.
+  - `admin` : pour LE rôle d'Administrateur Technique du service `svc` de l'opérateur `$OP`.
+- `entid` : l'identifiant éventuel de l'entité dont l'utilisateur joue le rôle (toujours vide pour un rôle `admin`).
+- `hpems`: le hash court du PEM de signature du credential, ayant une fonction de _version_ permettant d'avoir, successivement ou non, plusieurs credentials valides de même `svc / org / role / entid`.
+
+## Status d'un `service opérateur`
+Un opérateur peut fermer / ouvrir séparément chacun des services qu'il a déployé depuis un utilisateur ayant un credential de rôle `admin` pour ce `service opérateur`.
+
+Dans la base de données déclaré _de référence_ pour son URL, la table `singletons` à une entrée `status` qui donne en JSON:
+
+    { "at":1771588453502,"st":1,"txt":"hello world!" }
+
+- `at` : date-heure (epoch) de dernière mise à jour du status.
+- `st` : état du service. 0: DOWN, 1: UP
+- `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
+
+## Status d'une organisation pour un `service opérateur`
+L'opérateur peut fermer / ouvrir séparément chaque **organisation** qu'il héberge pour chacun des services qu'il a déployé depuis une opétration invoquée par un utilisateur ayant un credential de rôle `admin` pour ce `service opérateur`.
+
+Le status d'une organisation est enregistré dans un document:
+- `org`: code de l'organisation (et clé primaire)
+- ...
+- `data`: sérialisation cryptée des propriétés:
+  - `at` : date-heure (epoch) de dernière mise à jour du status.
+  - `st` : état du service. 0: DOWN, 1: UP, 2: READ-ONLY
+  - `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
+  - `mgrK` : clé de cryptage communiquée aux credentials de rôle _manager_ (dans la propriété `entkey`) afin que les _managers_ puissent partager des informations confidentielles (_chat_, _notes_ etc.) uniquement entre eux.
+  - _autres propriétés dépendante du service._
+
+## Opérations d'Administration Technique
+
+### Création d'un opérateur `$OP` hébergeant des services `svci`
+L'opérateur `$OP` doit configurer **chaque** service `svci` qu'il déploie.
+- **génération d'une paire de clés de signature / vérification**: un PEM _public_ pour la clé de vérification et un PEM _privé_ pour celle de signature.
+- **génération d'un _credential_ d'Administration Technique** : service `svci`, organisation / opérateur `$OP` et _PEM privé_ généré ci-avant.
+- **pour chaque utilisateur devant être Administrateur**, _importation_ de ce credential dans son _Safe_ depuis n'importe quelle application: les IDs de ces utilisateurs `idj` sont conservées.
+- dans la configuration logicielle du service `svci` de `$OP`,
+  - `ADMINPEM`: contient le _PEM public_ généré ci-avant,
+  - `ADMINUSERS`: contient les `idj` des utilisateurs Administrateur.
+- ajout dans la table `SAFEURLS` de l'URL de déploiement du service `svci`.
+- depuis un des utilisateurs Administrateur du service `svci`, déclaration du status du service (UP ...) pour l'opérateur `$OP`. Cette opération peut être effectuée depuis n'importe quelle application: l'URL de ce service pour l'opérateur `$OP` a été obtenu de `SAFEURLS`.
+
+> La mise à jour de `SAFEURLS` est faite sans logiciel par le DBA en éditant cette table depuis un outil d'administration de la base.
+
+> Pour ajouter un nouvel Administrateur, il faut conjointement qu'il importe le credential généré ci-avant ET que la configuration logicielle du service `svci` pour `$OP` soit complétée pour ajouter l'ID du nouvel Administrateur dans la liste `ADMINUSERS` (puis déployer ce logiciel).
+
+> La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS` et en redéployant le logiciel.
+
+> Le changement de la liste des administrateurs d'un service `SVC $OP` exige un redéploiement logiciel après ajustement de sa configuration. C'est _normalement_ très peu fréquent et a priori bien moins qu'une correction de bug / augmentation du service. 
+
+### Création d'une nouvelle organisation `org`
+Son représentant a fixé **pour chaque service** `svci` requis par la ou les applications qu'elle prévoie d'utiliser, l'opérateur `$OPi` correspondant.
+
+Pour chaque service `svci`, un Administrateur Technique de l'opérateur `$OPi`, invoque, pour déclarer l'organisation `org`, une opération qui:
+- met à jour la table `SAFEORGS`: mise à jour ou création du JSON donnant les opérateurs choisis pour chaque service.
+- déclare l'organisation `org` en citant les codes désignant la base de données et le storage affectés à cette organisation.
+- créé conjointement le document `ORG` fixant son statut (DOWN / UP / READ-ONLy) et le commentaire associé.
+
+Toute organisation ne peut fonctionner qu'avec a minima un _manager_: l'Administrateur déclare dans un second temps chaque utilisateur dont le pseudo lui a été communiqué par le représentant de l'organisation, un rôle _manager_.
+
+> L'ajout d'une organisation, ou d'un nouveau service pour une organisation existante, ou l'ajout / révocation d'un _manager_ ne nécessite aucune interruption de service.
+
+> La **purge** d'un service `SVC $OP org` est une opération technique en ligne de commandes d'un Administrateur Système de l'opérateur.
