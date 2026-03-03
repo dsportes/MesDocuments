@@ -296,91 +296,120 @@ Le Storage permet de disposer d'un volume pratiquement 10 fois plus important à
 # Services, opérateurs, organisations, opérations, credentials
 ### Service
 Définit une liste d'opérations qui peuvent être invoquées avec leurs signatures.
-- code `SVC` sur 3 lettres / chiffres : `AS2`
+- code `SVC` : majuscule + 2 à 7 majuscules / chiffres : `AS2`
 
 ### Opérateur
 Un opérateur fournit des prestations de calcul / stockage de données pour plusieurs services.
-- code `$OP`: $ + 3 à 10 lettres majuscules / chiffres : `$RED1`
-- chaque service supporté à son URL.
+- code `$OP`: $ + 2 à 7 majuscules / chiffres : `$RED1`
+- **chaque service supporté à son URL**.
 - l'URL d'un `service opérateur` peut changer.
 
 ### Organisation
 Une organisation dispose de ses propres données regroupées par **service**.
-- son code `org`: 4 à 10 lettres / chiffres: `test demo dodacoltes`
-- pour chaque **service** elle a choisi un **opérateur**. 
+- son code `org`: minuscule + 2 à 15 minuscules / chiffres: `test demo dodacoltes`
+- pour chaque **service** elle a choisi UN **opérateur**. 
 - l'opérateur d'un `organisation service` peut changer.
 
 Un `service opérateur`(une URL) dispose d'un document `singletons` de clé primaire `orgs` donnant pour chaque organisation le couple des codes de la base de données et du storage hébergeant ses données.
 
     { "demo": ["sqlite_A", "storage_a"], "doda": [...] }
 
-### Opération
-L'identifiant complet d'une opération est le couple service opération.
+### Opérations standard
+L'identifiant complet d'une opération est le couple _service opération_.
 - le code d'une opération est un nom de classe.
 - elle est invoquée par l'URL du `service opérateur` avec:
   - son **code d'opération** (relatif à son service),
-  - un **code organisation** : une opération est strictement dédiée à une seule organisation.
+  - un **code organisation** `org` : une opération est strictement dédiée à une seule organisation.
 
-#### Opérations d'administration d'un service d'un opérateur
+### Opérations d'administration d'un service d'un opérateur
 Son URL est celle de son `service opérateur` avec:
-- un **code d'opération** `$op` (relatif à son service) qui commence par `$`,
-- un code d'organisation symbolique `*`.
+- son **code d'opération** (relatif à son service) qui commence par `$`,
+- le code de l'opérateur `$OP`.
 
-## Le directory central DIR
+## Le directory central MASTERDIR
 Il est hébergé dans la base de données gérant le _safe générique_, dont l'URL est donnée dans la configuration statique de chaque application.
 
-Comme pour le _Safe générique_, il n'y a qu'un seul DIR de production mais il peut y avoir autant de DIR de test que souhaité par les développeurs pouvant ainsi disposer chacun d'environnements totalement privatifs.
+Comme pour le _Safe générique_, il n'y a qu'un seul MASTERDIR de production.
+
+> Il peut y avoir autant de MASTERDIR de test que souhaité par les développeurs pouvant ainsi disposer chacun d'environnements totalement privatifs.
+
+### Tables: `SAFEURLS SAFEORGS SAFEPEMS SAFE`
 
 #### Table `SAFEURLS`
-- `svc` : clé primaire, le code d'un service.
-- `json`: un texte JSON donnant pour chaque opérateur son URL:
+- `key` : clé primaire, le code d'un service.
+- `v` : _epoch_ en secondes de mise à jour.
+- `value`: un texte JSON donnant pour chaque opérateur son URL:
 
-    { "$RED1": "https://...", "$BLUE": "https:// ..."}
+    { 
+      "$RED1": { "url": "https://..."}, 
+      "$BLUE": { "url": "https:// ..."}
+    }
 
 #### Table `SAFEORGS`
-- `org` : clé primaire, le code d'une organisation.
-- `json`: un texte JSON donnant pour chaque service le code de l'opérateur qui l'assure:
+- `key` : clé primaire, le code d'une organisation.
+- `v` : _epoch_ en secondes de mise à jour.
+- `value`: un texte JSON donnant pour chaque service le code de l'opérateur qui l'assure:
 
     { "AS2": "$BLUE", "CG1": "$RED" }
 
-## Credentials
-Un credential est **propriété d'un utilisateur** et stocké dans son _safe_. Ses propriétés identifiantes sont:
-- `svc` : code `SVC` du service ayant enregistré ce credential.
-- `org` : le code,
-  - soit `org` de l'organisation.
-  - soit `$OP` de l'opérateur pour un credential `admin`.   
-- `role` : le code du rôle endossé par l'utilisateur.
-  - `admin` : pour LE rôle d'Administrateur Technique du service `svc` de l'opérateur `$OP`.
-- `entid` : l'identifiant éventuel de l'entité dont l'utilisateur joue le rôle (toujours vide pour un rôle `admin`).
-- `hpems`: le hash court du PEM de signature du credential, ayant une fonction de _version_ permettant d'avoir, successivement ou non, plusieurs credentials valides de même `svc / org / role / entid`.
+#### Table `SAFEPEMS`
+Pour chaque utilisateur, enregistré ou non dans le _safe générique_, un row par utilisateur:
+- `key`: clé primaire, userId de l'utilisateur.
+- `v` : _epoch_ en secondes de mise à jour.
+- `value`: JSON des deux clés publiques de cryptage et vérification (sans les bannières ---BEGIN ...).
 
-## Status d'un `service opérateur`
-Un opérateur peut fermer / ouvrir séparément chacun des services qu'il a déployé depuis un utilisateur ayant un credential de rôle `admin` pour ce `service opérateur`.
+    [ "abcd ...", "drfgh ..." ]
+
+#### Table `SAFE`
+Pour les utilisateurs dont le safe est hébergé dans le MASTERDIR (générique).
+
+C'est un document avec les colonnes: `id hp0 hr0 hct lam data`
+
+## Status
+
+### Status d'un `service opérateur`
+Un Administrateur d'un opérateur peut fermer / ouvrir séparément chacun des services déployés.
 
 Dans la base de données déclaré _de référence_ pour son URL, la table `singletons` à une entrée `status` qui donne en JSON:
 
     { "at":1771588453502,"st":1,"txt":"hello world!" }
 
 - `at` : date-heure (epoch) de dernière mise à jour du status.
-- `st` : état du service. 0: DOWN, 1: UP
+- `st` : état du service. 9: DOWN, 1: UP
 - `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
 
-## Status d'une organisation pour un `service opérateur`
-L'opérateur peut fermer / ouvrir séparément chaque **organisation** qu'il héberge pour chacun des services qu'il a déployé depuis une opétration invoquée par un utilisateur ayant un credential de rôle `admin` pour ce `service opérateur`.
+### Status d'une organisation pour un `service opérateur`
+Un Administrateur d'un opérateur peut fermer / ouvrir séparément chaque **organisation** qu'il héberge pour chaque service déployé.
 
 Le status d'une organisation est enregistré dans un document:
-- `org`: code de l'organisation (et clé primaire)
+- `org`: code de l'organisation (et clé primaire).
 - ...
 - `data`: sérialisation cryptée des propriétés:
-  - `at` : date-heure (epoch) de dernière mise à jour du status.
-  - `st` : état du service. 0: DOWN, 1: UP, 2: READ-ONLY
+  - `at` : date-heure (_epoch_) de dernière mise à jour du status.
+  - `st` : état du service. 9: DOWN, 1: UP, 2: READ-ONLY
   - `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
-  - `mgrK` : clé de cryptage communiquée aux credentials de rôle _manager_ (dans la propriété `entkey`) afin que les _managers_ puissent partager des informations confidentielles (_chat_, _notes_ etc.) uniquement entre eux.
   - _autres propriétés dépendante du service._
+
+#### Discussion
+Idéalement on pourrait souhaiter que les _managers_ d'une organisation (pour un service / opérateur) puissent disposer d'une clé par exemple pour que leur _chat_ soit confidentiel, c'est à dire NON lisibles par l'opérateur.
+- ceci imposerait de stocker cette clé quelque part, typiquement une sorte d'entrée de _Safe_ pour l'organisation.
+- mais ceci impose qu'une ou des personnes en maîtrisent les pseudo / phrase correspondantes: d'où un risque de perte irrémédiable. Ce n'est pas un _simple utilisateur isolé_ qui peut disparaître mais une organisation alors que tout a été fait pour permettre à un _opérateur_ de supporter une organisation simplement par déclaration de l'ID d'un _administrateur_ dans sa configuration de déploiement.
+- il faut se résigner à ce que _l'opérateur_ ait accès aux _chats_ des managers d'une organisation.
+- ceux-ci peuvent ouvrir des _chats_ privés sur invitation pour échanger en toute confidentialité mais avec la fragilité,
+  - que tout nouveau _manager_ n'en fasse pas partie automatiquement,
+  - que le _chat privé_ s'auto dissolve quand son dernier membre a disparu (avec perte des échanges).
+
+Un **groupe privé** fonctionne par _cooptation_ qui est le mécanisme permettant de transmettre une clé à un nouvel entrant de par l'action d'un membre actuel.
+- une action externe au groupe ne peut jamais inscrire de force un nouvel entrant faute de disposer de la clé.
+- c'est une assurance de confidentialité intégrale dans le groupe mais une vulnérabilité pour la vie du groupe lui-même qui peut disparaître par suite de la disparition ou inactivité longue (d'où disparition) de ses membres sans jamais qu'un nouvel entrant puisse y être intégrer de l'extérieur.
+- pour rendre ça possible il faut disposer d'une _autorité supérieure_ ayant toutes les clés de tous les groupes privés entraînant le risque d'y faire entrer des indésirables non cooptés.
+
+Certes cette autorité supérieure pourrait n'agir que sur donnée d'un mot de passe par exemple, communiqué hors du système par le _propriétaire contractuel_ du groupe à cette autorité. **Mais** qui enregistrerait le mot de passe de _panique_, qui pourrait le changer, sous quelle authentification ? Double clé avec l'Administrateur ?
 
 ## Opérations d'Administration Technique
 
 ### Création d'un opérateur `$OP` hébergeant des services `svci`
+
 L'opérateur `$OP` doit configurer **chaque** service `svci` qu'il déploie.
 - **génération d'une paire de clés de signature / vérification**: un PEM _public_ pour la clé de vérification et un PEM _privé_ pour celle de signature.
 - **génération d'un _credential_ d'Administration Technique** : service `svci`, organisation / opérateur `$OP` et _PEM privé_ généré ci-avant.
@@ -412,3 +441,14 @@ Toute organisation ne peut fonctionner qu'avec a minima un _manager_: l'Administ
 > L'ajout d'une organisation, ou d'un nouveau service pour une organisation existante, ou l'ajout / révocation d'un _manager_ ne nécessite aucune interruption de service.
 
 > La **purge** d'un service `SVC $OP org` est une opération technique en ligne de commandes d'un Administrateur Système de l'opérateur.
+
+## Credentials
+Un credential est **propriété d'un utilisateur** et stocké dans son _safe_. Ses propriétés identifiantes sont:
+- `svc` : code `SVC` du service ayant enregistré ce credential.
+- `org` : le code,
+  - soit `org` de l'organisation.
+  - soit `$OP` de l'opérateur pour un credential `admin`.   
+- `role` : le code du rôle endossé par l'utilisateur.
+  - `admin` : pour LE rôle d'Administrateur Technique du service `svc` de l'opérateur `$OP`.
+- `entid` : l'identifiant éventuel de l'entité dont l'utilisateur joue le rôle (toujours vide pour un rôle `admin`).
+- `hpems`: le hash court du PEM de signature du credential, ayant une fonction de _version_ permettant d'avoir, successivement ou non, plusieurs credentials valides de même `svc / org / role / entid`.
