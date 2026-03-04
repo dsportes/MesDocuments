@@ -407,48 +407,183 @@ Un **groupe privé** fonctionne par _cooptation_ qui est le mécanisme permettan
 Certes cette autorité supérieure pourrait n'agir que sur donnée d'un mot de passe par exemple, communiqué hors du système par le _propriétaire contractuel_ du groupe à cette autorité. **Mais** qui enregistrerait le mot de passe de _panique_, qui pourrait le changer, sous quelle authentification ? Double clé avec l'Administrateur ?
 
 ## Opérations d'Administration Technique
+Tout utilisateur peut être reconnu _Administrateur Technique_ à l'hébergement d'un service par un opérateur: son ID est ajouté aux listes statiques de configuration:
+- `MASTERDIRADMINUSERS` : pour le MASTERDIR,
+- `ADMINUSERS` : pour les autres services déployés.
 
-### Création d'un opérateur `$OP` hébergeant des services `svci`
+Lors du contrôle d'authentification à l'entrée d'une opération requérant un droit d'Administrateur, le userId du requérant est,
+- certifié par vérification de la signature du _challenge_ par usage de la clé publique de vérification de cet utilisateur obtenu de la table `SAFEPEMS`,
+- par présence du `userId` dans,
+  - la liste `ADMINUSERS` du déploiement d'UN service SVC / $OP.
+  - la liste `MASTERDIRADMINUSERS` pour l'Administrateur du MASTERDIR.
 
-L'opérateur `$OP` doit configurer **chaque** service `svci` qu'il déploie.
-- **génération d'une paire de clés de signature / vérification**: un PEM _public_ pour la clé de vérification et un PEM _privé_ pour celle de signature.
-- **génération d'un _credential_ d'Administration Technique** : service `svci`, organisation / opérateur `$OP` et _PEM privé_ généré ci-avant.
-- **pour chaque utilisateur devant être Administrateur**, _importation_ de ce credential dans son _Safe_ depuis n'importe quelle application: les IDs de ces utilisateurs `idj` sont conservées.
-- dans la configuration logicielle du service `svci` de `$OP`,
-  - `ADMINPEM`: contient le _PEM public_ généré ci-avant,
-  - `ADMINUSERS`: contient les `idj` des utilisateurs Administrateur.
-- ajout dans la table `SAFEURLS` de l'URL de déploiement du service `svci`.
-- depuis un des utilisateurs Administrateur du service `svci`, déclaration du status du service (UP ...) pour l'opérateur `$OP`. Cette opération peut être effectuée depuis n'importe quelle application: l'URL de ce service pour l'opérateur `$OP` a été obtenu de `SAFEURLS`.
+> La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS / MASTERDIRADMINUSERS` correspondante et en redéployant le logiciel.
 
-> La mise à jour de `SAFEURLS` est faite sans logiciel par le DBA en éditant cette table depuis un outil d'administration de la base.
+## Depuis les _Outils Techniques >> Hot_
+Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur du _MASTERDIR_.
 
-> Pour ajouter un nouvel Administrateur, il faut conjointement qu'il importe le credential généré ci-avant ET que la configuration logicielle du service `svci` pour `$OP` soit complétée pour ajouter l'ID du nouvel Administrateur dans la liste `ADMINUSERS` (puis déployer ce logiciel).
+#### Déclaration de l'URL d'un service SVC hébergé par un opérateur $OP
+Cette opération créé / met à jour l'URL correspondante pour $OP dans la ligne SVC de la table `SAFEURLS`.
 
-> La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS` et en redéployant le logiciel.
+Ceci vaut _déclaration d'existence_ au couple `SVC / $OP`.
 
-> Le changement de la liste des administrateurs d'un service `SVC $OP` exige un redéploiement logiciel après ajustement de sa configuration. C'est _normalement_ très peu fréquent et a priori bien moins qu'une correction de bug / augmentation du service. 
+> Le service correspondant n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTERDIR_).
 
-### Création d'une nouvelle organisation `org`
-Son représentant a fixé **pour chaque service** `svci` requis par la ou les applications qu'elle prévoie d'utiliser, l'opérateur `$OPi` correspondant.
+#### Activation / révocation d'une organisation `org` pour un `SVC / $OP`
+Pour un service donné, une organisation est hébergée par un seul opérateur: c'est en conséquence une tâche d'Administration générale que d'assigner l'organisation pour chaque service à l'opérateur l'hébergeant. 
 
-Pour chaque service `svci`, un Administrateur Technique de l'opérateur `$OPi`, invoque, pour déclarer l'organisation `org`, une opération qui:
-- met à jour la table `SAFEORGS`: mise à jour ou création du JSON donnant les opérateurs choisis pour chaque service.
-- déclare l'organisation `org` en citant les codes désignant la base de données et le storage affectés à cette organisation.
-- créé conjointement le document `ORG` fixant son statut (DOWN / UP / READ-ONLy) et le commentaire associé.
+Le row `org` de la table `SAFEORGS` est créé / mis à jour.
 
-Toute organisation ne peut fonctionner qu'avec a minima un _manager_: l'Administrateur déclare dans un second temps chaque utilisateur dont le pseudo lui a été communiqué par le représentant de l'organisation, un rôle _manager_.
+> L'accès à l'organisation correspondante n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTERDIR_).
 
-> L'ajout d'une organisation, ou d'un nouveau service pour une organisation existante, ou l'ajout / révocation d'un _manager_ ne nécessite aucune interruption de service.
+## Depuis les _Outils Techniques >> Status des Services_
+Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur _DU service_ SVC cité hébergé par _L'opérateur_ $OP cité.
 
-> La **purge** d'un service `SVC $OP org` est une opération technique en ligne de commandes d'un Administrateur Système de l'opérateur.
+#### Le status de SVC / $OP 
+Il peut être mis à _UP ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
+- les opérations sont bloquées quand le status est DOWN, SAUF celle qui modifie ce status et peut en conséquence le remettre UP et adapter l'information.
+
+#### Le status d'une organisation org hébergée par SVC / $OP
+Il peut être mis à _UP LECTURE-SEULE ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
+- les opérations sont bloquées quand le status est DOWN, SAUF celle qui modifie ce status et peut en conséquence le remettre UP et adapter l'information.
+
+#### La configuration d'une organisation org hébergée par SVC / $OP
+Elle consiste à attacher l'organisation à,
+- UNE des bases de données gérées par SVC / $OP,
+- UN des _storage_ gérées par SVC / $OP,
+
+> Cette configuration est déclarative seulement et ne permet en aucun cas un _transfert_ de base ou de storage, opérations lourdes gérées en ligne de commande par un administrateur système de l'opérateur.
 
 ## Credentials
-Un credential est **propriété d'un utilisateur** et stocké dans son _safe_. Ses propriétés identifiantes sont:
-- `svc` : code `SVC` du service ayant enregistré ce credential.
-- `org` : le code,
-  - soit `org` de l'organisation.
-  - soit `$OP` de l'opérateur pour un credential `admin`.   
-- `role` : le code du rôle endossé par l'utilisateur.
-  - `admin` : pour LE rôle d'Administrateur Technique du service `svc` de l'opérateur `$OP`.
-- `entid` : l'identifiant éventuel de l'entité dont l'utilisateur joue le rôle (toujours vide pour un rôle `admin`).
-- `hpems`: le hash court du PEM de signature du credential, ayant une fonction de _version_ permettant d'avoir, successivement ou non, plusieurs credentials valides de même `svc / org / role / entid`.
+UN _credential_ gère UN droit pour,
+- UN utilisateur `userId`,
+- accéder aux opérations d'UN service `SVC`
+- accédant à UNE organisation `org`.
+
+La cible du credential est identifiée par le couple `role/docId`:
+- `role` : UN rôle est matérialisé par le couple `classe.role`,
+  - d'UNE classe de document (par exemple `Redacteur`),
+  - et éventuellement d'un rôle complémentaire `chef` (quand l'entité correspondante peut être abordée selon plusieurs rôles).
+- `docId` est l'identifiant du document correspondant.
+  - quand `docId` est vide, le credential a pour cible TOUS les documents de la classe. C'est typiquement le cas pour `Org` n'ayant qu'un document _son ID 1_ n'est pas donnée.
+
+**Plusieurs _versions_** d'un _credential_ `userId SVC org role docId` peuvent exister au cours du temps: chaque version est distingué par `time` la date-heure en secondes de sa déclaration.
+
+> Une **ID aléatoire** est générée à la création d'une version d'un credential.
+
+### Les _faces_ "safe" et "document" d'un credential
+**La face _safe_ est enregistrée dans le _Safe_ de l'utilisateur**, avec:
+- la **clé privée de signature** de cette version du credential,
+- quelques propriétés détaillées ci-après.
+- au détail près d'un _commentaire_ facultatif donné par l'utilisateur lui-même, cet objet est immuable.
+
+**La face _document_ est un document enregistré dans la base de données du service**, avec:
+- la **clé publique de vérification** de cette version du credential.
+- quelques propriétés détaillées ci-après qui peuvent évoluer au cours du temps.
+
+#### Dans une session de l'application
+- toutes les faces _safe_ sont lues depuis le _safe_ de l'utilisateur pour les credentials relatifs à un des services accédés par l'application.
+- les _documents_ credential de tous les services accédés par l'application relatifs au `userId` de l'utilisateur sont lisibles / synchronisables.
+- une application dispose des deux faces de chaque version de credential, mais:
+  - ne peut mettre à jour QUE la propriété `comment` de sa face application (celle stockée dans son _Safe_).
+  - ne peut QUE lire les _documents_ credential correspondant.
+
+> Un credential qui n'est pas repris par un _document_ (qui n'a que la face _safe_) est ineffectif (et supprimable).
+
+#### Dans une opération d'un service
+- tous les _documents_ des versions de credentials citées par l'objet `AuthRecord` attaché à la requête sont lisibles.
+- les faces _safe_ ne sont pas accessibles.
+
+### Création d'une version d'un credential
+Elle peut être effectuée selon deux modes:
+- **attribution directe** à un utilisateur U par un utilisateur A _attributaire_.
+- **auto-attribution après invitation** par l'utilisateur U suite à une **invitation** générée par un utilisateur I _invitant_.
+
+#### Attribution directe par A à U
+L'attributaire A _connaît_ l'utilisateur U, 
+- soit par son `userId` obtenue par l'application ou tout autre moyen,
+- soit par son `contact` un pseudo ou phrase unique temporaire que U a inscrit à titre de _pseudo externe_.
+
+L'attributaire A a lui-même un ou des credentials lui donnant accès à une opération d'enregistrement du futur _document_ credential de U:
+- il génère un couple de clés de _signature / vérification_.
+- construit le document à enregistrer en y incluant la clé publique générée.
+- soumet ce document à une opération d'enregistrement qui s'assurera du droit à cet enregistrement et complétera éventuellement celui-ci en retournant le cas échéant quelques données requises par A pour la suite de la procédure.
+- construit la face _Safe_ du credential et l'enregistre dans le _safe_ de U.
+
+Cet enregistrement fait apparaître le credential dans un état _en attente_ dans le _safe_ de U:
+- il est crypté par le couple clé publique C de U / clé privée de A,
+- il est accompagné de la clé publique C de A.
+. lors du prochain accès de U à son _safe_ pour chaque credential en attente, U:
+  - décrypte l'objet _credential_ par le couple _clé privée de U / clé publique de A_,
+  - le ré-encrypte par sa clé `keyK` et le stocke dans son _safe_ (il est devenu _permanent_), le credential _temporaire_ étant détruit.
+
+> Dans ce mode d'attribution directe, **à la limite**, A peut attribuer des droits à U sans son accord, rien que par le fait qu'il connaît le `userId` ou le pseudo / phrase de `contact` de U.
+
+#### Auto-attribution par U suite à invitation de I
+Dans ce mode un utilisateur I a enregistré pour U un _document d'invitation_ qui va contenir toutes les données nécessaires à U pour s'auto-enregistrer. 
+- une partie de ces données peut être _cryptées_ par I pour n'être lisible que par U.
+- les autres propriétés serviront à l'opération d'enregistrement pour juger de son acceptabilité.
+
+Le processus par U est le suivant:
+- il accède au document _invitation_.
+- il génère un couple de clés signature / vérification pour la version de credential en création.
+- il fabrique les deux faces de sa version de credential.
+- il stocke sa face _safe_ dans son son safe.
+- il soumet le _document credential_ à une opération d'enregistrement en y joignant les références de son invitation. Cette opération vérifie la validité de la demande puis complète éventuellement le _document credential_ et l'enregistre.
+- en cas d'échec de cette opération il supprime sa version de credential de son _safe_.
+
+> Dans ce mode par invitation U n'a inscrit qu'un droit qu'il a sollicité et approuvé. En contrepartie, ça oblige U à a) solliciter une invitation, b) en attendre le retour. En mode attribution directe l'attributaire pouvait inscrire directement le droit de U.
+
+### Propriétés de l'objet face _safe_
+Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
+la propriété `userId` n'est pas stockée, puisque le _safe_ est dédié à ce `userId`.
+
+Les autres propriétés sont:
+- `pems`: la clé privée de signature générée pour cette version du credential.
+- `comment`: un commentaire libre et facultatif de l'utilisateur qui peut l'aider quand il constitue un profil de session ne reprenant que _certains_ des credentials.
+- `name`: le `docId` cible est un code ininterprétable humainement. Toutefois au moment de la création, le créateur peut connaître un _nom / libelle /etc._ explicitement lisible par un humain. Ceci peut aussi aider U quand il constitue un profil de session ne reprenant que _certains_ des credentials.
+- `skey` : une clé symétrique AES (facultative). Lire ci-après.
+
+Dans les documents certaines propriétés sont _lisibles_ par le service, d'autre sont _opaques_ pour le service.
+- **propriétés lisibles**: c'est l'état normal et le logiciel du service peut les utiliser dans ses traitements.
+- **propriétés opaques**: elles sont _cryptées_ par une clé qui n'est disponible QUE dans les applications terminales et sont en conséquences inutilisables par une opération du service.
+
+Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que la _clé AES_ qui a rendu ces données _opaques_ aux opérations du service, n'est PAS stockée dans la base de données du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
+
+Chaque utilisateur ayant un droit d'accès à ce _comité directeur_ disposera de cette clé dans la propriété `skey` du credential correspondant et pourra ainsi décrypter ces données _opaques_ pour les opérations du service.
+
+`skey` a été transmise:
+- dans le cas d'une attribution directe par A: A en est détenteur lui-même.
+- dans le cas d'une auto-attribution suite à invitation, l'invitant I, lui-même détenteur de cette clé, l'a inscrite dans l'invitation (cryptée par la clé I / U) lisible que par U.
+
+> Il est toutefois possible que certaines clés d'opacité soient présentes dans un _document_ et non pas uniquement dans les _safes_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ `skey` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la `skey` _maîtresse_.
+
+### Propriétés du _document_ stocké en base du service
+Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
+les propriétés `SVC org` ne sont stockées explicitement _dans_ le document (`org` est stockée à part et tous les documents de la base de données sont spécifiques du service `SVC`).
+
+Les autres propriétés sont:
+- `pemv`: la clé publique de vérification générée pour cette version du credential.
+- `limit`: date-heure en secondes de la limite de validité de cette version. Si absente la validité est éternelle. Elle peut être mise à jour par une opération de prolongation / révocation.
+- `cond`: c'est un objet dépendant du rôle du credential contenant les données explicitant les conditions d'exercice du credential: _seuils divers, liste de permissions, etc._
+
+### L'objet `AuthRecord`
+Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
+- `userId`: de l'utilisateur.
+- `sessionId`: identifiant de session.
+- `time`: date-heure en seconde de création du record.
+- _challenge_: propriété virtuelle _userId + '/' + time_
+- `userSign`: signature par la clé privée de signature de l'utilisateur, du _challenge_.
+- `signatures`: objet ayant une propriété par ID de credential inscrit dans le record donnant la signature du challenge par la clé privée de signature du credential.
+
+Au démarrage d'une opération, le `AuthRecord` joint est scanné et un compte rendu est généré sous forme d'une map:
+- _clé_: `role.docId`.
+- _valeur_: un objet ayant les propriétés suivantes:
+  - `time`: version du credential. Seule la version validée la plus récente est conservée dans le compte rendu.
+  - `status`: _true_ si la vérification a été validée.
+  - `cond`: objet de `cond` récupéré du document.
+
+Le compte-rendu est _en échec_ s'il existe une entrée du compte-rendu en status _false_. Quand il existe plusieurs versions pour une même rôle `role.docId`, la plus récente à _true_ est gardée, il suffit donc _qu'une_ version soit acceptable pour valider le credential.
+- si la signature du `userId` n'est pas validé, c'est un échec.
+
+Dans le cours du traitement de l'opération, cette map est consulté pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du cond attaché au credential dont la version a été retenue.
