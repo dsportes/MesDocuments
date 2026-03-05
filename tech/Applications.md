@@ -417,6 +417,12 @@ Lors du contrôle d'authentification à l'entrée d'une opération requérant un
   - la liste `ADMINUSERS` du déploiement d'UN service SVC / $OP.
   - la liste `MASTERDIRADMINUSERS` pour l'Administrateur du MASTERDIR.
 
+### Liste des rôles ADMIN s'un utilisateur
+Pour pouvoir afficher la page _Administration Technique_, un utilisateur doit auto-déclarer dans son _safe_ la liste des couples `SVC $OP` pour lesquels il a ce pouvoir:
+- quand il en ajoute un, le fait qu'il le soit réellement est vérifié.
+- si son `userId` a été retiré de la configuration, il doit remettre à jour cette liste.
+- sil ne s'inscrit pas de lui-même de facto il en perd le pouvoir simplement par impossibilité d'atteindre la page d'administration.
+
 > La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS / MASTERDIRADMINUSERS` correspondante et en redéployant le logiciel.
 
 ## Depuis les _Outils Techniques >> Hot_
@@ -576,12 +582,11 @@ Toute opération requérant la présence d'au moins un credential est sollicité
 - `userSign`: signature par la clé privée de signature de l'utilisateur, du _challenge_.
 - `signatures`: objet ayant une propriété par ID de credential inscrit dans le record donnant la signature du challenge par la clé privée de signature du credential.
 
-Au démarrage d'une opération, le `AuthRecord` joint est scanné et un compte rendu est généré sous forme d'une map:
-- _clé_: `role.docId`.
+Au démarrage d'une opération, le `AuthRecord` joint est scanné et un compte rendu est généré sous forme d'une map `roles`:
+- _clé_: `docClass.role/docId`.
 - _valeur_: un objet ayant les propriétés suivantes:
-  - `time`: version du credential. Seule la version validée la plus récente est conservée dans le compte rendu.
-  - `status`: _true_ si la vérification a été validée.
-  - `cond`: objet de `cond` récupéré du document.
+  - `cred`: la version du credential la plus récente dont la signature est bonne OU la plus récente (bonne signature ou non)
+  - `status`: _true_ si la signature est bonne.
 
 Le compte-rendu est _en échec_ s'il existe une entrée du compte-rendu en status _false_. Quand il existe plusieurs versions pour une même rôle `role.docId`, la plus récente à _true_ est gardée, il suffit donc _qu'une_ version soit acceptable pour valider le credential.
 - si la signature du `userId` n'est pas validé, c'est un échec.
