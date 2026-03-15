@@ -592,3 +592,84 @@ Le compte-rendu est _en échec_ s'il existe une entrée du compte-rendu en statu
 - si la signature du `userId` n'est pas validé, c'est un échec.
 
 Dans le cours du traitement de l'opération, cette map est consulté pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du cond attaché au credential dont la version a été retenue.
+
+# Invitations
+Un utilisateur est (sauf à la limite pour les Administrateurs Techniques) partie prenante d'une ou plusieurs _positions / rôles_: _auteur, relecteur, employé, dirigeant d'un département, gestionnaire d'un stock ..._ chaque position / rôle est matérialisé par l'existence d'un _document_ identifié sur lequel l'utilisateur a un _credential_ qui lui confère des possibilités d'actions plus ou moins large, voire la connaissance d'une clé de cryptage symétrique attachée à ce rôle.
+
+La création double d'un document **et** du credential associé s'effectue par le mécanisme des invitations qui met en jour deux intervenants:
+- l'utilisateur U qui sollicite cette création et le credential associé,
+- un utilisateur SP _sponsor_ qui va lui donner satisfaction (ou non).
+
+### Protocole général
+- l'utilisateur créé une _invitation_ qui traduit son souhait: la position souhaitée (à créer ou non) et le credential d'accès.
+  - l'invitation est un document déposé dans la base de données du service correspondant pour l'organisation souhaitée. Son status est **déposée**.
+  - le _safe_ de U en garde un _pointeur_ lui permettant de la lire.
+- un utilisateur SP _sponsor_ à l'écoute des nouvelles invitations déposées, traite celle-ci,
+  - en notant dans le document _invitation_ les données qui permettront lors de l'acceptation,
+    - de créer le cas échéant un document reflétant la position éventuelle souhaitée,
+    - de créer le _credential_ afférent.
+  - ceci passe la status de l'invitation à **acceptée**, lequel status est répercuté dans le _safe_ de U.
+- l'utilisateur U voit, à sa prochaine connexion ou sur _rafraîchissement_ en cours de session que son invitation est acceptée et il l'ouvre:
+  - il y découvre le détail du droit accordé: en général il en est satisfait.
+  - il **confirme** l'invitation par une requête au service:
+    - le document correspondant (s'il y a lieu) est créé avec les données que le sponsor a pu fixer,
+    - le credential associé est créé.
+    -l'invitation est passé en status **validée** et n'a plus que quelques jours à vivre (et ne peut plus changer).
+  - il met à jour son _safe_,
+    - en intégrant le _credential_ reçu du service,
+    - en y effaçant le _pointeur_ vers son invitation qui n'a plus d'intérêt.
+
+### Rejet / décliner une invitation
+#### Le sponsor qui prend en charge une invitation peut ne pas donner suite
+- l'invitation passe en status **rejetée** avec un motif textuel explicatif, le _safe_ de U étant informé de ce changement de status et du motif. Son _pointeur_ dans le _safe_ de U est auto-destructible après un délai court.
+- dans le service le document _invitation_ n'a plus que quelques jours à vivre (et ne peut plus changer).
+
+#### L'utilisateur U peut ne pas être satisfait des conditions de l'acceptation
+- l'invitation passe en status **déclinée** avec un motif textuel explicatif pour le sponsor, le _safe_ de U est mis à jour de ce changement de status. Don _pointeur_ dans le _safe_ est auto-destructible après un délai court.
+- dans le service le document _invitation_ n'a plus que quelques jours à vivre (et ne peut plus changer).
+
+### Caractéristique d'une invitation
+Elle concerne:
+- UN service et UNE organisation.
+- sa cible est définie par un code majeur et un code mineur (facultatif).
+
+#### Codes _majeurs_
+C'est une liste fermée pour l'application qui indique le but principal de la demande d'invitation:
+- à être enregistré comme _relecteur_,
+- à faire partie de la _direction d'un département scientifique_,
+- à être enregistré comme _employé_.
+
+#### Codes _mineurs_
+Il peut ne pas y en avoir: _être employé_ sans dire pour faire quoi ...
+
+Mais il peut y avoir un: _de quel département_, _relecteur sur quel sujet_ ...
+
+### Les utilisateurs _sponsors_
+Un utilisateur peut avoir obtenu le credential pour être _sponsor_:
+- soit sur un code _majeur_ (tous codes mineurs confondus),
+- soit sur un code _majeur.mineur_.
+
+Les utilisateurs ayant un credential de _manager_ sont _sponsor universel_ et peuvent traiter toutes les invitations.
+
+## Données d'une invitation
+### _Pointeur_ dans le _safe_ de l'utilisateur
+- `svc`: service
+- `org`: organisation
+- `invitId` : ID de l'invitation
+- `majeur`
+- `mineur`
+- `time`: date-heure de création. Ceci détermine aussi sa date d'auto-destruction.
+- `status`: 1: déposée, 2: validée, 3: rejetée, 4: acceptée, 5: déclinée
+- `comment`: texte libre écrit par U à la création (rien que pour lui).
+
+Seul le status peut changer après création : par principe le pointeur sur l'invitation a la même durée de vie que l'invitation elle-même (quelques jours).
+
+### Document `Invitation` dans la base du service
+- `org`: organisation
+- `invitId` : ID de l'invitation
+- `majeur`
+- `mineur`
+- `time`: date-heure de création. Ceci détermine aussi sa date d'auto-destruction.
+- `status`: 1: déposée, 2: validée, 3: rejetée, 4: acceptée, 5: déclinée
+- `userId`: ID de U (demandeur)
+- (TODO) motivation, pubU, aesK, name?, role, docId, cle, cond, etc
