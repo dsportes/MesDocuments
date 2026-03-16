@@ -656,20 +656,40 @@ Les utilisateurs ayant un credential de _manager_ sont _sponsor universel_ et pe
 - `svc`: service
 - `org`: organisation
 - `invitId` : ID de l'invitation
-- `majeur`
-- `mineur`
+- `major`
+- `minor`
 - `time`: date-heure de création. Ceci détermine aussi sa date d'auto-destruction.
 - `status`: 1: déposée, 2: validée, 3: rejetée, 4: acceptée, 5: déclinée
 - `comment`: texte libre écrit par U à la création (rien que pour lui).
 
-Seul le status peut changer après création : par principe le pointeur sur l'invitation a la même durée de vie que l'invitation elle-même (quelques jours).
+Seul le status peut changer après création : par principe le _pointeur sur l'invitation_ a la même durée de vie que l'invitation elle-même (quelques jours).
 
 ### Document `Invitation` dans la base du service
 - `org`: organisation
 - `invitId` : ID de l'invitation
-- `majeur`
-- `mineur`
+- `major`
+- `minor`
 - `time`: date-heure de création. Ceci détermine aussi sa date d'auto-destruction.
 - `status`: 1: déposée, 2: validée, 3: rejetée, 4: acceptée, 5: déclinée
 - `userId`: ID de U (demandeur)
-- (TODO) motivation, pubU, aesK, name?, role, docId, cle, cond, etc
+- `safeStore`: URL du store hébergeant le safe de U
+- `skeyK`: clé symétrique générée par U, cryptée par sa clé K. Requise ou non selon le `major`.
+- `pemU`: clé publique C de U.
+- `txtm`: texte de motivation de la demande d'invitation (en clair).
+- `txtx`: quand déclinée, texte d'explication de U (en clair).
+- `label`: pour les codes `major` qui en exige un, _label_ en clair à faire figurer dans le document à créer.
+- **Données fixées par le sponsor**
+  - `pemS`: clé publique du sponsor traitant l'invitation.
+  - `txti`: texte de réponse du sponsor, crypté par pemS / U.
+    - si acceptation: termes explicatifs des conditions.
+    - si rejet: justificatif textuel de rejet par le sponsor.
+  - `role`: rôle du credential associé (et classe du document associé).
+  - `docId`: `docId` du credential associé (et du document associé le cas échéant).
+  - `cond`: données à faire figurer en `cond` du credential.
+  - `etc`: autres données nécessaires pour créer le document associé. U n'a pas à connaître ni interpréter `etc` (_opaque_ pour lui) et qui ne sert qu'à l'opération de création de l'objet / enregistrement du credential.
+
+#### Opérations du service:
+- enregistrement de la création d'une demande.
+- traitement par un sponsor. Acceptation ou rejet. Ce traitement _spécifique_ du code `major` (sous classe de Invitation).
+- validation par U: création de l'objet et du credential (sous classe de Invitation)
+- refus de U.
