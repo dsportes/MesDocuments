@@ -11,7 +11,7 @@ Selon le standard JSON:
   - des _listes_ ordonnées,
   - des _maps_, associations _clé (string) / valeur_.
   - chaque terme d'une structure peut être une _liste_ ou une _map_ ou une donnée primitive.
-- les _données primitives_ sont des _string, number, boolean_ et par extension _binary_ (pas vraiment dans JSON).
+- les _données primitives_ sont des _string, number, boolean_ et par extension _binary_ (pas vraiment dans JSON qui prévoit de les transmettre en base64: toutefois le module _msgpack_ assume ce format en Javascript).
 
 Un **document** est un agrégat de données de structure JSON ayant **une _map_ pour racine** et dont chaque nom / clé donne la valeur d'une propriété qui elle-même peut être une _liste_, une _map_ ou une donnée primitive.
 
@@ -32,8 +32,8 @@ La propriété `v` version du document est le _time_ de l'opération qui l'a mis
 Plusieurs _index_ peuvent être déclarés pour une classe de document. Un index peut avoir deux catégories d'usage:
 - **_filtre_** : une propriété indexée permet d'obtenir une liste _report_ des documents de cette classe filtrés selon la valeur de cette propriété. Deux sous-catégories:
   - `SIMPLE` : les documents filtrés sont de la même organisation.
-  - `GLOBAL` : les documents peuvent être de n'importe quelle organisation: usage réservé à d**es opérations _d'administration_.
-- **_collection_ : la collection des documents de cette classe ayant une valeur donnée est _notifiable / synchronisable_. Deux sous-catégories:
+  - `GLOBAL` : les documents peuvent être de n'importe quelle organisation: usage réservé à des opérations _d'administration_.
+- **_collection_** : la collection des documents de cette classe ayant une valeur donnée est _notifiable / synchronisable_. Deux sous-catégories:
   - `COL` : la propriété définissant la collection peut être mise à jour.
   - `IMUTCOL` : cette propriété reste constante pour le document après sa création.
 
@@ -88,7 +88,7 @@ La classe est _synchronisée_.
 
 **Exemple: usage des collections `Article/auteurs`**
 - une session peut _s'abonner_ à la collection `Article/auteurs/Zola`.
-- elle recevra une notification à chaque fois que la liste des articles dont l'un des auteurs est `Zola` change (et quand `Zola` ait été ajouté ou retiré de la liste des auteurs d'un article).
+- elle recevra une notification à chaque fois que la liste des articles dont l'un des auteurs est `Zola` change (et quand `Zola` a été ajouté ou retiré de la liste des auteurs d'un article).
 - elle pourra demander tous les articles de cette collection ayant changé ou ayant été ajouté ou ayant été retiré de cette collection depuis une version t1.
 
 **Exemple des synchronisations possibles**
@@ -168,7 +168,7 @@ Le contenu du fichier est stocké sous un _path_ dans l'espace de stockage `fold
 ### Protocole de stockage / suppression d'un ou plusieurs fichiers
 Une ou plusieurs opérations de **preload** chargent le contenu du fichier dans le storage sous le path `folderId/fid`, `fid` étant généré à cet instant.
 
-Avant le stockage physique la ou les opérations de _preload_ notent dans la table `FTP` le couple (`folderId/id`, `date du jour`).
+Avant le stockage physique la ou les opérations de _preload_ notent dans la table `FTP` (_filet-to-purge_) le couple (`folderId/id`, `date du jour`).
 
 Une opération de validation enregistre ensuite dans le ou les documents concernés les nouveaux fichiers `fid` et leurs descriptifs. Cette opération s'accompagne éventuellement d'une liste de `fid` à détruire dans ces mêmes documents.
 - pour chaque document la propriété _files_ est mise à jour.
@@ -208,7 +208,7 @@ Certaines définitions d'abonnements peuvent être utilisés comme _alertes_.
 > **Des pop-ups d'alertes peuvent ainsi s'afficher**, même quand l'application n'est pas lancée, et informer l'utilisateur qui peut cliquer sur le pop-up. Si l'application n'était pas lancée, elle l'est. Sinon si l'écran montrait un contenu concerné par cette annonce de changement, la vue à l'écran se synchronise au nouveau contenu. 
 
 Suivant ce paradigme, une application présente à son utilisateur trois concepts:
-- des **notifications d'alerte** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution de nomenclature d'articles (liste des documents Sujet). Elles **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne q'un minimum d'information.
+- des **notifications d'alerte** annonçant des évolutions de documents ou de collections de documents qui l'intéresse: l'arrivée de nouveaux échanges sur un _chat_ (un document), une évolution de nomenclature d'articles (liste des documents Sujet). Elles **annoncent** par des notifications courtes une évolution de certains documents, mais n'en donne qu'un minimum d'information.
 - des **notifications de documents synchronisés**: les documents correspondant sont systématiquement maintenus à jour dans l'application dans un état le plus proche techniquement possible de l'état des documents sur le serveur (du moins quand l'application est _au premier plan_).
 - des **_rapports_**: ce sont des vues calculées à un instant donné et qui ne changent qu'à redemande du même rapport.
 
@@ -217,7 +217,7 @@ Suivant ce paradigme, une application présente à son utilisateur trois concept
 - en repassant au premier plan, l'application **peut** demander aux serveurs de lui fournir les mises à jour des documents synchronisés depuis le dernier état mémorisé en session.
 
 ### Quand l'application n'est plus en exécution
-Quand une application est en exécution elle peut rester _abonnée_ à des _alertes_.
+Quand une application est en exécution elle **peut** rester _abonnée_ à des _alertes_.
 
 Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, certains de ces abonnements restent actifs, du moins un certain temps:
 - les notifications correspondantes continueront à s'afficher en _pop-ups_, l'OS ou le browser de l'application s'en chargeant.
@@ -227,7 +227,7 @@ Quand son exécution s'arrête, sauf décision explicite de l'utilisateur, certa
 > Chaque application détermine pour chaque abonnement élémentaire auquel elle est abonné, si l'abonnement s'interrompt ou non quand l'application s'arrête.
 
 # Souscriptions
-Une session est identifiée de manière unique par son jeton de web-push `subJSON`: `sessionId` est le shaS de ce jeton.
+Une session est identifiée de manière unique par son jeton de web-push `subJSON`: `sessionId` est le hash court de ce jeton.
 
 ### Souscription élémentaire: _définition_
 Une souscription élémentaire est:
@@ -245,11 +245,11 @@ Pour une organisation `org` le document comporte les propriétés suivantes:
 
 Une session _s'abonne_ à des _synchronisations / notifications_ en soumettant une opération `SetSubscription` ayant en paramètre:
 - son organisation,
-- l'objet de souscription (il doit être émis une souscription par organisation). Si null c'est par convention une suppression.
-- le booléen `longLife`: si true la souscription reste valable quelques jours en l'absence de session active, sinon quelques heures. 
+- l'objet de souscription (il doit être émis une souscription par organisation). Si _null_ c'est par convention une suppression.
+- le booléen `longLife`: si _true_ la souscription reste valable quelques jours en l'absence de session active, sinon quelques heures. 
 
 En fin de session, l'utilisateur décide s'il souhaite ou non continuer à recevoir des notifications textuelles: 
-- soit une nouvelle souscription remplace celle courante avec un `longLife` à true.
+- soit une nouvelle souscription remplace celle courante avec un `longLife` à _true_.
 - soit la souscription est supprimée.
 
 #### Mise à jour de la base de données

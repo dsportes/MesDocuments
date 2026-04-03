@@ -59,70 +59,7 @@ Un module de cryptographie évite de gérer les subtilités du paramétrages des
 
 > Vis à vis des applications terminales, les serveurs ne connaissent **QUE** les concepts de documents / abonnements et mises à jour incrémentales. Le reste de la logique applicative passe par l'usage des opérations.
 
-# L'application _Safe_ 
-Cette application a pour objet de gérer des _coffres forts_ pour des utilisateurs.
-
-En lançant _Safe_ un utilisateur donne les éléments d'identification de son _coffre fort_ de manière à ce que les applications lancées ultérieurement sur cet appareil puissent y trouver les diverses données _sensibles_ de l'utilisateur dont ses _droits d'accès_ aux documents des applications.
-
-L'application _Safe_ une fois initialisée sur un appareil est en charge:
-- de gérer ses appareils _de confiance_.
-- pour chaque application:
-  - de stocker `ses droits` et les mettre à jour.
-  - de stocker _divers objets_:
-    - des objets transmis par un autre utilisateur disposant lui aussi d'un _safe_. 
-    - des objets interprétés comme des _options de lancement_.
-    - des objets interprétés par l'application comme des _préférences_.
-  - de lancer l'application, le cas échéant selon _l'option de lancement_ que l'utilisateur a sélectionnée.
-
-> Le lancement d'applications par le _Safe_ évite le risque de lancement d'une application _piratée_ et permet de choisir le cas échéant des _options_ au lancement ouvrant la session dans un contexte déjà préfixé.
-
-> L'URL de lancement de _Safe_ est un élément de sécurité: le code de cette application est lisible dans le browser et il est possible de vérifier auprès de sites certificateurs que l'application est _fair_. Ceci évite d'avoir à le faire pour chaque application gérée par _Safe_, quoi que ce soit toujours possible. 
-
-# Un utilisateur, ses appareils et ses applications
-
-## Appareils _de confiance_ d'un utilisateur
-Un utilisateur qui veut utiliser une application depuis un _device_ est placé devant deux cas de figure:
-- **soit il juge l'appareil _de confiance_**,
-  - il l'utilise régulièrement, que se soit le sien ou celui d'un proche,
-  - il peut y laisser quelques informations cryptées et espérer raisonnablement les retrouver plus tard.
-- **soit il n'a pas confiance dans cet appareil** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
-  - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
-  - il ne peut pas compter sur le fait qu'il ait déjà utilisé ce même appareil antérieurement pour y retrouver des données.
-
-Lancer une application depuis un appareil _de confiance_ a plusieurs autres avantages:
-- **démarrage plus rapide, moins de réseau et moins d'accès dans le serveur** en utilisant une petite base de données locale (cryptée) pour chaque application comme _cache_ de ses documents: ceux qui y figurent et à jour n'auront pas besoin d'être demandés au serveur de l'application.
-- **disponibilité des droits** de l'utilisateur pour chaque application le dispensant de s'en souvenir ou de les copier / coller d'un support externe.
-- **possibilité d'accéder à l'application en mode _avion_** sans accès au réseau en utilisant les documents et les droits en _cache_.
-
-> Même _de confiance_ un appareil _peut_ être utilisé par d'autres que soi-même: même dans un cadre familial ou de couple, l'appareil n'est pas strictement _personnel_.
-
-## Lancement d'une application
-Depuis son application _Safe_ qui gère son _coffre fort_, un utilisateur peut lancer ses applications:
-- **soit depuis un appareil _anonyme_:**
-  - soit normalement en laissant _Safe_ obtenir son contenu depuis le serveur _Safe_.
-  - soit en fournissant un _file / clé USB_ disposant de ce contenu (crypté).
-  - Les applications opèrent en mode **_incognito_**.
-- **soit depuis un appareil _de confiance_:**
-  - **soit en mode _avion_:** le contenu du _Safe_ est obtenu depuis le cache local crypté du _Safe_. Les applications opèrent en mode **_avion_**.
-  - **soit en mode _normal_:** le contenu du _Safe_ est obtenu depuis le serveur _Safe_ (mettant à jour un _cache_ local crypté). Les applications opèrent en mode **_synchronisé_**.
-
-Au lancement d'une application une page d'accueil est présentée:
-- elle peut être spécifique de l'option de lancement choisie;
-- elle peut être _pré-initialisée_ selon cette même option, voire tout _objet_ stocké dans son _safe_ par l'utilisateur.
-
-Au cours de l'exécution de l'application des droits peuvent être ajoutés / modifiés si l'application est en mode _synchronisé ou incognito_: ils sont répercutés sur le serveur _Safe_.
-
-**En mode _synchronisé_** en fermant l'application, l'utilisateur peut choisir:
-- de laisser ses _abonnements de news_ activés: des notifications apparaîtront, même quand l'application sera fermée et même si ce n'est plus le même utilisateur qui dispose de l'appareil. Les _notifications_ ne font qu'annoncer des changements sans en donner les détails et évitent de délivrer des informations confidentielles. 
-- de fermer ses _abonnements de news_: aucune notification ne parviendra plus sur l'appareil relativement à cette application. L'utilisateur peut le prêter à quelqu'un d'autre sans risque ... mais lui-même ne recevra plus de notifications (il faut choisir).
-
-**En mode _avion_**, il n'y a pas de réseau, pas _d'abonnements actifs_: les dossiers peuvent être consultés mais pas mis à jour. 
-- la base de données locale est cryptée par la clé `K` du _Safe_ de l'utilisateur. Elle contient pour chaque sous-collection associée à un abonnement, les documents qui en faisaient partie à un instant t: ceux-ci ne sont pas du tout dernier état mais a minima dans l'état t où ils ont été accédés la dernière fois sur ce appareil.
-- l'utilisateur peut saisir des textes ou formulaires purement locaux et stocker des fichiers (comme des photos prises en mode avion): toutes ces informations pourront être utilisées pour mettre à jour des documents quand le réseau sera à nouveau disponible en sécurité.
-
-**En mode _incognito_** la fermeture de l'application ne laisse pas le choix: les _abonnements de news_ sont tous supprimés, aucune notification ne parviendra plus sur cet appareil résultant de l'usage précédent de l'application.
-
-### Mode _veille_
+# Mode _veille_
 Les applications ouvertes ont un mode _veille_ optionnel: s'il est activé, l'application se met en veille en cas de non utilisation pendant quelques minutes (fixés selon le degré de paranoïa de l'utilisateur). Pour sortir de la veille un code est nécessaire et au second échec l'application se ferme.
 
 # Glossaire technique
@@ -418,111 +355,6 @@ Faut-il prévoir d'obliger à une authentification depuis un appareil #1 exigean
 - et si l'utilisateur N'A PAS d'appareil #2 (au moins sous la main) ?
 - si #2 n'est PAS favori, pour valider le login de #1 il lui faut un couple (s1, s2) qu'il vient a priori déjà de donner sur #1 ?
 
-### Attacher des _droits d'accès_ aux _abonnements_
-Il peut être requis par une application qu'un _droit d'accès_ soit fourni pour chaque abonnement élémentaire.
-- ceci évite qu'une session soit _notifiée_ de mises à jour de documents auxquels elle n'a pas droit d'accès.
-- la _synchronisation effective_ (récupérer le contenu des documents) est sauf exception soumise à des _droits d'accès_.
-
-## OBSOLÈTE ??? : _activités_ définies dans une application
-
-Dans une application terminale une _activité_ désigne un ensemble de tâches cohérentes qu'un utilisateur peut effectuer. Par exemple dans l'exemple _circuitscourts_:
-- l'activité _commande d'un consommateur_ où un consommateur peut déclarer les quantités qu'il souhaite recevoir pour les livraisons en cours.
-- l'activité _contrôle et réception des livraisons_ pour les animateurs d'un point-de-livraison visant à vérifier les commandes, réceptionner les camions et noter les quantités reçues.
-- l'activité _préparation d'une livraison_ pour un groupement de producteurs, gérant le calendrier de la livraison, rassemblant les cartons préparés par les producteurs pour effectuer une tournée auprès des points-de-livraison associés.
-
-Une _activité_ décrit à la fois:
-- sur quelles données elle doit opérer, quels documents doivent être rendus visibles aux utilisateurs ayant opté pour cette activité.
-- quels processus _suites d'actions élémentaires concourant à un objectif plus global_, un utilisateur peut engager dans le cadre de cette activité.
-- quels _credentials_ un utilisateur doit présenter pour avoir le droit de voir les données et d'exécuter les processus.
-
-### Une session d'une application pour un utilisateur peut avoir plusieurs activités ouvertes
-
-#### L'activité d'amorce
-Il est toujours possible de lancer une application sans avoir d'activité favorite enregistrée.
-La session doit présenter un minimum d'information à l'utilisateur:
-- pour qu'il puisse décider quelle activité il va choisir d'exercer.
-- saisir les _credentials_ requis.
-
-Pour ce faire l'utilisateur va souvent avoir besoin de voir quelques données: elles sont définies dans une activité bien identifiée _amorce_ qui peut présenter des informations non soumises à un _credential_.
-
-Le _desktop de l'application_ est affiché pour présenter ces choix.
-
-Ultérieurement plusieurs activités peuvent être ouvertes:
-- plusieurs du même type: assurer _le contrôle et réception des livraisons_ pour deux points-de-livraisons.
-- plusieurs de types différents: assurer _la commande d'un consommateur_ (pour lui-même) et contribuer à _la préparation d'une livraison_ à titre d'aide d'un groupement de producteurs ami.
-
-### Un _type d'activité_ a des paramètres et est associé à un ou plusieurs _types de credentials_
-Par exemple l'activité _commande d'un consommateur_ a pour paramètres,
-- `gc` : le code d'un point-de-livraison.
-- `co` : le code d'un consommateur récupérant ses produits auprès de ce point.
-- `initials` d'un utilisateur,
-- `pwd` : mot de passe déclaré pour le couple `gc co` pour les `initiales` fournies.
-
-Ce type d'activité est associé à un ou plusieurs types de _credential_, ici par exemple `CREDCO` qui peut se construire à partir des paramètres de l'activité:
-- `gc co` : sont les identifiants d'un _credential_ `CREDCO` dont les autres propriétés sont `initals` et `pwd`.
-
-Le ou les _types de credentials_ déclarés associés à une activité, doivent avoir tous leurs paramètres dans les paramètres du _type d'activité_: un _credential_ peut ainsi être généré depuis ceux-ci et sera délivré aux opérations qui le requièrent.
-
-### Choisir et exercer une activité dans une session d'une application terminale
-Le _desktop_ de l'application présente à l'utilisateur les _types d'activité_ qu'il peut choisir. 
-- Ce peut être une liste courte,
-- Ce peut être pour une application complexe une liste longue, avec une possibilité de sélection par mot clé et / ou une présentation arborescente.
-- Le paramétrage du _desktop_ déclare comment il apparaît et comment l'utilisateur peut sélectionner une activité.
-
-Quand l'utilisateur a choisi un type d'activité il doit saisir tous les paramètres de l'activité: par exemple un code `gc` et un code `co`, des `initials` et un `pwd`.
-
-Il a alors une _activité ouverte_, ce qui apparaît sur son _desktop_.
-
-Il peut en ouvrir d'autres, du même type ou non, chacune figurée par exemple par un onglet et / ou une icône et / ou un libellé.
-
-Depuis le _desktop_ l'utilisateur peut _basculer d'une activité à une autre_ par exemple en cliquant sur un onglet ou une icône, ou si l'application le permet en voir plus d'une affichée (une en haut, une en bas).
-
-### Enregistrement d'une _session favorite_ dans son _profil_
-Si l'utilisateur a un profil enregistré, à n'importe quel moment de sa session de travail en cours il peut:
-- sélectionner en les cochant certaines de ses activités en cours,
-- enregistrer cette sélection en lui donnant un libelle clair pour lui, comme _commandes Bob à JP_.
-
-# Authentifier les utilisateurs d'une application
-Un utilisateur d'une application y est enregistré par un document _User_ portant un identifiant _userId_ permanent et immuable.
-
-L'objectif du processus d'authentification est de s'assurer que la personne _physique_ qui tente d'accéder à son _user_ est bien habilité à le faire.
-
-### Les authentifications _physiques_
-Elles utilisent une caractéristique physique, typiquement une empreinte digitale, 
-- côté _serveur_ elle est enregistré dans le document _user_, 
-- côté application terminale elle est donnée par un lecteur d'empreinte.
-
-Il est concevable d'enregistrer plusieurs empreintes pour un même _user_ autorisant ainsi plusieurs personnes physiques à être authentifiables.
-
-**Limitations:**
-- tous les appareils n'ont pas de lecteur d'empreinte.
-- il faut avoir enregistré **physiquement** d'avance toutes les empreintes ayant droit d'accès: on ne peut pas ajouter à distance un droit d'accès à une personne dûment authentifiée dans la vraie vie.
-
-### _userId / password_ versus _passphrase_
-**Dans le mode _login / password_**, l'utilisateur connaît au moins un identifiant externe unique (_login_) du document _user_.
-- la donnée du _login_ aboutit à **un** _user_ (ou aucun);
-- la donnée par l'utilisateur d'un _password_ lui permet de se faire authentifier par comparaison avec celui ou ceux enregistrés dans le _user_.
-
-**Limitations:**
-- le **login** est souvent une donnée de la vie réelle: e-mail ou numéro de téléphone. Ceci compromet la confidentialité personnelle des personnes physiques. Mais ce peut être aussi un _pseudo_ libre (mais unique).
-- par négligence le **password** est trop court et peut être cassé soit par force brute, soit par usage de dictionnaires des passwords usuels.
-
-**Dans le mode _passphrase_** une phrase longue (unique sur le serveur) effectue à la fois l'identification du user et son authentification.
-- la passphrase peut être changée (sous condition).
-- sa longueur (32 signes au minimum par exemple) empêche les hackers de les retrouver par force brute et les _dictionnaires_ sont inopérants.
-
-**Limitations:**
-- **si la passphrase a été générée aléatoirement**, sa sécurité est maximale mais de facto reportée sur l'utilisateur qui sauf pour les hypermnésiques sont incapables de mémoriser une telle clé. L'utilisateur va écrire celle-ci sur un support quel qu'il soit comportant un risque de diffusion / vol involontaire.
-- **si la passphrase a été fixée par l'utilisateur** elle peut être longue MAIS correspondre à quelque chose de **signifiant / mnémotechnique** pour lui: 
-
-      les$feuilles$mortes$l_ours_et_le_singe_animaux_sages
-
-Les références poétiques ne sont pas exceptionnlles et simples à se souvenir mais un algorithme ne peut les essayer toutes en variant les séparateurs.
-
-Un doublon de _passphrase_ n'est pas à exclure quand elle est déclarée par un humain. Or tomber par hasard sue phrase déjà enregistrée ouvre automatiquement l'accès à un _user_ qui n'est pas le sien: il faut donc interdire les doublons sur _une partie de la phrase_, par exemple les 16 premiers catactères (ou une primère ligne d'une phrase à 2 lignes), ce qui incite à choisir une seconde moitié sans rapport avec la première.
-
-> La limitation évidente est que saisir une telle phrase à chaque connexion est pénible.
-
 ### Les authentifications à double facteur (2FA)
 On connaît son _user_ par un _login_: le concept 2FA vise à authentifier l'utilisateur qui a identifié son compte.
 
@@ -560,7 +392,7 @@ Une application 2FA sur un appareil doit être configuré d'avance pour tous les
 
 Pour que ce soit rapide l'application 2FA ne devrait pas demander elle-même un code PIN long:
 - Cas 1: 2FA ne demande pas de code PIN.
-  - si dev1 est volé / perdu, toute personne qui pouura s'y connecter accèdera à tout ce qu'elle veut.
+  - si dev1 est volé / perdu, toute personne qui pourra s'y connecter accédera à tout ce qu'elle veut.
 - Cas 2: 2FA demande un code PIN court.
   - il faut que la seconde tentative infructueuse de saisie du code PIN réinitialise 2FA en lui faisant perdre tous les logins qu'elle a enregistrés.
 
@@ -571,3 +403,19 @@ Soit devX l'appareil _externe_ d'un hacker.
 - dev1 et dev2 ont été volés par un hacker: peut-il se connecter ?
 - le vol de dev1 ou dev2 donne-t-il la possibilité au voleur d'avoir accès aux _passphrases_ des users, le cas échéant par des moyens logiciels évolués ?
 - la possession d'un numéro de téléphone est-elle requise ou une facilité éventuelle ?
+
+## Questions ouvertes
+
+### Comment éviter une inflation incontrôlable de création de _safes_ fantômes
+Un utilisateur ne pourrait créer un _safe_ qu'après avoir obtenu un ticket d'invitation déposé par un autre _utilisateur_.
+- le ticket a une durée de vie limitée.
+- le code du ticket parvient par un moyen externe (mail ...).
+- le nombre de tickets généré par un utilisateur est limité (N par mois / an ...).
+
+Un _safe_ n'ayant ni credentials ni invitations en cours pourrait avoir une vie brève: ça ne dissuade pas d'en créer mais au moins ils s'auto-détruisent.
+- bref un safe qui vient d'être créé est _en sursis_ tant qu'il a déposé une demande d'invitation et n'a pas pu valider une acceptation. 
+- après, il reste soumis à la règle du dernier mois d'accès + N.
+
+### Garbage Collector des documents
+Solution générique à rechercher.
+- en partie liée, peut-être, avec le décompte de la consommation des ressources ?

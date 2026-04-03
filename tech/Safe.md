@@ -40,7 +40,7 @@ Chaque utilisateur reçoit à sa création deux couples de clés asymétriques q
 
 Ces clés sont stockées dans l'objet _coffre fort_ de l'utilisateur, donc dans un _dépôt_ générique ou spécifique.
 
-**Les deux clés publiques C et V sont systématiquement stockées dans le dépôt générique** afin de rendre possible partout par exemple l'encryption d'un texte écrit par A à destination de B de manière à ce que B seul puisse le lire et être certain qu'il a été écrit par A (idem pour la signature / vérification d'un texte).
+**Les deux clés publiques C et V sont systématiquement stockées dans la base MASTERDIR (table SAFEPEMS)** afin de rendre possible partout, par exemple l'encryption d'un texte écrit par A à destination de B de manière à ce que B seul puisse le lire et être certain qu'il a été écrit par A (idem pour la signature / vérification d'un texte).
 
 ### Authentification _forte_ d'un utilisateur
 Un utilisateur enregistre son _coffre fort_ en fournissant,
@@ -53,176 +53,26 @@ Un utilisateur enregistre son _coffre fort_ en fournissant,
 - les pseudos comme les phrases secrètes ne sont connus en clair QUE de l'utilisateur: ils ne sont pas stockés et les retrouver par _force brute_ par un pirate est impossible, du moins pour une phrase assez longue respectant quelques règles simples.
 - l'utilisateur peut choisir sans aucun risque un pseudo simple qui lui est familier comme un numéro de mobile, une adresse e-mail, son prénom et nom, etc. Il n'y a que lui qui en aura connaissance.
 - l'utilisateur peut changer ses codes d'accès, principal et secondaire, à condition d'en connaître un des deux.
-- l'utilisateur n'a aucune raison de confier à qui que se soit son _pseudo principal_ mais il pourra, à titre temporaire, confier son pseudo secondaire à un tiers dans le cas suivant.
+- l'utilisateur n'a aucune raison de confier à qui que se soit ses _pseudos_.
+
+### Phrase de contact
+L'utilisateur peut déclarer à tout instant une phrase de contact de son choix à condition que cette phrase ne soit pas déjà une phrase de contact enregistrée par un autre utilisateur.
+- il peut supprimer ou changer celle-ci à son gré.
 
 ### Transmission d'un droit d'accès
-Depuis une application, un utilisateur B peut **transmettre un droit d'accès** à un utilisateur A en utilisant le pseudo _secondaire de A_, que ce dernier lui a obligeamment transmis par le canal de son choix:
-- rien n'empêche A de changer aussitôt après son _pseudo secondaire_ afin de ne pas recevoir d'autres droits de la part d'autres utilisateurs.
+Depuis une application, un utilisateur B peut **transmettre un droit d'accès** à un utilisateur A en utilisant _la phrase de contact de A_, que ce dernier lui a obligeamment transmis par le canal de son choix:
+- rien n'empêche A de changer celle-ci aussitôt après afin de ne pas recevoir d'autres droits de la part d'autres utilisateurs.
 - pour A, recevoir un droit _non sollicité_ est en lui-même un acte sans risque:
   - il n'est pas obligé de s'en servir,
   - il peut le supprimer à sa guise de sa liste des droits,
   - ça donne à A (le récepteur) des possibilités supplémentaires mais n'en donne aucune à B (le transmetteur).
   - encore faut-il que le droit transmis ouvre dans le service correspondant un véritable accès valide pour le service.
-- c'est un des procédés permettant de recevoir des _invitations_.
+
+> Au lieu de la _phrase de contact_ on peut utiliser le pseudo principal ou secondaire: toutefois ceux-co n'ont pas vocation à être communiqués.
 
 # Gestion des _credentials / droits d'accès_ dans les applications
 
-Une application `myApp1` met en jeu deux couches de logiciels:
-- `myApp1` l'application terminale s'exécutant typiquement dans un browser Web et dont le source est lisible et délivré par un serveur statique / CDN.
-- `svc1 svc2 ...` des services s'exécutant dans le _cloud_ en exécutant des opérations de mise à jour et d'extractions / synchronisations de données.
-
-Les opérations d'un service exécutées dans le _cloud_ comme les données qu'il peut synchroniser avec l'application qui y est abonnée, sont soumises à des **droits d'accès**: d'une manière ou d'une autre l'utilisateur derrière l'application terminale doit prouver qu'il possède effectivement les _droits requis_ pour solliciter une opération afin de mettre à jour et / ou obtenir des données centrales. 
-
-## Droit d'accès: identification et clé de signature
-
-Un _droit d'accès / credential_  définit le **rôle** que peut endosser l'utilisateur qui le détient vis à vis d'un **service** pour une **organisation** donnée.
-
-En d'autres termes il permet à un utilisateur `U1` d'agir par exemple pour un service `mag` de gestion d'une chaîne de magasins en tant que ...
-- `stock` : gestionnaire du stock `boisson` du magasin de `Paris13`,
-- `manager` : manager régional pour `IDF`,
-- `employe` : employé `Bob` au magasin `Paris13`.
-
-où,
-- `IDF` est le code **l'organisation** regroupant les magasins de la région,
-- `Paris13` est le code d'un des magasins de cette région,
-- `Bob` est l'id d'un employé travaillant au magasin Paris13.
-
-Pour un service `mag`, un droit est identifié par le triplet `[role, org, entid]`,
-- `role`: le code d'un des rôles connus par le service: `stock cpt employe ...`
-- `org`: le code d'une des organisations enregistrées par l'opérateur du service `mag`: `IDF PACA ...`
-- `entid`: identifiant local ,
-  - pour un rôle de _gestionnaire de stock_ l'identifiant d'un stock, par exemple `Paris13.boisson`,
-  - pour un rôle de _comptable régional_ **rien**.
-  - pour un employé par exemple `Paris13.Bob`.
-
-**Remarques:**
-- les **rôles** sont en nombre limité pour un service donné: leurs codes sont associés par les applications utilisant ce service à des libellés humainement lisibles / traduits le cas échéant en plusieurs langues.
-- les **codes des organisations** sont supposés être _bien connus_ des utilisateurs, interprétables humainement en fonction de leur valeur: _Ile de France_ pour IDF ... Le cas échéant les applications peuvent disposer de listes fermées quand elles sont stables.
-- les `entid` sont des identifiants opaques, parfaitement abscons: _gTc45bn-r_ ... C'est pourquoi un _droit d'accès_ dispose d'un **_à propos_** (`about`) en clair donné à l'attribution du droit par exemple _Bob Joyeux à Paris 13_. Le _commentaire / à propos_ peut être modifié par le détenteur du droit.
-- un `entid` n'est pas obligatoire: quand un rôle a la portée de l'organisation (par exemple `manager`), son texte est vide.
-
-> **L'identifiant** d'un droit est relatif à un service et est calculé par hash du triplet `[role, org, entid]`.
-
-### Clé de signature
-C'est un enregistrement de type PEM définissant une **clé privée de signature** dont le texte d'environ 400 caractères ressemble à : 
-
-    -----BEGIN PRIVATE KEY-----
-    MIGbMBAGByqGSM49AgEGBSuBBAAjA4 ... z3Dw=
-    -----END PRIVATE KEY-----
-
-Un **hash court** sur 15 caractères de cette clé l'identifie sans la citer.
-
-**Synthèse:** un _droit d'accès / credential_ pour un service donné a les propriétés suivantes:
-- `svc` : code du service.
-- `id` : hash court de `[role, org, entid]`.
-- `about`: un texte court _à propos_ du `entid`.
-- `role`: un des codes de rôle connu du service.
-- `org`: le code de l'organisation.
-- `entid`: un identifiant interprétable pour le service.
-- `entkey`: une clé AES spécifique de l'entité, cryptée par la clé K de l'utilisateur et mise en base 64.
-- `pems`: le texte de 400c.
-- `hpems`: le hash court de `pems`.
-
-##### `entkey`
-Chaque entité, par exemple un employé, _peut_ avoir certaines données dont on souhaite qu'elles soient _opaques_ pour le service et la base de données:
-- celles-ci sont cryptées par une clé AES attribuée à la création de l'entité mais non stockée dans celle-ci.
-- l'application créatrice crypte cette clé AES générée et la stocke dans la propriété `entkey` du droit d'accès à cette entité.
-- seule l'application peut ainsi lire les données _confidentielles_ de l'employé, mais pas le service ni un _hacker_ ayant détourné la base de données.
-
-Quand l'utilisateur A veut transmettre le droit d'accès à un utilisateur B, la valeur de `entkey` étant cryptée par la clé K de A ne sera pas utilisable par B. Pour résoudre ce problème, lors de la transmission:
-- A décrypte `entkey` par sa propre clé K,
-- ré-encrypte celle-ci par la clé publique de cryptage de B (associée à sa propre clé privée).
-
-Quand B reçoit un _droit transmis par A_,
-- il décrypte `entkey` par sa clé privée de décryptage (associée à la clé publique de A),
-- il ré-encrypte celle-ci par sa clé K dans le droit reçu.
-
-> A et B se sont ainsi échangé la clé AES confidentielle de l'employé sans que cette clé n'ait jamais été stockée en clair nulle part, ni ne soit accessible dans les services, seules les applications ayant reçu un droit d'accès transmis par un utilisateur la détenant peuvent décrypter ces données confidentielles.
-
-### Le _credential_ admin
-Il correspond au rôle d'administration technique du service et peut être détenu par un utilisateur normal. Il a les particularités suivantes:
-- son `role` est `admin`.
-- `org` vaut `*` par convention.
-- `entid` est vide.
-
-#### Stockage des droits d'accès dans un _safe_
-Les droits sont stockés dans le **coffre fort / safe** de l'utilisateur détenteur (regroupés par application). Chaque droit y est mémorisé, accessible par son `id`,
-seul la propriété `about` pouvant être mise à jour par l'utilisateur.
-
-## Vérification des _droits d'accès_ par _jetons signés_
-### Enregistrement d'un droit d'accès par un service
-Pour être actif un droit d'accès doit être enregistré par le service dans la base de données de l'organisation indiquée dans le droit.
-
-Pour un droit l'application a généré un couple de clés de _signature (privée) / vérification (publique)_ sous forme de PEM (`pems` / `pemv`).
-
-Dans de coffre fort de l'utilisateur, il a été enregistré pour ce service `{ id, about, role, org, entid, entkey, pems, hpems }`.
-
-Des opérations _normales_ du service enregistrent les droits d'accès, modifient leur conditions d'application et les suppriment. Chaque opération d'enregistrement reçoit en argument:
-- `org`: l'organisation concernée, toutes les opérations ont toujours cet argument.
-- `id`: l'id du droit à enregistrer.
-- `role`: rôle du droit.
-- `entid`: l'identifiant de l'entité concernée.
-- `hpems`: le hash du PEM de la clé de signature.
-- `pemv`: le PEM de la clé publique de vérification de la signature.
-- `info`: la sérialisation d'un objet fixant auprès du service, si nécessaire, des informations supplémentaires de justification, comme par exemple:
-  - un jeton d'invitation,
-  - des restrictions à associer au droit: _lecture seulement, _seuil xyz limité à 50_ ...
-- `proof`: la signature par l'application du hash de `[org, role, entid, hpems, info]` par la clé privée de signature du droit. Le service recevant la clé publique `pemv` peut vérifier cette signature et s'assurer ainsi de la validité des arguments précédents.
-
-A partir de ces données et de l'état des documents en base de données, l'opération d'enregistrement construit un objet `cond` qui détaille les conditions précises d'exercice du droit:
-- _des flags_ éventuels restrictifs / qualificatifs: _droit d'écriture, de lecture, d'administration, d'invitation ..._
-- _des seuils_ et limites diverses: _volume maximal, seuil d'autorisation de commande ..._
-- _une date limite de validité_ ...
-
-### Enregistrement par le service dans un document `Credential`
-Un document `Credential` traduit la validité d'un credential et fixe ses conditions spécifiques d'exercice par les propriétés suivantes:
-
-Groupe de propriétés identifiantes:
-- `userId` : identifiant de l'utilisateur. Définit une _collection_: un utilisateur peut s'abonner à la liste de **ses** _credentials_ et être notifié des nouveaux credentials qui ont pu être inscrits pour lui.
-- `role` : rôle du credential.
-- `entid` : identifiant de l'entité cible. 
-  - Le couple `[role , entid]` est indexé afin de pouvoir retrouver tous les droits attribués à une entité donnée.
-- `hpems`: hash du PEM de signature.
-
-Autres propriétés:
-- `pemv`: PEM de la clé de vérification.
-- `setterId`: identifiant localisé de l'utilisateur ayant enregistré le credential. Cette propriété est indexée de manière à ce qu'un utilisateur puisse retrouver la liste des _credentials_ qu'il a émis.
-- `cond`: conditions spécifiques d'exercice: _flags_, _seuils et limites_, etc.
-- `limit`: date-heure limite de validité du credential.
-
-Informations textuelles:
-- `infos`:  celle que l'émetteur `setterId` a inscrit pour lui-même pour retrouver plus tard à qui et pourquoi il a déclaré ce credential. Elle est cryptée pour lui-même (par sa clé K). 
-- `infou` : celle non cryptée que l'émetteur a inscrite pour l'utilisateur réceptionnaire du credential cryptée par la clé publique de cryptage de `userId`.
-
-La **cible** d'un credential  est le couple `role entid`: _l'utilisateur agit en tant qu'employé Bob ..._ Pour une même cible, l'utilisateur _peut_  avoir fait enregistrer plusieurs _versions_ d'un droit dans le cas d'un droit à renouveler périodiquement: 
-- par exemple il détient le droit actuel valide jusqu'au 15 janvier et le droit futur valide depuis le 2 janvier par exemple. 
-- `hpems` est nécessaire pour compléter l'identifiant d'un credential attribué à un utilisateur.
-
-Un document Credential ne peut que subir deux types de mise à jour:
-- **mise à jour par l'utilisateur déclarant** `setterId` du credential de:
-  - `cond` peut évoluer. Des opérations peuvent restreindre / augmenter les conditions d'exercice en fonction de critères fonctionnels, en particulier en jouant sur une propriété _date limite de validité_.
-  - `limit infos infou`.
-- **destruction**: le document peut être détruit, son droit associé est révoqué.
-
-> La destruction ne laisse pas de trace historique: la _destruction logique_ par changement de la date limite et réattribution d'un autre droit avec une limite différente laisse apparaître les périodes successives de validité.
-
-## Jetons signés attachés à l'appel d'une opération
-Toute opération a un argument `authTokens` qui vise à lui permettre de décider ce qu'elle peut faire sur quoi. Ses propriétés sont les suivantes:
-- `userId` : identifiant localisé de l'utilisateur.
-- `time`: date-heure de demande de l'opération.
-  - pour un `userId` donné elle est toujours en croissance stricte,
-  - elle n'est pas _trop_ en retard par rapport à la date-heure technique connue du service.
-- `tokens`: un objet structuré pour stoker des jetons contenant `{ role, credId, hpems, sign }`:
-  - `credId` `hpems` donne au service avec `userId` la clé d'accès au document `Credential` enregistré correspondant. S'il n'existe pas le droit est refusé.
-  - `sign` est la signature du couple `[userId, time]` par la clé de signature du droit. Cette signature est vérifiée par la clé `pemv` trouvée dans le document.
-    - si la vérification échoue, le droit est refusé.
-    - si elle réussit,
-      - le document `Credential` est récupéré (sauf dans le cas de rôle de type admin), et ses données de cond sont confrontées à celle du token pour déterminer, a) si le droit est validé, b) si oui dans quelles conditions d'exercice, le résultat étant le couple `cond limit`.
-      - cet objet est ajouté au _token_ qui est accessible dans le contexte d'exécution de l'opération `role, entid`. L'opération peut ainsi décider ce qu'elle peut ou non faire et retourner comme données en fonction des propriétés de `cond limit`.
-
-Un _cache_ en mémoire des services conserve le `time` de la dernière opération émise pour chaque `orguserId` afin de pouvoir vérifier que les `time` sont bien en croissance. 
-
-> Ce contrôle n'est pas _absolu_: un service peut avoir N process en exécution à un instant donné. Il est certes parfois possible de configurer une _affinity_ de sorte que toutes les requêtes d'une même source soient routées vers le même process (du moins tant qu'il est vivant). Un service _piratant_ un token a bien peu de temps et de chances de pouvoir le retransmettre à une application _pirate_ lançant des requêtes avec un token usurpé dont la durée de vie est très courte. 
+Voir dans _[Architecture pour des applications réactives](../Applications.html)_ le détail sur le mécanisme des _credentials_ et leur signature.
 
 ## Discussion: _Signature / Vérification_ versus _pass-phrase_
 #### Mode _pass-phrase_
@@ -269,26 +119,31 @@ Depuis un browser _sain_, l'appel d'une URL en HTTPS reste le procédé le _plus
 
 > Ces conditions sont possibles à vérifier pour une _application_ Web, en revanche il n'existe aucun procédé technique permettant à un utilisateur de savoir si le logiciel d'un service est bien celui dont les sources (en Open Source) seraient disponibles dans un repository public: il faut _faire confiance_ à l'opérateur délivrant ce service.
 
-# Le module _safe terminal_ et le service _safe générique_
+## Le module _safe terminal_ et le service _safe générique_
 
 Le module _safe terminal_ est embarqué dans les applications, comme _module utilitaire_.
 
 Le service _safe générique_ est mis à disposition par un opérateur indépendant des applications et reçoit des requêtes émises depuis les modules _safe terminal_ embarqués dans les applications.
 
-Ce couple _module / service (générique ou spécifique)_ a pour objet de gérer le _coffre fort_ des utilisateurs.
+Un service _safe spécifique_ est un script générique simple écrit en PHP et à déployer sure un site Web ayant une base MySql (dont le schéma est fourni).
 
 Après avoir lancé l'application _myApp1_ depuis son terminal, un utilisateur lui indique quel est son _coffre fort_ afin d'accéder en toute sécurité aux données confidentielles qui le concerne.
 - soit localisé dans le _dépôt générique_ qui a une URL publique,
-- soit localisé dans un _dépôt spécifique_ dont l'URL est celle du site Web le gérant: l'utilisateur devra en conséquence citer cette URL:
-  - il peut utiliser une variante de l'application dont la configuration a enregistré celle-ci à la place de celle du _dépôt générique_.
-  - il peut utiliser un _raccourci_ dont l'URL est semblable à celle-ci:
+- soit localisé dans un _dépôt spécifique_ dont l'URL est celle du site Web le gérant: l'utilisateur devra en conséquence citer directement ou non cette URL.
+
+L'application peut mémoriser quelques URLS de _dépôts spécifiques_ avec un code simple à sélectionner dans une liste ce qui donne une URL.
+
+Sinon l'utilisateur doit citer son URL.
+
+Enfin il peut utiliser un _raccourci_ d'application dont l'URL est semblable à celle-ci:
   
   https://lesbellesapps.github.io/myapp1?https%3A%2F%2Fmodepot.truc.com%3A8087%2Fsafe.php
-  Laa partie après ? correspond à l'URL du dépôt:
+  La partie après ? correspond à l'URL du dépôt:
   https//modepot.truc.com:8087/safe.php
 
 
-### Sessions et _profils_ de sessions
+# Sessions et _profils_ de sessions
+
 Quand un utilisateur lance une application _myapp1_ depuis un _terminal_ il ouvre une session, identifiée de manière unique pour cette application: sur un _terminal donné_, une seule session peut s'exécuter à un instant donné pour l'application _myapp1_.
 
 A l'ouverture d'une session de l'application _myapp1_ l'utilisateur dispose potentiellement de la liste de **tous** les droits acquis antérieurement pour cette application:
@@ -297,7 +152,7 @@ A l'ouverture d'une session de l'application _myapp1_ l'utilisateur dispose pote
 
 Ainsi ultérieurement quand l'utilisateur voudra ré-ouvrir une session en tant _qu'employé Bob_, il désignera ce _profil_ dans la liste de ses profils enregistrés.
 
-### _Préférences_ d'un utilisateur
+# _Préférences_ d'un utilisateur
 Au cours d'une session d'une application _myapp1_, l'utilisateur peut fixer un certain nombre de _préférences_,
 - la langue de travail,
 - le mode clair ou foncé,
@@ -313,7 +168,7 @@ En ré-ouvrant une session de l'application _myapp1_ l'utilisateur peut de cette
 - soit le jeu des préférences par défaut,
 - soit celui choisi dans la courte liste qui lui est présenté.
 
-### Terminaux _de confiance_
+# Terminaux _de confiance_
 Un utilisateur qui veut utiliser une application depuis un _terminal_ est placé devant deux cas de figure:
 - **soit il n'a pas confiance dans ce _terminal_** partagé par des utilisateurs _inconnus_, comme au cyber-café ou celui d'une connaissance qui le lui a prêté temporairement:
   - il ne doit pas y laisser quelque information que ce soit, aucune trace de son utilisation de l'application,
@@ -327,12 +182,12 @@ Un utilisateur peut déclarer sa _confiance_ au _terminal_ qu'il utilise:
 - le _terminal_ enregistre localement la référence à cette déclaration de confiance avec des éléments cryptographiques utilisables par ce seul utilisateur.
 
 Lancer une application depuis un appareil _de confiance_ a plusieurs avantages:
-- **authentification simplifiée** de l'utilisateur en donnant un code PIN court pour accéder à _coffre fort_ au lieu du couple plus long d'authentification _forte_ (pseudo et phrase secrète).
-- **disposer sur ce terminal de _mémoires caches persistantes et cryptées de documents_** pour chaque _profil_ de session ce qui lui permet d'ouvrir une session,
+- **authentification simplifiée** de l'utilisateur en donnant un code PIN court pour accéder au _coffre fort_ au lieu du couple plus long d'authentification _forte_ (pseudo et phrase secrète).
+- **disposer sur ce terminal de _mémoires caches persistantes et cryptées de documents_** en **épinglant** un _profil_ de session sur le terminal ce qui lui permet d'ouvrir une session,
   - en mode _réseau_ en minimisant le nombre de documents à récupérer des serveurs,
-  - en mode _avion_ (sans accès au réseau) avec accès en lecture aux documents dans l'état où ils se trouvaient lors de la dernière fin de session en mode _réseau_ sur ce _terminal_.
+  - en mode _avion_ (sans accès au réseau) avec accès en lecture aux documents dans l'état où ils se trouvaient lors de la dernière fin de cette session en mode _réseau_ sur ce _terminal_.
 
-## Sections d'un _objet coffre fort_
+# Sections d'un _objet coffre fort_
 La base de données du service _Safe_ enregistre les données de chaque _safe_ dans un _objet sérialisé_ de format indépendant de la technologie utilisé par le service _safe_ ce qui permet une exportation / importation de son contenu entre dépôts générique et spécifiques.
 
 Cet _objet_ a plusieurs sections:
@@ -341,6 +196,7 @@ Cet _objet_ a plusieurs sections:
 - `creds` : la section conservant les données cryptographiques et descriptives de chaque droit d'accès relatifs aux services pouvant être sollicités.
 - `profiles` : la section enregistrant les _profils_ conservés pour chaque application.
 - `prefs` : la section des _settings_ où l'utilisateur peut enregistrer les jeux de paramètres de préférence de comportement et d'affichage de ses applications favorites.
+- `invits` : cette section conserve un _pointeur_ vers chaque demande d'invitation enregistrée par l'utilisateur, sachant que chacune a une durée de vie de quelques jours avant destruction (voir les _Invitations_ dans le document _Application_.)
 
 ### Section `auth`
 
@@ -366,7 +222,7 @@ L'utilisateur donne:
   - `r0` est un pseudo / prénom-nom / adresse mail / numéro de téléphone / etc. (12 signes au moins) qui identifie de manière unique le _safe_ (`hr0` le SH de `r0` est un index unique) et qui peut être égal à `p0`.
   - `r1` est une phrase secrète _longue_ d'au moins 24 signes. Il n'est pas judicieux qu'elle soit égale à `p1` puisqu'elle permet justement la récupération du safe en cas d'oubli de `r0, p0`.
   - `hhr1` est le SHA court de `SH(r1)`.
-- `pseudo`: un nom court compréhensible par les propriétaires des _terminaux_ de confiance, par exemple `Bob`, crypté par la clé K et encodé en base 64.
+- `pseudo`: ce nom court compréhensible par les propriétaires des _terminaux_ de confiance, est enregistré à la première _certification de confiance d'un terminal_ et est crypté par la clé K et encodé en base 64.
 
 La clé `K` du safe est stockée,
 - dans `Ka` et `Kr` cryptages respectifs par  `SH(p0, p1)` et `SH(r0, r1)` et encodés en base 64.
@@ -393,6 +249,9 @@ Pour changer `p0, p1` et/ou `r0, r1` l'utilisateur doit fournir,
 - `hhk` : SHA court de `SH(K)`.
 - `Ka` : clé `K` du safe cryptée par `SH(p0, p1)` en base 64.
 - `Kr` : clé `K` du safe cryptée par `SH(r0, r1)` en base 64.
+- `contact` : pseudo temporaire de contact externe crypté par la clé K.
+- `hct` : SH du contact en b64 (indexé en base).
+- `admins` : cryptage de l'encode de la liste des couples SVC.$OP dont l'utilisateur a déclaré être l'administrateur ce qui est vérifié lors de la déclaration mais subsiste même quand il ne l'est plus.
 - `pseudo` : pseudo crypté par la clé K du _safe_ et mis en base 64.
 
 ### Section `devices`
@@ -419,7 +278,7 @@ Cette section est un objet _map_,
 
 Un _droit transmis_ est décrypté à première utilisation par son destinataire qui le réinsère après ré-encryptage par sa clé K comme droit _normal_: cette procédure authentifie mutuellement transmetteur et destinataire sans exposer leurs propres propriétés cryptographiques privées.
 
-> Une application qui prévoit de _transmettre un droit_ entre utilisateurs doit être en mesure de disposer de leurs clé publiques, typiquement depuis leur _pseudos secondaires_.
+> Une application qui prévoit de _transmettre un droit_ entre utilisateurs doit être en mesure de disposer de leurs clé publiques, typiquement depuis leur _phrase de contact_.
 
 ### Section `profiles`
 Cette section est un objet _map_,
@@ -438,6 +297,19 @@ Cette section est un objet _map_,
   - _valeur_: sérialisation de `[time, obj]` encodé en base 64, où:
     - `time` : _epoch_ de dernière mise à jour de la préférence_.
     - `obj`: objet de préférence `{ n1: v1, n2: v2 ... }` dont tous les `vi` sont des string ou entier (sur 32 bits).
+  
+### Section `invits`
+C'est une map avec une entrée par _invitation_ (clé: `invitId`) conservée pendant quelques jours.
+
+Cet objet a les propriétés suivantes:
+- `invitId`: ID aléatoire générée à la création.
+- `svc`: service concerné.
+- `org`: organisation concernée.
+- `time`: date-heure (_epoch_ en secondes) de création.
+- `major`: code _majeur_ de l'objet de l'invitation.
+- `minor`: code _mineur_ (facultatif) complémentation de l'objet de l'invitation.
+- `status`: _déposée, acceptée, refusée, validée, déclinée, annulée_.
+- `comment`: commentaire pour le seul usage de l'utilisateur U ayant fait la demande.
 
 ## Accès d'une application terminale à un _safe_
 ### Depuis n'importe quel _terminal_ (de confiance ou non)
@@ -593,11 +465,3 @@ TODO
 
 ## Schéma de la base MySQL
 TODO
-
-# Questions ouvertes
-
-### Comment éviter une inflation incontrôlable de création de _safes_ fantômes
-Un utilisateur ne pourrait créer un _safe_ qu'après avoir obtenu un ticket d'invitation déposé par un autre _utilisateur_.
-- le ticket a une durée de vie limitée.
-- le code du ticket parvient par un moyen externe (mail ...).
-- le nombre de tickets généré par un utilisateur est limité (N par mois / an ...).

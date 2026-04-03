@@ -15,7 +15,10 @@ Les utilisateurs peuvent exécuter une **application** sur un de leurs _appareil
 ### Les "services" de traitement des données
 Un **service** porte un nom et est localisé par une URL:
 - un service supporte plusieurs **opérations**. 
-- les opérations sont demandées par une application. Une opération reçoit en entrée des paramètres, effectue le traitement demandé et retourne un résultat qui en général va influer sur l'affichage de l'application l'ayant sollicitée.
+- les opérations sont demandées par une application. Une opération,
+  - reçoit en entrée des paramètres, 
+  - effectue le traitement demandé, 
+  - retourne un résultat qui en général va influer sur l'affichage de l'application l'ayant sollicitée.
 
 En première approche lorsqu'une opération d'un **service** est invoquée, un programme démarre _quelque part sur Internet_, exécute le traitement demandé puis s'arrête.
 
@@ -44,7 +47,7 @@ Toutefois, ce mécanisme peut conduire à avoir une base de données trop volumi
 
 > Vu de l'extérieur c'est _comme si_ il n'y avait qu'une base unique et même c'est _comme si_ celle-ci était dédiée à l'organisation spécifiée en paramètre de chaque opération du service.
 
-> **L'intégration des données provenant de plusieurs services** se fait au niveau des applications. Par clarté de conception mais surtout parce qu'invoquer une opération demandes _credentials_ cryptés qui ne sont détenus que par les applications mais jamais par les services.
+> **L'intégration des données provenant de plusieurs services** se fait au niveau des applications. Par clarté de conception mais surtout parce qu'invoquer une opération demande des _credentials_ cryptés qui ne sont détenus que par les applications mais jamais par les services.
 
 > L'intégration des données provenant de plusieurs organisations pour un service donné se fait au niveau des applications: une _opération_ ne traite qu'une organisation.
 
@@ -57,12 +60,12 @@ Le _storage_ est également partitionné par _organisation_.
 
 Comme pour une base de données, au cas où le volume l'exigerait, plusieurs _storage_ peuvent exister, chacun avec sa propre technologie le cas échéant.
 
-> Un _storage_ n'est pas non plus partagés par plusieurs _services_.
+> Un _storage_ n'est pas non plus partagé par plusieurs _services_.
 
 > Un storage permet de mémoriser des volumes considérables de données,
-- peu ou pas mises à jour après stockage,
-- dont le contenu est en général _opaque_ pour les services (mais ce n'est pas obligatoire),
-- adapté à l'archivage de données de _legacy_.
+>- peu ou pas mises à jour après stockage,
+>- dont le contenu est en général _opaque_ pour les services (mais ce n'est pas obligatoire),
+>- adapté à l'archivage de données de _legacy_.
 
 ### Les "Utilisateurs" et leurs _droits d'accès / credential_ 
 Les **utilisateurs** sont identifiés par un identifiant aléatoire et anonyme, sans référence avec des identifiants personnels dans la _vraie_ vie.
@@ -72,8 +75,8 @@ Depuis un appareil quelconque un utilisateur peut lancer une application dès lo
 Par exemple une opération d'accès aux données d'un `adhérent` identifié `abcd` va exiger que l'application communique à l'opération un _jeton_ qui prouve que l'utilisateur dispose du droit d'accéder aux données de cet adhérent. Le _droit_ requis peut être différent selon que l'opération effectue une lecture ou une mise à jour de l'adhérent.
 
 Un _droit d'accès_ comporte deux parties:
-- **une partie conservée par l'utilisateur** dont le texte comporte les éléments cryptographiques lui permettant de _signer_ chaque jeton attaché une demande d'une opération.
-- **une partie conservée dans la base de données** qui permet à l'opération de _vérifier_ que le _jeton_ reçu en paramètre de l'opération est effectivement valide et contient bien les données qu'il prétend détenir.
+- **une partie conservée par l'utilisateur** dont le texte comporte les éléments cryptographiques lui permettant de _signer_ chaque jeton attaché à une demande d'une opération.
+- **une partie conservée dans la base de donnéesdu service pour l'organisation souhaitée** qui permet à l'opération de _vérifier_ que le jeton reçu en paramètre de l'opération est effectivement valide et contient bien les données qu'il prétend détenir.
 
 Ce mécanisme détaillé par ailleurs permet,
 - de ne pas stocker dans la base de données les éléments de _signature_,
@@ -84,9 +87,9 @@ Chaque _droit d'accès_ est un texte long, comportant des textes d'apparence al�
 
 L'utilisateur pourrait certes disposer d'un fichier personnel où il les rangerait mais la sécurité et l'accès depuis plusieurs terminaux à ce fichier exposerait ces données de sécurité _critiques_ aux pertes et aux vols.
 
-Chaque utilisateur dispose à cet effet d'un _coffre-fort_ personnel où ses droits d'accès seront rangés, cryptés et sécurisés. 
+Chaque utilisateur dispose à cet effet d'un _coffre-fort_ personnel où ses droits d'accès sont rangés, cryptés et sécurisés. 
 
-Le _coffre-fort_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou l'inverse un utilisateur est identifié par le numéro de son coffre). Il comporte plusieurs _rubriques_:
+Le _coffre-fort_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou à  l'inverse un utilisateur est identifié par le numéro de son coffre). Il comporte plusieurs _rubriques_:
 - son **entête** qui détient les éléments cryptographiques techniques nécessaires à son fonctionnement.
 - la **liste de ses droits d'accès**.
 - une **liste de terminaux de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
@@ -101,14 +104,14 @@ Chaque utilisateur (ou groupes d'utilisateurs) peut installer son propre dépôt
 
 Des moyens sont données pour basculer du dépôt _standard_ vers un _dépôt spécifique_ (et réciproquement), ainsi que pour effectuer des _backup_: l'image d'un _coffre-fort_ peut être exportée crypté par une clé détenue par le seul utilisateur.
 
-> Le _contenu_ d'un coffre-fort est lisible _en clair_ **pour son propriétaire et seulement lui**, sauf que étant plein de données cryptographiques le terme _en clair_ est une vue de l'esprit.
+> Le _contenu_ d'un coffre-fort est lisible _en clair_ **pour son propriétaire et seulement lui**, ... mais étant plein de données cryptographiques le terme _en clair_ est un peu une vue de l'esprit.
 
 ### Exécution d'une application en _mode AVION_
-Quand un utilisateur a déclaré un ou des terminaux **de confiance** quand il y lance une session d'une application celle-ci peut utiliser une **mémoire cache de documents et fichiers**, cryptée et sécurisée sur le terminal.
+Quand un utilisateur a déclaré un ou des terminaux **de confiance** (les a _certifiés_) quand il y lance une session d'une application celle-ci peut utiliser une **mémoire cache de documents et fichiers**, cryptée et sécurisée sur le terminal.
 
-Depuis ce même terminal, l'utilisateur peut rouvrir une session qui s'est antérieurement exécutée sur ce terminal:
-- s'il a accès au réseau Internet, le lancement sera rapide du fait que beaucoup de documents n'auront pas à être redemandés aux services, étant déjà _en cache_.
-- s'il n'a pas accès au réseau Internet il peut rouvrir son application en **mode AVION** et accéder (en lecture seulement) aux documents disponibles en cache du fait d'une exécution antérieure.
+Depuis ce même terminal, l'utilisateur peut rouvrir une session qui s'est antérieurement exécutée sur ce terminal, elle y a été _épinglée_:
+- s'il a accès au réseau Internet, le lancement sera rapide du fait que beaucoup de documents n'auront pas à être redemandés aux services, étant déjà _en cache_ (cryptée) dans le terminal.
+- s'il n'a pas accès au réseau Internet il peut rouvrir son application en **mode AVION** et accéder (en lecture seulement) aux documents disponibles en cache du terminal du fait d'une exécution antérieure.
 
 ### Synthèse
 Les **applications** s'exécutent sur le terminal de l'utilisateur où elles ont été chargées depuis leur URL (ou un magasin d'applications).
@@ -117,7 +120,7 @@ Elles font appel à des **services de traitement des données** distants, chacun
 
 Chaque requête à une opération est dédiée à UNE organisation et n'accède qu'à la partition de la base de données dédiée à cette organisation et / ou du storage dédié à cette organisation.
 
-Tout **utilisateur** dispose d'un **coffre-fort** détenant en particulier ses _droits d'accès_ requis à l'appel des opérations des services par une application. Tout utilisateur peut décider de confier la gestion de SON coffre-fort, soit au **dépôt standard**, soit à un **dépôt spécifique** géré par le site Web de son choix.
+Tout **utilisateur** dispose d'un **coffre-fort** détenant en particulier ses _droits d'accès_ requis à l'appel des opérations des services par une application. Un utilisateur peut décider de confier la gestion de SON coffre-fort, soit au **dépôt standard**, soit à un **dépôt spécifique** géré par le site Web de son choix.
 
 # Installation des applications sur un _terminal_
 
@@ -186,41 +189,29 @@ Les données d'un service d'un opérateur sont stockées dans deux _mémoires pe
 
 ## Applications / services
 
-Une **application déployée** dispose dans sa configuration des URLs d'accès au(x) service(s) avec lesquels elle travaille:
-- le choix de l'opérateur **Rouge** ou **Bleu** pour le service `randos` par exemple est donc inscrit dans l'application déployée.
-- une même application logicielle peut en conséquence être déployée plus d'une fois, autant que d'ensemble d'opérateurs des services utilisés.
+> Une base de données MASTERDIR détient une petite table `SAFEURLS` ayant une ligne par _service_ qui donne la liste des opérateurs proposant ce service et son URL.
 
-Cette configuration des accès n'est pas noyée au milieu du logiciel: un utilisateur _terminal_ a les moyens techniques de vérifier que l'application déployée qu'il entend utiliser,
-- correspond bien au logiciel _officiel_ (et non pirate) mis en ligne en _source_ par son _éditeur_: sa version a pu être certifiée par une autorité de sécurité indépendante,
-- accède bien aux _services officiels_ prévus et non à des sites pirates.
+Une **application déployée** dispose dans sa configuration de l'URL d'accès à MASTERDIR ce qui lui permet d'obtenir pour le service `randos` par exemple les URLS pour les opérateurs **Rouge** ou **Bleu**.
+
+Un utilisateur _terminal_ a les moyens techniques de vérifier que l'application déployée qu'il entend utiliser,
+- correspond bien au logiciel _officiel_ (et non pirate) mis en ligne en _source_ par son _éditeur_: sa version a pu être certifiée par une autorité de sécurité indépendante.
+- accède bien aux _opérateurs officiels_ prévus et non à des sites pirates.
 
 > Il est possible d'accorder sa confiance à une application déployée d'un éditeur la rendant accessible en _open source_ parce qu'il est possible à une entité de certification externe à l'éditeur de vérifier la conformité de ses déploiements.
 
 ## Une application terminale peut accéder à plus d'une organisation
+> La table `SAFEORGS` du MASTERDIR dispose d'une ligne par _organisation_ donnant _pour chaque service_ le code de l'opérateur choisi par l'organisation.
+
 Dans le cas de l'application `randos`, un utilisateur peut être membre de plus d'une association de randonneurs: une pour ses randonnées près de chez lui, une autre pour les randonnées de montagne et une troisième pour les treks lointains. Depuis la même application il peut basculer d'une organisation à une autre.
 
 Un gestionnaire de boutiques peut par exemple gérer trois boutiques différentes (trois organisations) avec des rôles différents pour chacune.
 
 Les utilisateurs de Discord accèdent souvent à plusieurs _serveurs_ qui s'ignorent entre eux, ayant des sujets d'intérêt totalement différents.
 
-L'utilisateur qui ouvre sur son terminal son application `randos` peut disposer de pages de synthèse lui montrant ce qui est important pour chacune des associations auxquelles il participe. Pour agir effectivement sur l'une d'entre elles, il basculera sur une page d'accueil spécifique de l'association sélectionnée et ses actions de mises à jour ne porteront que sur celle-là.
-
-> L'application déployée utilisée désignant exactement pour chaque service l'URL de l'opérateur choisi, elle ne peut accéder à plusieurs organisations que pour autant qu'elles soient _hébergées_ chez le même opérateur du service. 
-
-### $$DISCUSSION$$
-Cette dernière contrainte peut être libérée à condition que _pour chaque organisation_ l'application terminale sache quel est l'opérateur l'hébergeant:
-- par une liste exhaustive embarquée dans la configuration: mais ceci impose un redéploiement d'application à l'apparition d'une nouvelle organisation.
-- par _préfixe_ du code de l'organisation (`r` pour `Rouge`, `b` pour `Bleu`) indiquant quel est son opérateur de service: le changement d'opérateur hébergeant pour une organisation implique dans ce cas le changement de son code:
-  - le transfert technique des données ne contenant pas le code de l'organisation, à l'occasion d'un changement d'opérateur une organisation peut donc changer de code.
-  - rendre pour les utilisateurs ce changement de code _transparent_ (plus ou moins) reste un défi ouvert. Mais faut-il que ce soit _transparent_ ? 
-  - le changement d'opérateur pour une _organisation_ est une opération qui va être rare et pas anodine. Quand un utilisateur se _trompe_ de code d'organisation, le service sollicité détecte qu'il ne l'a pas / plus chez lui et incite l'utilisateur à ressaisir son code, c'est un moyen pour lui rappeler que son code autrefois `rorg1` est désormais `borg1`.
-
-On peut aussi envisager un _DNS_ central indiquant pour chaque couple organisation / service, l'URL (ou le code) de l'opérateur correspondant: 
-- la gestion de ce _DNS_ implique un point de centralisation, des administrateurs, etc.
-- chaque service sollicité par une requête mentionnant une organisation qu'il ne gère pas / plus peut retourner à l'application appelante un _code de redirection_ donnant l'URL du service en charge obtenu du _DNS_: l'application peut gérer un cache de ces redirections afin d'éviter de sur-solliciter les appels au _DNS_.
+L'utilisateur qui ouvre sur son terminal son application `randos` peut disposer de pages de synthèse lui montrant ce qui est important pour chacune des associations auxquelles il participe. Pour agir effectivement sur l'une d'entre elles, il sélectionnera celle souhaitée et ses actions de mises à jour ne porteront que sur celle-là.
 
 # Exécution d'une application sur un terminal
-Sur un terminal donné, on ne peut pas lancer plus d'une exécution d'une application donnée, par exemple une seule application `randos`.
+Sur un terminal donné, pour une une application donnée, une seule exécution peut être active à un instant donné, par exemple une seule application `randos`.
 
 > Dans le cas d'une application Web-PWA, chaque browser (Firefox, Chrome ...) est vu comme un **terminal différent**: on peut avoir s'exécutant au même instant sur son PC, une même application sous Firefox ET sous Chrome (comme si on avait deux mobiles).
 
@@ -229,14 +220,14 @@ Sur un terminal donné, on ne peut pas lancer plus d'une exécution d'une applic
 - être en exécution en **arrière plan** : elle a été lancée mais est recouverte par d'autres.
   - sur un browser, c'est un autre onglet qui a le focus ou la fenêtre du browser est en icône: l'utilisateur peut cliquer sur son onglet pour l'amener au premier plan ou sur l'icône du browser dans la barre d'icônes pour l'afficher.
   - sur un mobile elle est cachée mais peut être ramenée au premier plan quand l'utilisateur la choisit dans sa liste des applications _ouvertes mais cachées_.
-- être **non lancée**: son exécution n'a pas encore été demandée, ou a été active puis fermée.
+- être **non lancée**: son exécution n'a pas encore été demandée (ou a été active puis fermée).
 
 ### Une application peut _envoyer_ des requêtes aux services
 C'est l'application qui appelle par son URL un service qui **traite la requête et retourne un résultat**.
 - requêtes et réponses peuvent être volumineuses.
 
 ### Une application peut _écouter_ des notifications émises par les services
-Une application donnée sur un appareil donné est identifiée par un _jeton_ qui une sorte de numéro de téléphone universel: tout service ayant connaissance de ce jeton peut envoyer des _notifications_ à l'application correspondante sur le poste correspondant.
+Une application donnée sur un appareil donné est identifiée par un _jeton_ qui une sorte de numéro de téléphone universel: tout service ayant connaissance de ce jeton peut envoyer des _notifications_ à l'application correspondante sur le terminal correspondant.
 
 Une notification ressemble à un SMS:
 - son texte est _court_ (certes plus long que celui d'un SMS).
@@ -257,9 +248,11 @@ Une notification ressemble à un SMS:
 - si l'utilisateur clique sur cette _popup_, l'application est lancée.
 
 ## Des applications _écoutantes_ réagissant au flux d'informations poussées
-Les applications **_sourdes_** classiques ne peuvent afficher des écrans que sur sollicitation de l'utilisateur. L'écran ne se remet à jour que suite à une action de l'utilisateur: si ce dernier ne fait rien, l'écran ne change pas et affiche des données plus ou moins anciennes qui ont pu être déjà modifiées par l'action d'autres utilisateurs, du temps qui passe, etc.
+Les applications **_sourdes_** classiques ne peuvent afficher des écrans que sur sollicitation de l'utilisateur. 
 
-Les applications **_écoutantes_** peuvent remettre à jour leurs écrans et données détenues localement même sans action d'un utilisateur simplement en fonction des _notifications_ poussées vers elles par les serveurs.
+L'écran ne se remet à jour que suite à une action de l'utilisateur: si ce dernier ne fait rien, l'écran ne change pas et affiche des données plus ou moins anciennes qui ont pu être déjà modifiées par l'action d'autres utilisateurs, du temps qui passe, etc.
+
+Les applications **_écoutantes_** peuvent remettre à jour leurs écrans et données détenues localement même sans action d'un utilisateur simplement en fonction des _notifications_ poussées vers elles par les serveurs. Elles _peuvent_ rester à l'écoute (même non lancée) et l'utilisateur peut, à réception d'une notification, rouvrir l'application d'un clic.
 
 # Les stockages des données
 
@@ -274,9 +267,9 @@ Elle gère les documents selon un mode _transactionnel_ (ACID).
 
 Elle gère aussi les _abonnements_ des applications terminales aux _documents (synchronisables)_ qui les intéressent: chaque application sur un appareil a un _token_ qui l'identifie de manière unique. 
 
-> Une _micro base de données locale_ pour chaque application / appareil peut détenir en _cache_ les _documents_ récemment demandés et les _abonnements_ en cours de l'application. 
+> Sur un terminal _certifié de confiance_ par un utilisateur, une _micro base de données locale_ pour chaque session d'application _épinglée_ détient en _cache_ les _documents_ récemment demandés et les _abonnements_ en cours de l'application. 
 
-Quand un ou des documents évoluent par exécution d'une opération, elle retrouve toutes les applications terminales abonnées et effectue une publication de notifications vers elles.
+Quand un ou des documents évoluent par exécution d'une opération, celle-ci retrouve toutes les applications terminales abonnées et effectue une publication de notifications vers elles.
 
 > Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plusieurs services, y compris si toutes les organisations de son domaine d'intérêt sont gérées par des opérateurs différents.
 
@@ -310,7 +303,7 @@ Une organisation dispose de ses propres données regroupées par **service**.
 - pour chaque **service** elle a choisi UN **opérateur**. 
 - l'opérateur d'un `organisation service` peut changer.
 
-Un `service opérateur`(une URL) dispose d'un document `singletons` de clé primaire `orgs` donnant pour chaque organisation le couple des codes de la base de données et du storage hébergeant ses données.
+Un `service opérateur`(une URL) dispose d'un document `singletons` de clé primaire `orgs` donnant _pour chaque organisation_ le couple des codes de la base de données et du storage hébergeant ses données.
 
     { "demo": ["sqlite_A", "storage_a"], "doda": [...] }
 
@@ -323,7 +316,7 @@ L'identifiant complet d'une opération est le couple _service opération_.
 
 ### Opérations d'administration d'un service d'un opérateur
 Son URL est celle de son `service opérateur` avec:
-- son **code d'opération** (relatif à son service) qui commence par `$`,
+- son **code d'opération** (relatif à son service) se termine par $ ce qui permet d'ouvrir la base de données par défaut du service (et non celle associée à l'organisation),
 - le code de l'opérateur `$OP`.
 
 ## Le directory central MASTERDIR
@@ -355,10 +348,9 @@ Comme pour le _Safe générique_, il n'y a qu'un seul MASTERDIR de production.
 #### Table `SAFEPEMS`
 Pour chaque utilisateur, enregistré ou non dans le _safe générique_, un row par utilisateur:
 - `key`: clé primaire, userId de l'utilisateur.
-- `v` : _epoch_ en secondes de mise à jour.
-- `value`: JSON des deux clés publiques de cryptage et vérification (sans les bannières ---BEGIN ...).
+- `value`: JSON des deux clés publiques de cryptage et vérification (avec les bannières ---BEGIN ...).
 
-    [ "abcd ...", "drfgh ..." ]
+    [ "---BEGIN PUB.. ---", "---BEGIN PUB.. ---" ]
 
 #### Table `SAFE`
 Pour les utilisateurs dont le safe est hébergé dans le MASTERDIR (générique).
@@ -370,7 +362,7 @@ C'est un document avec les colonnes: `id hp0 hr0 hct lam data`
 ### Status d'un `service opérateur`
 Un Administrateur d'un opérateur peut fermer / ouvrir séparément chacun des services déployés.
 
-Dans la base de données déclaré _de référence_ pour son URL, la table `singletons` à une entrée `status` qui donne en JSON:
+Dans la base de données déclarée _de référence_ pour son URL, la table `singletons` à une entrée `status` qui donne en JSON:
 
     { "at":1771588453502,"st":1,"txt":"hello world!" }
 
@@ -411,7 +403,7 @@ Tout utilisateur peut être reconnu _Administrateur Technique_ à l'hébergement
 - `MASTERDIRADMINUSERS` : pour le MASTERDIR,
 - `ADMINUSERS` : pour les autres services déployés.
 
-Lors du contrôle d'authentification à l'entrée d'une opération requérant un droit d'Administrateur, le userId du requérant est,
+Lors du contrôle d'authentification à l'entrée d'une opération requérant un droit d'Administrateur, le `userId` du requérant est,
 - certifié par vérification de la signature du _challenge_ par usage de la clé publique de vérification de cet utilisateur obtenu de la table `SAFEPEMS`,
 - par présence du `userId` dans,
   - la liste `ADMINUSERS` du déploiement d'UN service SVC / $OP.
@@ -421,7 +413,7 @@ Lors du contrôle d'authentification à l'entrée d'une opération requérant un
 Pour pouvoir afficher la page _Administration Technique_, un utilisateur doit auto-déclarer dans son _safe_ la liste des couples `SVC $OP` pour lesquels il a ce pouvoir:
 - quand il en ajoute un, le fait qu'il le soit réellement est vérifié.
 - si son `userId` a été retiré de la configuration, il doit remettre à jour cette liste.
-- sil ne s'inscrit pas de lui-même de facto il en perd le pouvoir simplement par impossibilité d'atteindre la page d'administration.
+- sil ne s'inscrit pas de lui-même de facto il ne peut pas atteindre la page d'administration.
 
 > La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS / MASTERDIRADMINUSERS` correspondante et en redéployant le logiciel.
 
@@ -443,7 +435,7 @@ Le row `org` de la table `SAFEORGS` est créé / mis à jour.
 > L'accès à l'organisation correspondante n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTERDIR_).
 
 ## Depuis les _Outils Techniques >> Status des Services_
-Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur _DU service_ SVC cité hébergé par _L'opérateur_ $OP cité.
+Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur _DU service_ `SVC` cité hébergé par _L'opérateur_ `$OP` cité.
 
 #### Le status de SVC / $OP 
 Il peut être mis à _UP ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
@@ -458,7 +450,7 @@ Elle consiste à attacher l'organisation à,
 - UNE des bases de données gérées par SVC / $OP,
 - UN des _storage_ gérées par SVC / $OP,
 
-> Cette configuration est déclarative seulement et ne permet en aucun cas un _transfert_ de base ou de storage, opérations lourdes gérées en ligne de commande par un administrateur système de l'opérateur.
+> Cette configuration est déclarative seulement et ne correspond pas à un _transfert technique_ de base ou de storage, opérations lourdes gérées en ligne de commande par un administrateur système de l'opérateur.
 
 ## Credentials
 UN _credential_ gère UN droit pour,
@@ -468,20 +460,18 @@ UN _credential_ gère UN droit pour,
 
 La cible du credential est identifiée par le couple `role/docId`:
 - `role` : UN rôle est matérialisé par le couple `classe.role`,
-  - d'UNE classe de document (par exemple `Redacteur`),
-  - et éventuellement d'un rôle complémentaire `chef` (quand l'entité correspondante peut être abordée selon plusieurs rôles).
+  - d'UNE classe de document (par exemple `Redacteur.`),
+  - et éventuellement d'un rôle complémentaire `Redacteur.chef` (quand l'entité correspondante peut être abordée selon plusieurs rôles).
 - `docId` est l'identifiant du document correspondant.
-  - quand `docId` est vide, le credential a pour cible TOUS les documents de la classe. C'est typiquement le cas pour `Org` n'ayant qu'un document _son ID 1_ n'est pas donnée.
+  - quand `docId` est vide, le credential a pour cible TOUS les documents de la classe. C'est typiquement le cas pour `Org.` n'ayant qu'un document _son ID 1_ n'est pas donnée.
 
-**Plusieurs _versions_** d'un _credential_ `userId SVC org role docId` peuvent exister au cours du temps: chaque version est distingué par `time` la date-heure en secondes de sa déclaration.
-
-> Une **ID aléatoire** est générée à la création d'une version d'un credential.
+> L'ID d'un _credential_ est le hash court de `userId/SVC/org/role/docId`. Pour une ID donnée **plusieurs versions successives** peuvent exister au cours du temps, chacune étant distinguée par son `time` la date-heure en secondes de sa déclaration.
 
 ### Les _faces_ "safe" et "document" d'un credential
 **La face _safe_ est enregistrée dans le _Safe_ de l'utilisateur**, avec:
-- la **clé privée de signature** de cette version du credential,
+- la **clé privée de signature** de cette version du credential (une version _ultérieure_ aura une nouvelle de signature),
 - quelques propriétés détaillées ci-après.
-- au détail près d'un _commentaire_ facultatif donné par l'utilisateur lui-même, cet objet est immuable.
+- au détail près du _commentaire_ facultatif donné par l'utilisateur lui-même, cet objet est immuable.
 
 **La face _document_ est un document enregistré dans la base de données du service**, avec:
 - la **clé publique de vérification** de cette version du credential.
@@ -503,7 +493,7 @@ La cible du credential est identifiée par le couple `role/docId`:
 ### Création d'une version d'un credential
 Elle peut être effectuée selon deux modes:
 - **attribution directe** à un utilisateur U par un utilisateur A _attributaire_.
-- **auto-attribution après invitation** par l'utilisateur U suite à une **invitation** générée par un utilisateur I _invitant_.
+- **auto-attribution après invitation** par l'utilisateur U suite à une **invitation** générée par un utilisateur SP _sponsor_.
 
 #### Attribution directe par A à U
 L'attributaire A _connaît_ l'utilisateur U, 
@@ -525,20 +515,17 @@ Cet enregistrement fait apparaître le credential dans un état _en attente_ dan
 
 > Dans ce mode d'attribution directe, **à la limite**, A peut attribuer des droits à U sans son accord, rien que par le fait qu'il connaît le `userId` ou le pseudo / phrase de `contact` de U.
 
-#### Auto-attribution par U suite à invitation de I
-Dans ce mode un utilisateur I a enregistré pour U un _document d'invitation_ qui va contenir toutes les données nécessaires à U pour s'auto-enregistrer. 
-- une partie de ces données peut être _cryptées_ par I pour n'être lisible que par U.
-- les autres propriétés serviront à l'opération d'enregistrement pour juger de son acceptabilité.
-
-Le processus par U est le suivant:
-- il accède au document _invitation_.
-- il génère un couple de clés signature / vérification pour la version de credential en création.
-- il fabrique les deux faces de sa version de credential.
-- il stocke sa face _safe_ dans son son safe.
-- il soumet le _document credential_ à une opération d'enregistrement en y joignant les références de son invitation. Cette opération vérifie la validité de la demande puis complète éventuellement le _document credential_ et l'enregistre.
-- en cas d'échec de cette opération il supprime sa version de credential de son _safe_.
-
-> Dans ce mode par invitation U n'a inscrit qu'un droit qu'il a sollicité et approuvé. En contrepartie, ça oblige U à a) solliciter une invitation, b) en attendre le retour. En mode attribution directe l'attributaire pouvait inscrire directement le droit de U.
+#### Process d'invitation de U par un _sponsor_ SP
+Ce process est décrit en détail dans le chapitre _Invitations_. Il a plusieurs phases:
+- **dépôt d'une demande motivée par U:**
+  - l'invitation est _déposéee_.
+  - dans cet état U peut avoir un remord et l'annuler: elle sera en état _annulée_.
+- **acceptation par un sponsor SP:**
+  - le sponsor a attaché quelques conditions à la demande qui passe en état _acceptée_.
+  - le sponsor peut aussi rejeter la demande avec un court texte explicatif, la demande passe en état _rejeté_.
+- **validation par l'utilisateur U**. Au vu des conditions inscrites par le sponsor ayant répondu, U peut:
+  - valider l'invitation qui passe en état _validée_.
+  - décliner l'invitation qui passe en état _déclinée_.
 
 ### Propriétés de l'objet face _safe_
 Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
@@ -550,30 +537,30 @@ Les autres propriétés sont:
 - `name`: le `docId` cible est un code ininterprétable humainement. Toutefois au moment de la création, le créateur peut connaître un _nom / libelle /etc._ explicitement lisible par un humain. Ceci peut aussi aider U quand il constitue un profil de session ne reprenant que _certains_ des credentials.
 - `skey` : une clé symétrique AES (facultative). Lire ci-après.
 
-Dans les documents certaines propriétés sont _lisibles_ par le service, d'autre sont _opaques_ pour le service.
+DPour certaines classes de documents, certaines propriétés sont _lisibles_ par le service, d'autre peuvent être _opaques_ pour le service.
 - **propriétés lisibles**: c'est l'état normal et le logiciel du service peut les utiliser dans ses traitements.
 - **propriétés opaques**: elles sont _cryptées_ par une clé qui n'est disponible QUE dans les applications terminales et sont en conséquences inutilisables par une opération du service.
 
 Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que la _clé AES_ qui a rendu ces données _opaques_ aux opérations du service, n'est PAS stockée dans la base de données du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
 
-Chaque utilisateur ayant un droit d'accès à ce _comité directeur_ disposera de cette clé dans la propriété `skey` du credential correspondant et pourra ainsi décrypter ces données _opaques_ pour les opérations du service.
+Chaque utilisateur ayant un droit d'accès à ce _comité directeur_ par exemple disposera de cette clé dans la propriété `skey` du credential correspondant et pourra ainsi décrypter ces données _opaques_ pour les opérations du service.
 
 `skey` a été transmise:
 - dans le cas d'une attribution directe par A: A en est détenteur lui-même.
-- dans le cas d'une auto-attribution suite à invitation, l'invitant I, lui-même détenteur de cette clé, l'a inscrite dans l'invitation (cryptée par la clé I / U) lisible que par U.
+- dans le cas d'une invitation, le sponsor doit être lui-même détenteur de cette clé, et peut l'inscrire dans l'invitation (cryptée par la clé SP / U) lisible que par U.
 
 > Il est toutefois possible que certaines clés d'opacité soient présentes dans un _document_ et non pas uniquement dans les _safes_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ `skey` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la `skey` _maîtresse_.
 
 ### Propriétés du _document_ stocké en base du service
 Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
-les propriétés `SVC org` ne sont stockées explicitement _dans_ le document (`org` est stockée à part et tous les documents de la base de données sont spécifiques du service `SVC`).
+les propriétés `SVC org` ne sont pas stockées explicitement _dans_ le document (`org` est stockée à part et tous les documents de la base de données sont spécifiques du service `SVC`).
 
 Les autres propriétés sont:
 - `pemv`: la clé publique de vérification générée pour cette version du credential.
 - `limit`: date-heure en secondes de la limite de validité de cette version. Si absente la validité est éternelle. Elle peut être mise à jour par une opération de prolongation / révocation.
 - `cond`: c'est un objet dépendant du rôle du credential contenant les données explicitant les conditions d'exercice du credential: _seuils divers, liste de permissions, etc._
 
-### L'objet `AuthRecord`
+## L'objet `AuthRecord`
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
 - `userId`: de l'utilisateur.
 - `sessionId`: identifiant de session.
@@ -582,18 +569,15 @@ Toute opération requérant la présence d'au moins un credential est sollicité
 - `userSign`: signature par la clé privée de signature de l'utilisateur, du _challenge_.
 - `signatures`: objet ayant une propriété par ID de credential inscrit dans le record donnant la signature du challenge par la clé privée de signature du credential.
 
-Au démarrage d'une opération, le `AuthRecord` joint est scanné et un compte rendu est généré sous forme d'une map `roles`:
-- _clé_: `docClass.role/docId`.
-- _valeur_: un objet ayant les propriétés suivantes:
-  - `cred`: la version du credential la plus récente dont la signature est bonne OU la plus récente (bonne signature ou non)
-  - `status`: _true_ si la signature est bonne.
-
-Le compte-rendu est _en échec_ s'il existe une entrée du compte-rendu en status _false_. Quand il existe plusieurs versions pour une même rôle `role.docId`, la plus récente à _true_ est gardée, il suffit donc _qu'une_ version soit acceptable pour valider le credential.
+Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 - si la signature du `userId` n'est pas validé, c'est un échec.
+- une map des  `docClass.role/docId` dont la signature a été vérifiée et validée est établie et pointe sur le document _credential_ correspondant.
+- la liste de ceux en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
 
-Dans le cours du traitement de l'opération, cette map est consulté pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du cond attaché au credential dont la version a été retenue.
+Dans le cours du traitement de l'opération, cette map est consultable par la logique de l'application pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du `cond` attaché au credential validé.
 
 # Invitations
+
 Un utilisateur est (sauf à la limite pour les Administrateurs Techniques) partie prenante d'une ou plusieurs _positions / rôles_: _auteur, relecteur, employé, dirigeant d'un département, gestionnaire d'un stock ..._ chaque position / rôle est matérialisé par l'existence d'un _document_ identifié sur lequel l'utilisateur a un _credential_ qui lui confère des possibilités d'actions plus ou moins large, voire la connaissance d'une clé de cryptage symétrique attachée à ce rôle.
 
 La création double d'un document **et** du credential associé s'effectue par le mécanisme des invitations qui met en jour deux intervenants:
@@ -601,95 +585,144 @@ La création double d'un document **et** du credential associé s'effectue par l
 - un utilisateur SP _sponsor_ qui va lui donner satisfaction (ou non).
 
 ### Protocole général
-- l'utilisateur créé une _invitation_ qui traduit son souhait: la position souhaitée (à créer ou non) et le credential d'accès.
+- **(1) l'utilisateur U créé une _demande d'invitation_** qui exprime ses attentes: pourquoi il souhaite voir accepter son invitation avec quelles caractéristiques ...
   - l'invitation est un document déposé dans la base de données du service correspondant pour l'organisation souhaitée. Son status est **déposée**.
   - le _safe_ de U en garde un _pointeur_ lui permettant de la lire.
-- un utilisateur SP _sponsor_ à l'écoute des nouvelles invitations déposées, traite celle-ci,
-  - en notant dans le document _invitation_ les données qui permettront lors de l'acceptation,
-    - de créer le cas échéant un document reflétant la position éventuelle souhaitée,
-    - de créer le _credential_ afférent.
+- **(2) un utilisateur SP _sponsor_ à l'écoute des nouvelles invitations déposées, traite celle-ci:** c'est le traitement d'acceptation.
   - ceci passe la status de l'invitation à **acceptée**, lequel status est répercuté dans le _safe_ de U.
-- l'utilisateur U voit, à sa prochaine connexion ou sur _rafraîchissement_ en cours de session que son invitation est acceptée et il l'ouvre:
-  - il y découvre le détail du droit accordé: en général il en est satisfait.
-  - il **confirme** l'invitation par une requête au service:
-    - le document correspondant (s'il y a lieu) est créé avec les données que le sponsor a pu fixer,
-    - le credential associé est créé.
-    -l'invitation est passé en status **validée** et n'a plus que quelques jours à vivre (et ne peut plus changer).
-  - il met à jour son _safe_,
-    - en intégrant le _credential_ reçu du service,
-    - en y effaçant le _pointeur_ vers son invitation qui n'a plus d'intérêt.
+- **(3) l'utilisateur U voit, à sa prochaine connexion ou sur _rafraîchissement_ en cours de session que son invitation est acceptée et il l'ouvre:**
+  - il y découvre le détail de la proposition du sponsor: en général il en est satisfait et la _valide_.
 
-### Rejet / décliner une invitation
+#### Traitement _d'acceptation_
+Le sponsor définit, depuis un formulaire spécifique du type d'invitation, les conditions d'acceptation de la demande qui s'appliqueront à sa validation finale:
+- si oui ou non des documemts seront à créer, avec quels ID, etc.
+- quels _credentials_ seront à enregistrer à cette occasion: les données afférantes sont stockées dans la demande d'invitation par le service et un résumé textuel en est généré afin que U puisse en comprendre les termes.
+
+#### Traitement de _validation_
+La _validation_ correspond à un traitement réparti entre application et service:
+- (1) l'application génère les couples de clés signature / vérification qui ont été requises par le sponsor pour les credentials à enregistrer (s'il y en a). Seules les clés publiques de vérification sont transmises à l'opération de validation par le service.
+- (2) l'opération de validation par le service:
+  - créé / enregistre les documents prévus et stockés dans l'invitation dans sa base,
+  - enregistre les _credentials_ prévus en y adjoignant les clés publiques de vérification reçues de l'application,
+- (3) l'application finalise la validation:
+  - enregistre dans son _safe_ les credentials éventuellement créés avec les clés privées de signature qui viennent d'être générées à l'étape (1).
+  - effectue un traitement éventuel vis à vis des documents créés (abonnement de synchronisation, affichage, etc.): il a les droits pour y accéder, ceux-ci ayant été enregistrés par le service à l'étape (2).
+
 #### Le sponsor qui prend en charge une invitation peut ne pas donner suite
 - l'invitation passe en status **rejetée** avec un motif textuel explicatif, le _safe_ de U étant informé de ce changement de status et du motif. Son _pointeur_ dans le _safe_ de U est auto-destructible après un délai court.
 - dans le service le document _invitation_ n'a plus que quelques jours à vivre (et ne peut plus changer).
 
 #### L'utilisateur U peut ne pas être satisfait des conditions de l'acceptation
-- l'invitation passe en status **déclinée** avec un motif textuel explicatif pour le sponsor, le _safe_ de U est mis à jour de ce changement de status. Don _pointeur_ dans le _safe_ est auto-destructible après un délai court.
+- l'invitation passe en status **déclinée** avec un motif textuel explicatif pour le sponsor, le _safe_ de U est mis à jour de ce changement de status. Son _pointeur_ dans le _safe_ est auto-destructible après un délai court.
 - dans le service le document _invitation_ n'a plus que quelques jours à vivre (et ne peut plus changer).
 
-### Caractéristique d'une invitation
-Elle concerne:
-- UN service et UNE organisation.
-- sa cible est définie par un code majeur et un code mineur (facultatif).
+> Dans ce mode par invitation U n'a inscrit que des droits qu'il a sollicités et approuvés. En contrepartie, ça l'oblige à a) solliciter une invitation, b) en attendre l'acceptation par un sponsor, c) la valider. En mode attribution directe l'attributaire pouvait inscrire directement le droit de U.
 
-#### Codes _majeurs_
-C'est une liste fermée pour l'application qui indique le but principal de la demande d'invitation:
-- à être enregistré comme _relecteur_,
-- à faire partie de la _direction d'un département scientifique_,
-- à être enregistré comme _employé_.
+Une `Invitation` est un document,
+- créé par un utilisateur U par une demande d'invitation à la date-heure `time`,
+- complété par un sponsor SP lors de son acceptation,
+- et qui s'auto-détruit quelques jours après time (quelque soit son état).
 
-#### Codes _mineurs_
-Il peut ne pas y en avoir: _être employé_ sans dire pour faire quoi ...
+Une invitation est stockée deux fois:
+- _un pointeur réduit_: dans le _safe_ de l'utilisateur demandeur U cet enregistrement permet l'utilisateur d'accéder au document _complet_.
+- _complète_: dans la base de données du service avec des propriétés spécifiques.
 
-Mais il peut y avoir un: _de quel département_, _relecteur sur quel sujet_ ...
+### _Pointeur_ vers l'invitation en _safe_
+Cet objet a les propriétés suivantes:
+- `svc`: service concerné.
+- `org`: organisation concernée.
+- _userId_: implicite (c'est le _safe_ de U qui le stocke)
+- `invitId`: ID aléatoire générée à la création.
+- `time`: date-heure (_epoch_ en secondes) de création.
+- `major`: code _majeur_ de l'objet de l'invitation.
+- `minor`: code _mineur_ (facultatif) complémentation de l'objet de l'invitation.
+- `status`: _déposée, acceptée, refusée, validée, déclinée, annulée_.
+- `comment`: commentaire pour le seul usage de l'utilisateur U ayant fait la demande.
 
-### Les utilisateurs _sponsors_
-Un utilisateur peut avoir obtenu le credential pour être _sponsor_:
-- soit sur un code _majeur_ (tous codes mineurs confondus),
-- soit sur un code _majeur.mineur_.
+Cet objet est **invariant** après création, SAUF son _status_ qui évolue au cours de sa courte vie.
 
-Les utilisateurs ayant un credential de _manager_ sont _sponsor universel_ et peuvent traiter toutes les invitations.
-
-## Données d'une invitation
-### _Pointeur_ dans le _safe_ de l'utilisateur
-- `svc`: service
-- `org`: organisation
-- `invitId` : ID de l'invitation
-- `major`
+### Document `Invitation` en base de données du service
+Il a les propriétés suivantes:
+- _svc_ : implicite (il estdans la base de données du service).
+- _org_: (implicite: chaque document est toujours attaché à son organisation).
+- `userId`: string = '' // ID de U (demandeur)
+- `invitId`
+- `major` 
 - `minor`
-- `time`: date-heure de création. Ceci détermine aussi sa date d'auto-destruction.
-- `status`: 1: déposée, 2: validée, 3: rejetée, 4: acceptée, 5: déclinée
-- `comment`: texte libre écrit par U à la création (rien que pour lui).
+- `time`
+- `status`
 
-Seul le status peut changer après création : par principe le _pointeur sur l'invitation_ a la même durée de vie que l'invitation elle-même (quelques jours).
-
-### Document `Invitation` dans la base du service
-- `org`: organisation
-- `invitId` : ID de l'invitation
-- `major`
-- `minor`
-- `time`: date-heure de création. Ceci détermine aussi sa date d'auto-destruction.
-- `status`: 1: déposée, 2: validée, 3: rejetée, 4: acceptée, 5: déclinée
-- `userId`: ID de U (demandeur)
-- `safeStore`: URL du store hébergeant le safe de U
-- `skeyK`: clé symétrique générée par U, cryptée par sa clé K. Requise ou non selon le `major`.
-- `pemU`: clé publique C de U.
-- `txtm`: texte de motivation de la demande d'invitation (en clair).
-- `txtx`: quand déclinée, texte d'explication de U (en clair).
+Propriétés fixées par U lors du dépôt de la demande d'invitation (ou quand elle est déclinée):
+- `safeStore`: URL du store hébergeant le safe de U s'il est spécifique. Permet à l'opération acceptation/rejet du sponsor de faire évoluer le status de l'invitation.
+- `skeyK`: clé symétrique requise ou non selon le `major`:
+  - soit générée par U, cryptée par sa clé K (donc _opaque_ aux opérations du service).
+  - soit délivrée par le sponsor cryptée par la clé SP / U, récupérée depuis un document quelconque lors de l'opération d'acceptation.
+- `pemU`: clé publique C de U, nécessaire au sponsor pour crypter ses textes à destination de U.
+- `txtm`: texte (en clair) de motivation de la demande d'invitation écrite par U. 
+- `txtx`: quand déclinée, texte (en clair) d'explication de U.
 - `label`: pour les codes `major` qui en exige un, _label_ en clair à faire figurer dans le document à créer.
-- **Données fixées par le sponsor**
-  - `pemS`: clé publique du sponsor traitant l'invitation.
-  - `txti`: texte de réponse du sponsor, crypté par pemS / U.
-    - si acceptation: termes explicatifs des conditions.
-    - si rejet: justificatif textuel de rejet par le sponsor.
-  - `role`: rôle du credential associé (et classe du document associé).
-  - `docId`: `docId` du credential associé (et du document associé le cas échéant).
-  - `cond`: données à faire figurer en `cond` du credential.
-  - `etc`: autres données nécessaires pour créer le document associé. U n'a pas à connaître ni interpréter `etc` (_opaque_ pour lui) et qui ne sert qu'à l'opération de création de l'objet / enregistrement du credential.
 
-#### Opérations du service:
-- enregistrement de la création d'une demande.
-- traitement par un sponsor. Acceptation ou rejet. Ce traitement _spécifique_ du code `major` (sous classe de Invitation).
-- validation par U: création de l'objet et du credential (sous classe de Invitation)
-- refus de U.
+Données fixées par le **sponsor SP**:
+- `pemS`: clé publique de cryptage du sponsor traitant l'invitation.
+- `txti`: texte de réponse du sponsor, crypté par pemS / pemU.
+  - si acceptation: texte généré donnant _en langage humain_ les conditions d'application (à validser / décliner par U).
+  - si rejet: justificatif textuel de rejet rédigé par le sponsor.
+- `role`: classe du document _principal_ associé à la demande et _rôle_ de son credential associé.
+- `docId`: ID de ce document.
+  - `role / docId` ne sont pas obligaoires: une invitation peut avoir pour objet autre chose que la création d'un document et d'un credential associé.
+  - si l'invitation correspond à la création  / communication de plus d'un document, les données correspondantes sont dans `etc`. 
+- `cond`: à faire figurer en `cond` du credential du document principal associé à l'invitation.
+- `etc`: autres données nécessaires pour créer le ou les documents associés, les credentials à enregistrer, etc. 
+
+### Sponsors
+Un _sponsor_ est un utilisateur qui a un (des) credential de _sponsoring_:
+- soit le credential `Org.manager` (qui donne droit aux opérations qualifiées de management général): il est _sponsor universel_, il peut répondre à **toutes** les demandes d'invtation.
+- soit le credential `Sponsor.` avec un docId de la forme major ou major/minor.
+
+### Major
+Une invitation a une cible fonctionnelle bien délimitée dont la liste, fermée, dépend de l'application, représentant en quelque sorte une _classe_ d'invitations. Par exemple:
+- `Auteur` : invitation à pouvoir se comporter comme _Auteur_, avoir un document `Auteur` et un credential d'accès (le cas échéant avec des variantes de pouvoir différent).
+- `Codir` : invitation à agir en tant que membre du _Comité directeur_ et de prendre les décisions afférentes.
+- `Forum` : invitation à faire partie / gérer un _forum de discussion_.
+
+La liste des codes **major** est définie et fermée pour chaque _service_.
+
+### Minor
+Une invitation a un code major et **peut spécifier un code minor** selon son major.
+
+Certains major n'ont pas de minor: `Codir` par exemple, on est membre ou non du _comité directeur_ et il n'y en a qu'un dans l'organisation.
+
+**Certains majors ont une liste fermée de minors possibles**: par exemple un _Auteur_ peut avoir une (ou des) prérogatives de sélection d'auteurs selon un _thème_: _science, politique, sociologie ..._ Cette liste,
+- peut évoluer au cours du temps: des _thèmes_ nouveaux peuvent apparaître, des thèmes obsolètes disparaître, etc. mais pas à une fréquence frénétique.
+- pour un major donné la liste de ses minors déclarés à un instant donné est assez courte pour permettre d'un désigner un dans une liste à l'écran.
+
+**Enfin certains majors ont une liste ouverte de minors possibles:** par exemple des centaines de forums sont possibles et un utilisateur peut désigner celui de son choix par un code qu'il a obtenu quelque part.
+- un minor peut aussi être un code _promotion / campagne_, ayant une durée de vie limitée. Les utilisateurs _sponsor_ ont alors un code major/minor comme `Vente/PROMO5J`.
+- soit ces codes ont été publiés quelque part, ou diffusés par un media externes, soit ils se sont transmis de bouche à oreille par un mécanisme de cooptation personnelle.
+
+### Régles
+- un **manager** est _sponsor_ universel, peut traiter toutes les demandes de tous major.
+- un **sponsor** n'ayant qu'un major peut traiter toutes les demanandes d'invitation spécifiant ce major quelque soit le minor spécifié dans la demande (ou l'absence de minor).
+  - un _sponsor_ Auteur peut traiter toutes demandes spécifiant _Auteur, Auteur/science Auteur/politique_.
+- un **sponsor** ciblé major/minor ne peut traiter que les demandes d'invitation spécifiant exactement ce code major/minor. Par exemple:
+  - un sponsor _Auteur/science_ ne peut pas traiter les demandes _Auteur_ ni _Auteur/politique_ mais uniquement celles spécifiant _Auteur/science_.
+  - un sponsor _Forum/randojuin26_ ne peut traiter que les demandes spécifiant une volonté de participation au _Forum/randojuin26_.
+
+#### Usage du texte de _motivation_
+Quand un utilisateur U fait une demande d'invitation en spécifiant un major ou même un major/minor, le texte de motivation va aider le _sponsor_ la traitant à personnaliser son acceptation. Par exemple:
+- _Forum/randojuin26_ : mais le cas échéant il peut y avoir plusieurs forums pertinents, lequel choisir ?
+- pour assumer quelle fonction: _simple participant, organisateur, etc._
+- ceci va influer sur,
+  - le choix du ou des documents à créer : _incription, etc._
+  - pouvoirs à conférer dans le ou les credentials accordés: par exemple droit à être sponsor soi-même, à avoir des droits d'animatiuon ou non, etc.
+
+### Retrait des droits de sponsoring
+Un _sponsoring_ correspondant à un credential, la logique applicative peut avoir des opérations invalidant un credential de `Sponsor.` (comme de tout autre rôle).
+
+## Contrôle et invalidation de credentials _obsolètes_ ou _indésirables_
+
+Un utilisateur dont le _safe_ a enregistré un _credential_ `C1` n'est jamais assuré que ce credential est toujours valide pour le service / organisation correspondant: 
+- il a pu être invalidé (ou son pouvoir modifié).
+- il ne le saura que quand il tentera de l'utiliser. 
+
+Un _report_ sur demande de l'utilisateur U liste, à cet instant, les conditions d'exercice et de validité des credentials figurant dans son _safe_: il pourra alors _purger_ ceux obsolètes et dont il estime qu'ils ne pourront pas être re-validés ou leurs pouvoirs modifiés dans le sens qui lui convient.
