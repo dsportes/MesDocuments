@@ -465,7 +465,7 @@ La cible du credential est identifiée par le couple `role/docId`:
 - `docId` est l'identifiant du document correspondant.
   - quand `docId` est vide, le credential a pour cible TOUS les documents de la classe. C'est typiquement le cas pour `Org.` n'ayant qu'un document _son ID 1_ n'est pas donnée.
 
-> L'ID d'un _credential_ est le hash court de `userId/SVC/org/role/docId`. Pour une ID donnée **plusieurs versions successives** peuvent exister au cours du temps, chacune étant distinguée par son `time` la date-heure en secondes de sa déclaration.
+> L'ID d'un _credential_ est le hash court de `userId/SVC/org/role/docId`. Pour une ID donnée **plusieurs versions successives** peuvent SUCCESSIVEMENT, chacune étant repéré par son `time` la date-heure en secondes de sa déclaration.
 
 ### Les _faces_ "safe" et "document" d'un credential
 **La face _safe_ est enregistrée dans le _Safe_ de l'utilisateur**, avec:
@@ -484,11 +484,33 @@ La cible du credential est identifiée par le couple `role/docId`:
   - ne peut mettre à jour QUE la propriété `comment` de sa face application (celle stockée dans son _Safe_).
   - ne peut QUE lire les _documents_ credential correspondant.
 
-> Un credential qui n'est pas repris par un _document_ (qui n'a que la face _safe_) est ineffectif (et supprimable).
-
 #### Dans une opération d'un service
-- tous les _documents_ des versions de credentials citées par l'objet `AuthRecord` attaché à la requête sont lisibles.
+- tous les _documents_ credential citées par l'objet `AuthRecord` attaché à la requête sont lisibles.
 - les faces _safe_ ne sont pas accessibles.
+
+### Cycle de vie d'un credential
+Pour simplifier on se fixe sur UN credential (pour un service, une organisation et un utilisateur) identifié par `role / docId`.
+- sa création est faite par **inscription conjointe** dans le safe de l'utilisateur et le document dans la base du service: le couple de clés de signature (safe) et de vérification (BD du service) est cohérent. Sa date-heure `time` (de création) est fixée.
+- des opérations peuvent faire évoluer le document en DB:
+  - modification des conditions d'application de la propriété cond, offrant plus ou moins de _pouvoirs_ au détenteur du credential.
+  - inscription / effacement de la date-heure `limit` invalidant or revalidant l'usage du credential **dans le futur**.
+- une **suppression**,
+ - soit **conjointe** dans le safe et la DB du service demandée par l'utilisateur (qui efface les deux),
+ - soit par fixation par une opération de `limit` au jour J (ou dans le passé) correspondant à une suppression (logique puis à terme physique) du _document_.
+
+> Au début d'une opération, un jeton émis par la session est vérifié, la signature du challenge  par la clé de signature _safe_ est vérifiée par la clé de vérification détenue la DB du service. Mais le credential peut être marqué hors limite: la session n'en n'a pas été informée. 
+
+#### Credentials _brisés_
+Un credential est _brisé_ quand,
+- il est connu côté _safe_ et inconnu côté _service_: typiquement par une action en deux phases safe / service, la seconde ayant techniquement échoué.
+- il a une limite inférieure au jour J du côté _service_: le _safe_ n'en n'a pas été informé.
+
+### En réflexion: synchronisation des credentials _service_
+Dans cette optique, les documents _Credential_ sont synchronisés en début (et en cours) de session par abonnement:
+- la mise à jour du credential _safe_ associée se limiterait à sa suppression du fait de suppression du _document_ (`limit` en deçà du jour courant).
+- le credential _safe_ ne sert qu'à,
+  - porter la clé de signature,
+  - porter un commentaire fixé par l'utilisateur.
 
 ### Création d'une version d'un credential
 Elle peut être effectuée selon deux modes:
