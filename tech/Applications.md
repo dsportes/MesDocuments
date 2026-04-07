@@ -490,7 +490,7 @@ La cible du credential est identifiée par le couple `role/docId`:
 
 ### Cycle de vie d'un credential
 Pour simplifier on se fixe sur UN credential (pour un service, une organisation et un utilisateur) identifié par `role / docId`.
-- lors de l'opération **Validation d'une invitation** par l'utilisateur U (voir plus avant) sa création est faite par **inscription conjointe** dans le safe de l'utilisateur et le document dans la base du service. Le couple de clés de signature (safe) et de vérification (BD du service) est cohérent. Sa date-heure `time` (de création) est fixée.
+- lors de l'opération **Validation d'une invitation** par l'utilisateur U (voir plus avant) sa création est faite par **inscription conjointe** dans le safe de l'utilisateur et le document dans la DB du service. Le couple de clés de signature (safe) et de vérification (BD du service) est cohérent. Sa date-heure `time` (de création) est fixée.
 - des opérations peuvent faire évoluer le document en DB:
   - modification des conditions d'application de la propriété `cond`, offrant plus ou moins de _pouvoirs_ au détenteur du credential.
   - inscription / effacement de la date-heure `limit` invalidant or revalidant l'usage du credential **dans le futur**.
@@ -513,23 +513,25 @@ Pour éviter ses discordances, les documents _Credential_ sont synchronisés en 
   - porter un commentaire fixé par l'utilisateur pour lui permettre, a) de supprimer les credentials considérés comme désormais sans intérêt, b) de gérer ses _profils de session_ par inclusion des credentials jugés pertinents pour chaque profil.
 
 ### Propriétés de `CredSafe`
-Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
-la propriété `userId` n'est pas stockée, puisque le _safe_ est dédié à ce `userId`.
+Parmi les propriétés _communes_ `ID userId SVC org role docId time`, la propriété `userId` n'est pas stockée, puisque le _safe_ est dédié à ce `userId`.
 
 Les autres propriétés sont:
-- `pems`: la clé privée de signature générée pour cette version du credential.
+- `privs`: la clé privée de signature générée pour cette version du credential.
 - `comment`: un commentaire libre et facultatif de l'utilisateur qui peut l'aider quand il constitue un profil de session ne reprenant que _certains_ des credentials.
-- `name`: le `docId` cible est un code ininterprétable humainement. Toutefois au moment de la création, le créateur _peut_ connaître un _nom / libelle /etc._ explicitement lisible par un humain. Ceci _peut_ aussi aider U quand il constitue un profil de session ne reprenant que _certains_ des credentials.
-- `recK` : un record facultatif sérialisé crypté par la clé K de l'utilisateur U. Lire plus avant (validation d'une invitation).
+- `name`: le `docId` cible est un code en général ininterprétable humainement. Toutefois au moment de la création, le créateur _peut_ connaître un _nom / libelle /etc._ explicitement lisible par un humain. Ceci _peut_ aussi l'aider quand il constitue un profil de session ne reprenant que _certains_ des credentials.
+- `rec` : un record facultatif sérialisé crypté par la clé K de l'utilisateur U. Lire plus avant (validation d'une invitation).
 
+##### Opérations
+- `createCred`: création initiale d'un `CredSafe`.
+- `updateCredComment`: mise à jour de la seule propriété non immuable d'un `CredSafe`.
+- `autoRevokeCreds`: suppression d'une liste de `CredSafe`.
 
-
-### Propriétés du _document_ stocké en base du service
+### Propriétés du _document_ `Credential` stocké en DB du service
 Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
 les propriétés `SVC org` ne sont pas stockées explicitement _dans_ le document (`org` est stockée à part et tous les documents de la base de données sont spécifiques du service `SVC`).
 
 Les autres propriétés sont:
-- `pemv`: la clé publique de vérification générée pour cette version du credential.
+- `pubv`: la clé publique de vérification générée pour cette version du credential.
 - `limit`: date-heure en secondes de la limite de validité de cette version. Si absente la validité est éternelle. Elle peut être mise à jour par une opération de prolongation / révocation.
 - `cond`: c'est un objet dépendant du rôle du credential contenant les données explicitant les conditions d'exercice du credential: _seuils divers, liste de permissions, etc._
 
@@ -549,8 +551,8 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 
 Dans le cours du traitement de l'opération, cette map est consultable par la logique de l'application pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du `cond` attaché au credential validé.
 
-
 # Invitations
+
 Une **invitation** figure le processus qui par d'une demande d'un utilisateur U ou d'une proposition directe d'un sponsor S pour aboutir en cas de succès du processus:
 - à la création de 0 à N1 documents (par exemple Auteur, Relecteur ...),
 - à la création de 0 à N2 credentials,
