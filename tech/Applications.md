@@ -467,32 +467,32 @@ La cible du credential est identifiée par le couple `role/docId`:
 
 > L'ID d'un _credential_ est le hash court de `userId/SVC/org/role/docId`. Pour une ID donnée **plusieurs versions successives** peuvent SUCCESSIVEMENT, chacune étant repéré par son `time` la date-heure en secondes de sa déclaration.
 
-### Les _faces_ "safe" et "document" d'un credential
-**La face _safe_ est enregistrée dans le _Safe_ de l'utilisateur**, avec:
+### `CredSafe` et `Credential`
+`CredSafe` est l'objet représentant du credential enregistrée dans le _Safe_ de l'utilisateur, avec:
 - la **clé privée de signature** de cette version du credential (une version _ultérieure_ aura une nouvelle de signature),
 - quelques propriétés détaillées ci-après.
 - au détail près du _commentaire_ facultatif donné par l'utilisateur lui-même, cet objet est immuable.
 
-**La face _document_ est un document enregistré dans la base de données du service**, avec:
+`Credential` est un document enregistré dans la base de données du service, avec:
 - la **clé publique de vérification** de cette version du credential.
 - quelques propriétés détaillées ci-après qui peuvent évoluer au cours du temps.
 
 #### Dans une session de l'application
-- toutes les faces _safe_ sont lues depuis le _safe_ de l'utilisateur pour les credentials relatifs à un des services accédés par l'application.
-- les _documents_ credential de tous les services accédés par l'application relatifs au `userId` de l'utilisateur sont lisibles / synchronisables.
-- une application dispose des deux faces de chaque version de credential, mais:
-  - ne peut mettre à jour QUE la propriété `comment` de sa face application (celle stockée dans son _Safe_).
-  - ne peut QUE lire les _documents_ credential correspondant.
+- tous les `CredSafe` sont lus depuis le _safe_ de l'utilisateur pour les credentials relatifs à un des services accédés par l'application.
+- les _documents_ `Credential` de tous les services accédés par l'application relatifs au `userId` de l'utilisateur sont lisibles / synchronisables.
+- une application dispose des deux objets représentant le credential, mais:
+  - ne peut mettre à jour QUE la propriété `comment` de `CredSafe`.
+  - ne peut QUE lire le _document_ `Credential` correspondant.
 
 #### Dans une opération d'un service
-- tous les _documents_ credential citées par l'objet `AuthRecord` attaché à la requête sont lisibles.
-- les faces _safe_ ne sont pas accessibles.
+- tous les _documents_ `Credential` citées par l'objet `AuthRecord` attaché à la requête sont lisibles.
+- les objets `CredSafe` ne sont pas accessibles.
 
 ### Cycle de vie d'un credential
 Pour simplifier on se fixe sur UN credential (pour un service, une organisation et un utilisateur) identifié par `role / docId`.
-- sa création est faite par **inscription conjointe** dans le safe de l'utilisateur et le document dans la base du service: le couple de clés de signature (safe) et de vérification (BD du service) est cohérent. Sa date-heure `time` (de création) est fixée.
+- lors de l'opération **Validation d'une invitation** par l'utilisateur U (voir plus avant) sa création est faite par **inscription conjointe** dans le safe de l'utilisateur et le document dans la base du service. Le couple de clés de signature (safe) et de vérification (BD du service) est cohérent. Sa date-heure `time` (de création) est fixée.
 - des opérations peuvent faire évoluer le document en DB:
-  - modification des conditions d'application de la propriété cond, offrant plus ou moins de _pouvoirs_ au détenteur du credential.
+  - modification des conditions d'application de la propriété `cond`, offrant plus ou moins de _pouvoirs_ au détenteur du credential.
   - inscription / effacement de la date-heure `limit` invalidant or revalidant l'usage du credential **dans le futur**.
 - une **suppression**,
  - soit **conjointe** dans le safe et la DB du service demandée par l'utilisateur (qui efface les deux),
@@ -502,76 +502,27 @@ Pour simplifier on se fixe sur UN credential (pour un service, une organisation 
 
 #### Credentials _brisés_
 Un credential est _brisé_ quand,
-- il est connu côté _safe_ et inconnu côté _service_: typiquement par une action en deux phases safe / service, la seconde ayant techniquement échoué.
-- il a une limite inférieure au jour J du côté _service_: le _safe_ n'en n'a pas été informé.
+- il est connu par un `CredSafe` dans un _safe_ et inconnu en tant que document `Credential` dans la DB du service: typiquement par une action en deux phases safe / service, la seconde ayant techniquement échoué.
+- une limite inférieure au jour J a été inscrite dans la DB par une opération du service, mais l'objet correspondant `CredSafe` n'a pas été détruit.
 
-### En réflexion: synchronisation des credentials _service_
-Dans cette optique, les documents _Credential_ sont synchronisés en début (et en cours) de session par abonnement:
-- la mise à jour du credential _safe_ associée se limiterait à sa suppression du fait de suppression du _document_ (`limit` en deçà du jour courant).
-- le credential _safe_ ne sert qu'à,
+### Synchronisation des credentials _service_
+Pour éviter ses discordances, les documents _Credential_ sont synchronisés en début (et en cours) de session par abonnement:
+- la mise à jour du `CredSafe` dans le _safe_ associée se limite à sa suppression suite à la détection de la suppression du _document_ (ayant un `limit` en deçà du jour courant).
+- de facto le `CredSafe` d'un credential ne sert qu'à,
   - porter la clé de signature,
-  - porter un commentaire fixé par l'utilisateur.
+  - porter un commentaire fixé par l'utilisateur pour lui permettre, a) de supprimer les credentials considérés comme désormais sans intérêt, b) de gérer ses _profils de session_ par inclusion des credentials jugés pertinents pour chaque profil.
 
-### Création d'une version d'un credential
-Elle peut être effectuée selon deux modes:
-- **attribution directe** à un utilisateur U par un utilisateur A _attributaire_.
-- **auto-attribution après invitation** par l'utilisateur U suite à une **invitation** générée par un utilisateur SP _sponsor_.
-
-#### Attribution directe par A à U
-L'attributaire A _connaît_ l'utilisateur U, 
-- soit par son `userId` obtenue par l'application ou tout autre moyen,
-- soit par son `contact` un pseudo ou phrase unique temporaire que U a inscrit à titre de _pseudo externe_.
-
-L'attributaire A a lui-même un ou des credentials lui donnant accès à une opération d'enregistrement du futur _document_ credential de U:
-- il génère un couple de clés de _signature / vérification_.
-- construit le document à enregistrer en y incluant la clé publique générée.
-- soumet ce document à une opération d'enregistrement qui s'assurera du droit à cet enregistrement et complétera éventuellement celui-ci en retournant le cas échéant quelques données requises par A pour la suite de la procédure.
-- construit la face _Safe_ du credential et l'enregistre dans le _safe_ de U.
-
-Cet enregistrement fait apparaître le credential dans un état _en attente_ dans le _safe_ de U:
-- il est crypté par le couple clé publique C de U / clé privée de A,
-- il est accompagné de la clé publique C de A.
-. lors du prochain accès de U à son _safe_ pour chaque credential en attente, U:
-  - décrypte l'objet _credential_ par le couple _clé privée de U / clé publique de A_,
-  - le ré-encrypte par sa clé `keyK` et le stocke dans son _safe_ (il est devenu _permanent_), le credential _temporaire_ étant détruit.
-
-> Dans ce mode d'attribution directe, **à la limite**, A peut attribuer des droits à U sans son accord, rien que par le fait qu'il connaît le `userId` ou le pseudo / phrase de `contact` de U.
-
-#### Process d'invitation de U par un _sponsor_ SP
-Ce process est décrit en détail dans le chapitre _Invitations_. Il a plusieurs phases:
-- **dépôt d'une demande motivée par U:**
-  - l'invitation est _déposéee_.
-  - dans cet état U peut avoir un remord et l'annuler: elle sera en état _annulée_.
-- **acceptation par un sponsor SP:**
-  - le sponsor a attaché quelques conditions à la demande qui passe en état _acceptée_.
-  - le sponsor peut aussi rejeter la demande avec un court texte explicatif, la demande passe en état _rejeté_.
-- **validation par l'utilisateur U**. Au vu des conditions inscrites par le sponsor ayant répondu, U peut:
-  - valider l'invitation qui passe en état _validée_.
-  - décliner l'invitation qui passe en état _déclinée_.
-
-### Propriétés de l'objet face _safe_
+### Propriétés de `CredSafe`
 Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
 la propriété `userId` n'est pas stockée, puisque le _safe_ est dédié à ce `userId`.
 
 Les autres propriétés sont:
 - `pems`: la clé privée de signature générée pour cette version du credential.
 - `comment`: un commentaire libre et facultatif de l'utilisateur qui peut l'aider quand il constitue un profil de session ne reprenant que _certains_ des credentials.
-- `name`: le `docId` cible est un code ininterprétable humainement. Toutefois au moment de la création, le créateur peut connaître un _nom / libelle /etc._ explicitement lisible par un humain. Ceci peut aussi aider U quand il constitue un profil de session ne reprenant que _certains_ des credentials.
-- `skey` : une clé symétrique AES (facultative). Lire ci-après.
+- `name`: le `docId` cible est un code ininterprétable humainement. Toutefois au moment de la création, le créateur _peut_ connaître un _nom / libelle /etc._ explicitement lisible par un humain. Ceci _peut_ aussi aider U quand il constitue un profil de session ne reprenant que _certains_ des credentials.
+- `recK` : un record facultatif sérialisé crypté par la clé K de l'utilisateur U. Lire plus avant (validation d'une invitation).
 
-DPour certaines classes de documents, certaines propriétés sont _lisibles_ par le service, d'autre peuvent être _opaques_ pour le service.
-- **propriétés lisibles**: c'est l'état normal et le logiciel du service peut les utiliser dans ses traitements.
-- **propriétés opaques**: elles sont _cryptées_ par une clé qui n'est disponible QUE dans les applications terminales et sont en conséquences inutilisables par une opération du service.
 
-Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que la _clé AES_ qui a rendu ces données _opaques_ aux opérations du service, n'est PAS stockée dans la base de données du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
-
-Chaque utilisateur ayant un droit d'accès à ce _comité directeur_ par exemple disposera de cette clé dans la propriété `skey` du credential correspondant et pourra ainsi décrypter ces données _opaques_ pour les opérations du service.
-
-`skey` a été transmise:
-- dans le cas d'une attribution directe par A: A en est détenteur lui-même.
-- dans le cas d'une invitation, le sponsor doit être lui-même détenteur de cette clé, et peut l'inscrire dans l'invitation (cryptée par la clé SP / U) lisible que par U.
-
-> Il est toutefois possible que certaines clés d'opacité soient présentes dans un _document_ et non pas uniquement dans les _safes_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ `skey` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la `skey` _maîtresse_.
 
 ### Propriétés du _document_ stocké en base du service
 Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
@@ -598,110 +549,151 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 
 Dans le cours du traitement de l'opération, cette map est consultable par la logique de l'application pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du `cond` attaché au credential validé.
 
+
 # Invitations
+Une **invitation** figure le processus qui par d'une demande d'un utilisateur U ou d'une proposition directe d'un sponsor S pour aboutir en cas de succès du processus:
+- à la création de 0 à N1 documents (par exemple Auteur, Relecteur ...),
+- à la création de 0 à N2 credentials,
+  - d'accès aux documents créés ou existants,
+  - d'autres natures (credential Sponsor par exemple).
 
-Un utilisateur est (sauf à la limite pour les Administrateurs Techniques) partie prenante d'une ou plusieurs _positions / rôles_: _auteur, relecteur, employé, dirigeant d'un département, gestionnaire d'un stock ..._ chaque position / rôle est matérialisé par l'existence d'un _document_ identifié sur lequel l'utilisateur a un _credential_ qui lui confère des possibilités d'actions plus ou moins large, voire la connaissance d'une clé de cryptage symétrique attachée à ce rôle.
+Une invitation a:
+- des propriétés immuables dans le temps:
+  - `invitId` : une ID générée aléatoirement à sa création.
+  - `time` : sa date-heure de création (_epoch_ en secondes).
+  - `svc org userId` : le service concerné, l'organisation concernée, l'ID de U.
+  - `major minor`: la classe de l'invitation et un code complémentaire précisant sa nature.
+- un `status` traduisant son avancement dans le temps:
+  - (1) : demande déposée par U,
+  - (2) : proposition faite par S,
+  - (3) : proposition validée par U,
+  - (4) : demande de U annulée par U,
+  - (5) : demande de U rejetée par S,
+  - (6) : proposition de S déclinée par U.
 
-La création double d'un document **et** du credential associé s'effectue par le mécanisme des invitations qui met en jour deux intervenants:
-- l'utilisateur U qui sollicite cette création et le credential associé,
-- un utilisateur SP _sponsor_ qui va lui donner satisfaction (ou non).
+L'existence d'une invitation est doublement matérialisée:
+- par un objet `InvitSafe` stocké dans le _safe_ de U.
+  - la propriété `userId` est implicite (c'est l'identifiant du _safe_).
+- par un document `Invitation` stocké dans la DB du service / organisation.
+  - les propriétés `svc org `sont implicites (identifiant du stockage en DB).
 
-### Protocole général
-- **(1) l'utilisateur U créé une _demande d'invitation_** qui exprime ses attentes: pourquoi il souhaite voir accepter son invitation avec quelles caractéristiques ...
-  - l'invitation est un document déposé dans la base de données du service correspondant pour l'organisation souhaitée. Son status est **déposée**.
-  - le _safe_ de U en garde un _pointeur_ lui permettant de la lire.
-- **(2) un utilisateur SP _sponsor_ à l'écoute des nouvelles invitations déposées, traite celle-ci:** c'est le traitement d'acceptation.
-  - ceci passe la status de l'invitation à **acceptée**, lequel status est répercuté dans le _safe_ de U.
-- **(3) l'utilisateur U voit, à sa prochaine connexion ou sur _rafraîchissement_ en cours de session que son invitation est acceptée et il l'ouvre:**
-  - il y découvre le détail de la proposition du sponsor: en général il en est satisfait et la _valide_.
+## Cycles de vie
+Une invitation peut avoir deux cycles de vie selon la façon dont elle a été créée:
+- complet : _demande - proposition - validation_.
+- court: _proposition (directe) - validation_.
 
-#### Traitement _d'acceptation_
-Le sponsor définit, depuis un formulaire spécifique du type d'invitation, les conditions d'acceptation de la demande qui s'appliqueront à sa validation finale:
-- si oui ou non des documemts seront à créer, avec quels ID, etc.
-- quels _credentials_ seront à enregistrer à cette occasion: les données afférantes sont stockées dans la demande d'invitation par le service et un résumé textuel en est généré afin que U puisse en comprendre les termes.
+### Cycle complet: demande - proposition - validation
+- **Dépôt d'une demande** par U => status 1.
+- **Proposition** par un sponsor S sur une demande de U => status 2.
+- **Validation** par U de la proposition de S => status 3.
+- Fins prématurées du cycle:
+  - **Annulation** par U de sa demande en status 1 (remord) => status 4.
+  - **Rejet** motivé de la demande par un sponsor (il n'y aura pas de proposition) => 5.
+  - **Proposition déclinée** par U, les termes ne lui conviennent pas => 6.
 
-#### Traitement de _validation_
-La _validation_ correspond à un traitement réparti entre application et service:
-- (1) l'application génère les couples de clés signature / vérification qui ont été requises par le sponsor pour les credentials à enregistrer (s'il y en a). Seules les clés publiques de vérification sont transmises à l'opération de validation par le service.
-- (2) l'opération de validation par le service:
-  - créé / enregistre les documents prévus et stockés dans l'invitation dans sa base,
-  - enregistre les _credentials_ prévus en y adjoignant les clés publiques de vérification reçues de l'application,
-- (3) l'application finalise la validation:
-  - enregistre dans son _safe_ les credentials éventuellement créés avec les clés privées de signature qui viennent d'être générées à l'étape (1).
-  - effectue un traitement éventuel vis à vis des documents créés (abonnement de synchronisation, affichage, etc.): il a les droits pour y accéder, ceux-ci ayant été enregistrés par le service à l'étape (2).
+### Cycle court: proposition (directe) - validation
+Dans ce cycle un sponsor S **prend l'initiative** de faire une proposition d'invitation _directe_ à U qui ne l'a pas sollicitée par une demande (du moins dans le système).
+- **Proposition directe** par un sponsor S à U => status 2.
+- **Validation** par U de la proposition de S => status 3.
+- Fin prématurée du cycle:
+  - **Proposition déclinée** par U, les termes ne lui conviennent pas => 6.
 
-#### Le sponsor qui prend en charge une invitation peut ne pas donner suite
-- l'invitation passe en status **rejetée** avec un motif textuel explicatif, le _safe_ de U étant informé de ce changement de status et du motif. Son _pointeur_ dans le _safe_ de U est auto-destructible après un délai court.
-- dans le service le document _invitation_ n'a plus que quelques jours à vivre (et ne peut plus changer).
+### Propriétés spécifiques de `InvitSafe` au cours du cycle de vie
+- `comment` : texte de commentaire seulement pour U:
+  - soit écrite par U au dépôt de la demande par U.
+  - soit écrite par S au dépôt de sa proposition directe.
+- `pubs` : clé publique de cryptage de S.
 
-#### L'utilisateur U peut ne pas être satisfait des conditions de l'acceptation
-- l'invitation passe en status **déclinée** avec un motif textuel explicatif pour le sponsor, le _safe_ de U est mis à jour de ce changement de status. Son _pointeur_ dans le _safe_ est auto-destructible après un délai court.
-- dans le service le document _invitation_ n'a plus que quelques jours à vivre (et ne peut plus changer).
-
-> Dans ce mode par invitation U n'a inscrit que des droits qu'il a sollicités et approuvés. En contrepartie, ça l'oblige à a) solliciter une invitation, b) en attendre l'acceptation par un sponsor, c) la valider. En mode attribution directe l'attributaire pouvait inscrire directement le droit de U.
-
-Une `Invitation` est un document,
-- créé par un utilisateur U par une demande d'invitation à la date-heure `time`,
-- complété par un sponsor SP lors de son acceptation,
-- et qui s'auto-détruit quelques jours après time (quelque soit son état).
-
-Une invitation est stockée deux fois:
-- _un pointeur réduit_: dans le _safe_ de l'utilisateur demandeur U cet enregistrement permet l'utilisateur d'accéder au document _complet_.
-- _complète_: dans la base de données du service avec des propriétés spécifiques.
-
-### _Pointeur_ vers l'invitation en _safe_
-Cet objet a les propriétés suivantes:
-- `svc`: service concerné.
-- `org`: organisation concernée.
-- _userId_: implicite (c'est le _safe_ de U qui le stocke)
-- `invitId`: ID aléatoire générée à la création.
-- `time`: date-heure (_epoch_ en secondes) de création.
-- `major`: code _majeur_ de l'objet de l'invitation.
-- `minor`: code _mineur_ (facultatif) complémentation de l'objet de l'invitation.
-- `status`: _déposée, acceptée, refusée, validée, déclinée, annulée_.
-- `comment`: commentaire pour le seul usage de l'utilisateur U ayant fait la demande.
-
-Cet objet est **invariant** après création, SAUF son _status_ qui évolue au cours de sa courte vie.
-
-### Document `Invitation` en base de données du service
-Il a les propriétés suivantes:
-- _svc_ : implicite (il estdans la base de données du service).
-- _org_: (implicite: chaque document est toujours attaché à son organisation).
-- `userId`: string = '' // ID de U (demandeur)
-- `invitId`
-- `major` 
-- `minor`
+Dans le _safe_ un record `InvitSafe` figure comme propriété de clé `invitId` dans la map `invits` avec les propriétés suivantes:
+- `data`: sérialisation de `{ svc org major minor comment }`
 - `time`
 - `status`
+- `pubs` : seulement dans le cas d'un cycle _court_.
 
-Propriétés fixées par U lors du dépôt de la demande d'invitation (ou quand elle est déclinée):
-- `safeStore`: URL du store hébergeant le safe de U s'il est spécifique. Permet à l'opération acceptation/rejet du sponsor de faire évoluer le status de l'invitation.
-- `skeyK`: clé symétrique requise ou non selon le `major`:
-  - soit générée par U, cryptée par sa clé K (donc _opaque_ aux opérations du service).
-  - soit délivrée par le sponsor cryptée par la clé SP / U, récupérée depuis un document quelconque lors de l'opération d'acceptation.
-- `pemU`: clé publique C de U, nécessaire au sponsor pour crypter ses textes à destination de U.
-- `txtm`: texte (en clair) de motivation de la demande d'invitation écrite par U. 
-- `txtx`: quand déclinée, texte (en clair) d'explication de U.
-- `label`: pour les codes `major` qui en exige un, _label_ en clair à faire figurer dans le document à créer.
+`data` est crypté:
+- cycle complet: par la clé K de U.
+- cycle court : par la clé AES obtenue depuis priv-U / pub-S.
 
-Données fixées par le **sponsor SP**:
-- `pemS`: clé publique de cryptage du sponsor traitant l'invitation.
-- `txti`: texte de réponse du sponsor, crypté par pemS / pemU.
-  - si acceptation: texte généré donnant _en langage humain_ les conditions d'application (à validser / décliner par U).
-  - si rejet: justificatif textuel de rejet rédigé par le sponsor.
-- `role`: classe du document _principal_ associé à la demande et _rôle_ de son credential associé.
-- `docId`: ID de ce document.
-  - `role / docId` ne sont pas obligaoires: une invitation peut avoir pour objet autre chose que la création d'un document et d'un credential associé.
-  - si l'invitation correspond à la création  / communication de plus d'un document, les données correspondantes sont dans `etc`. 
-- `cond`: à faire figurer en `cond` du credential du document principal associé à l'invitation.
-- `etc`: autres données nécessaires pour créer le ou les documents associés, les credentials à enregistrer, etc. 
+En mémoire d'une session, la Map `invits` a pour clé `invitId` et pour valeur l'ensemble de propriétés ci-dessus (décryptées).
 
-### Sponsors
+> Après sa création (soit par un _demande_ pour un cycle complet, soit par une _proposition directe_ pour un cycle court), SEULE la propriété `status` peut évoluer: il n'a donc que deux opérations vis à vis du _safe_, a) création, b) mise à jour de status.
+
+> Le record `InvitSafe` s'auto-détruit à _time + 10 jours_.
+
+### Propriétés spécifiques de `Invitation` au cours du cycle de vie
+Les propriétés suivantes sont présentes et immuables depuis la création et jusqu'à auto-descruction à _time + 10 jours_:
+- `invitId` : **clé primaire du document**.
+- _major_ : index immutable `[major]`.
+- _majorminor_ : index immutable `[major, minor]`
+- `time`
+- `pubu` : clé publique de cryptage de U.
+
+La propriété `status` est aussi toujours présente mais c'est la seule dont la valeur évolue au cours du cycle.
+
+#### A la phase _demande_ (création par U, cycle complet)
+Les propriétés immuables suivantes sont ajoutées:
+- `req`: texte en clair fourni par U pour exprimer ses souhaits / exigences / motivation.
+
+#### A la phase _proposition directe_ (création par S, cycle court)
+Les propriétés immuables suivantes sont ajoutées:
+- `pubs`: clé publique de cryptage du sponsor.
+- `etc`: objet contenant toutes les données nécessaires à la validation:
+  - crypté par la clé AES obtenu du couple de clés `pub-U/priv-S` (ou `pub-S/pub-U`, c'est la même). Cette clé sera transmise en arguments de l'opération de validation.
+  - en session de U, etc peut être décrypté et un texte humainement lisible par U (dans sa langue) est généré pour lui afficher les clauses la proposition.
+
+#### A la phase _proposition après demande_ (cycle complet)
+Les propriétés immuables suivantes sont ajoutées:
+- `pubs`: clé publique de cryptage du sponsor.
+- `etc`: (voir ci-dessus).
+
+`status` est mise à jour.
+
+#### A la phase _rejet après demande_ (cycle complet)
+Les propriétés immuables suivantes sont ajoutées:
+- `pubs`: clé publique de cryptage du sponsor.
+- `txt`: texte humainement lisible où S explicite les raisons de son refus de faire une proposition à U.
+  - crypté par la clé AES obtenu du couple de clés `pub-U/priv-S` (ou `pub-S/pub-U`, c'est la même)
+
+`status` est mise à jour.
+
+#### A la phase _déclinaison de U après proposition_ (cycle complet et court)
+Les propriétés immuables suivantes sont ajoutées:
+- `pubs`: clé publique de cryptage du sponsor.
+- `txt`: texte humainement lisible où S explicite les raisons de son refus de faire une proposition à U.
+  - crypté par la clé AES obtenue du couple de clés `pub-U/priv-S` (ou `pub-S/priv-U`, c'est la même)
+
+`status` est mise à jour.
+
+#### A la phase _validation de U après proposition_ (cycle complet et court)
+`status` est mise à jour.
+
+Le traitement de validation par U comporte plusieurs phases:
+- génération de clés requises pour les credentials à créer et celles à intégrer dans les documents créés ou mis à jour.
+- opération _validation_: les arguments comporte les données ci-dessus et la clé AES obtenue du couple de clés `pub-S/priv-U` qui permet à l'opération de décrypter les autres données requises qui ont stockées et cryptées dans `etc` par le sponsor.
+- enregistrement dans le _safe_ de U des credentials créés (et enregistrés ci-avant par le service).
+
+### Remarques
+Pour créer un _credential_ il faut disposer d'un couple de clés signature / vérification:
+- celle de signature est enregistrée dans son _safe_ par la phase de _validation_ de U.
+- celle de vérification est transmise par l'opération d'enregistrement (_validation_ par le service). Le service NE VOIT JAMAIS PASSER la clé de signature.
+
+### Le record `recK` d'un objet `CredSafe`
+Pour certaines classes de documents, certaines propriétés sont _lisibles_ par le service, d'autre peuvent être _opaques_ pour le service.
+- **propriétés lisibles**: c'est l'état normal et le logiciel du service peut les utiliser dans ses traitements.
+- **propriétés opaques**: elles sont _cryptées_ par une clé qui n'est disponible QUE dans les applications terminales et sont en conséquences inutilisables par une opération du service.
+
+Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que les _clé AES_ qui ont rendu ces données _opaques_ aux opérations du service, ne sont PAS stockées dans la DB du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
+
+Chaque utilisateur ayant un droit d'accès à ce _comité directeur_ par exemple disposera de cette clé et la stockera dans la propriété `recK` de l'objet CredSafe du credential correspondant: il pourra ainsi décrypter ces données _opaques_ pour les opérations du service.
+
+> Il est toutefois possible que certaines _clés d'opacité_ soient présentes dans un _document_ et non pas uniquement dans les _safes_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ dans un `recK` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la clé _maîtresse_.
+
+# Sponsors
 Un _sponsor_ est un utilisateur qui a un (des) credential de _sponsoring_:
-- soit le credential `Org.manager` (qui donne droit aux opérations qualifiées de management général): il est _sponsor universel_, il peut répondre à **toutes** les demandes d'invtation.
-- soit le credential `Sponsor.` avec un docId de la forme major ou major/minor.
+- soit le credential `Org.manager` (qui donne droit aux opérations qualifiées de management général): il est _sponsor universel_. Il peut faire des propositions (directe ou en réponse à une demande) pour tous les couples `major/minor`.
+- soit le credential `Sponsor.` avec un `docId` de la forme `major` ou `major/minor`. Il peut faire des propositions (directe ou en réponse à une demande) restreintes aux `major/minor`.
 
-### Major
+### `Major`
 Une invitation a une cible fonctionnelle bien délimitée dont la liste, fermée, dépend de l'application, représentant en quelque sorte une _classe_ d'invitations. Par exemple:
 - `Auteur` : invitation à pouvoir se comporter comme _Auteur_, avoir un document `Auteur` et un credential d'accès (le cas échéant avec des variantes de pouvoir différent).
 - `Codir` : invitation à agir en tant que membre du _Comité directeur_ et de prendre les décisions afférentes.
@@ -710,23 +702,23 @@ Une invitation a une cible fonctionnelle bien délimitée dont la liste, fermée
 La liste des codes **major** est définie et fermée pour chaque _service_.
 
 ### Minor
-Une invitation a un code major et **peut spécifier un code minor** selon son major.
+Une invitation a un code `major` et **peut spécifier un code `minor`** selon son `major`.
 
-Certains major n'ont pas de minor: `Codir` par exemple, on est membre ou non du _comité directeur_ et il n'y en a qu'un dans l'organisation.
+Certains `major` n'ont pas de `minor`: `Codir` par exemple, on est membre ou non du _comité directeur_ et il n'y en a qu'un dans l'organisation.
 
-**Certains majors ont une liste fermée de minors possibles**: par exemple un _Auteur_ peut avoir une (ou des) prérogatives de sélection d'auteurs selon un _thème_: _science, politique, sociologie ..._ Cette liste,
+**Certains _majors_ ont une liste fermée de _minors_ possibles**: par exemple un _Auteur_ peut avoir une (ou des) prérogatives de sélection d'auteurs selon un _thème_: _science, politique, sociologie ..._ Cette liste,
 - peut évoluer au cours du temps: des _thèmes_ nouveaux peuvent apparaître, des thèmes obsolètes disparaître, etc. mais pas à une fréquence frénétique.
-- pour un major donné la liste de ses minors déclarés à un instant donné est assez courte pour permettre d'un désigner un dans une liste à l'écran.
+- pour un _major_ donné la liste de ses _minors_ déclarés à un instant donné est assez courte pour permettre d'un désigner un dans une liste à l'écran.
 
-**Enfin certains majors ont une liste ouverte de minors possibles:** par exemple des centaines de forums sont possibles et un utilisateur peut désigner celui de son choix par un code qu'il a obtenu quelque part.
-- un minor peut aussi être un code _promotion / campagne_, ayant une durée de vie limitée. Les utilisateurs _sponsor_ ont alors un code major/minor comme `Vente/PROMO5J`.
+**Enfin certains _majors_ ont une liste ouverte de _minors_ possibles:** par exemple des centaines de forums sont possibles et un utilisateur peut désigner celui de son choix par un code qu'il a obtenu quelque part.
+- un _minor_ peut aussi être un code _promotion / campagne_, ayant une durée de vie limitée. Les utilisateurs _sponsor_ ont alors un code _major/minor_ comme `Vente/PROMO5J`.
 - soit ces codes ont été publiés quelque part, ou diffusés par un media externes, soit ils se sont transmis de bouche à oreille par un mécanisme de cooptation personnelle.
 
-### Régles
+### Règles
 - un **manager** est _sponsor_ universel, peut traiter toutes les demandes de tous major.
-- un **sponsor** n'ayant qu'un major peut traiter toutes les demanandes d'invitation spécifiant ce major quelque soit le minor spécifié dans la demande (ou l'absence de minor).
-  - un _sponsor_ Auteur peut traiter toutes demandes spécifiant _Auteur, Auteur/science Auteur/politique_.
-- un **sponsor** ciblé major/minor ne peut traiter que les demandes d'invitation spécifiant exactement ce code major/minor. Par exemple:
+- un **sponsor** n'ayant qu'un major peut traiter toutes les demandes d'invitation spécifiant ce major quelque soit le _minor_ spécifié dans la demande (ou l'absence de _minor_).
+  - un _sponsor_ _Auteur_ peut traiter toutes demandes spécifiant _Auteur, Auteur/science Auteur/politique_.
+- un **sponsor** ciblé `major/minor` ne peut traiter que les demandes d'invitation spécifiant exactement ce code. Par exemple:
   - un sponsor _Auteur/science_ ne peut pas traiter les demandes _Auteur_ ni _Auteur/politique_ mais uniquement celles spécifiant _Auteur/science_.
   - un sponsor _Forum/randojuin26_ ne peut traiter que les demandes spécifiant une volonté de participation au _Forum/randojuin26_.
 
@@ -735,16 +727,8 @@ Quand un utilisateur U fait une demande d'invitation en spécifiant un major ou 
 - _Forum/randojuin26_ : mais le cas échéant il peut y avoir plusieurs forums pertinents, lequel choisir ?
 - pour assumer quelle fonction: _simple participant, organisateur, etc._
 - ceci va influer sur,
-  - le choix du ou des documents à créer : _incription, etc._
-  - pouvoirs à conférer dans le ou les credentials accordés: par exemple droit à être sponsor soi-même, à avoir des droits d'animatiuon ou non, etc.
+  - le choix du ou des documents à créer : _inscription, etc._
+  - pouvoirs à conférer dans le ou les credentials accordés: par exemple droit à être sponsor soi-même, à avoir des droits d'animation ou non, etc.
 
 ### Retrait des droits de sponsoring
 Un _sponsoring_ correspondant à un credential, la logique applicative peut avoir des opérations invalidant un credential de `Sponsor.` (comme de tout autre rôle).
-
-## Contrôle et invalidation de credentials _obsolètes_ ou _indésirables_
-
-Un utilisateur dont le _safe_ a enregistré un _credential_ `C1` n'est jamais assuré que ce credential est toujours valide pour le service / organisation correspondant: 
-- il a pu être invalidé (ou son pouvoir modifié).
-- il ne le saura que quand il tentera de l'utiliser. 
-
-Un _report_ sur demande de l'utilisateur U liste, à cet instant, les conditions d'exercice et de validité des credentials figurant dans son _safe_: il pourra alors _purger_ ceux obsolètes et dont il estime qu'ils ne pourront pas être re-validés ou leurs pouvoirs modifiés dans le sens qui lui convient.
