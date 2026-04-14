@@ -94,13 +94,15 @@ Le _coffre-fort_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou 
 - la **liste de ses droits d'accès**.
 - une **liste de terminaux de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
 - une **liste de préférences** de comportement et d'affichage de son choix afin de retrouver en lançant une nouvelle session, l'organisation de l'écran qu'il souhaite, les options de son choix, sa langue de travail, etc.
+- une **liste des profils de sessions favorites**, un profil ouvrant une session avec une liste de droits d'accès réduite à ceux requis pour ouvrir une session avec un but spécifique. 
+- une **liste de ses invitations en cours**, demandes qu'il a déposées, propositions reçues ...
 
 #### Dépôts des coffres-forts : _standard_  ou _personnels_
 Un **dépôt _standard_** est géré: tout utilisateur peut y disposer de son _coffre-fort_.
 
-Mais certains utilisateurs sont prudents / paranoïaques et peuvent ne pas vouloir que leurs droits d'accès soient conservés par une entité qu'ils ne maîtrisent pas ou qui pourrait être défaillante ... 
+Mais les utilisateurs peuvent préférer confier leurs données de sécurité à un _opérateur_ en qui ils ont confiance (voire être eux-mêmes ou pour un groupe d'entre eux leur propre opérateur). 
 
-Chaque utilisateur (ou groupes d'utilisateurs) peut installer son propre dépôt de _coffres-forts_ dans une base de données MySQL d'un site Web de son choix (et sous son entière responsabilité d'administration) muni d'un script PHP standard mais dont il peut lire le texte et s'assurer de sa non nocivité. 
+Chaque utilisateur (ou groupes d'utilisateurs) peut installer son propre dépôt de _coffres-forts_ dans une base de données MySQL d'un site Web de son choix (et sous son entière responsabilité d'administration) muni par exemple d'un script PHP standard mais dont il peut lire le texte et s'assurer de sa non nocivité. 
 
 Des moyens sont données pour basculer du dépôt _standard_ vers un _dépôt spécifique_ (et réciproquement), ainsi que pour effectuer des _backup_: l'image d'un _coffre-fort_ peut être exportée crypté par une clé détenue par le seul utilisateur.
 
@@ -189,9 +191,9 @@ Les données d'un service d'un opérateur sont stockées dans deux _mémoires pe
 
 ## Applications / services
 
-> Une base de données MASTERDIR détient une petite table `SAFEURLS` ayant une ligne par _service_ qui donne la liste des opérateurs proposant ce service et son URL.
+> Un service MASTER d'accès au **Master Directory** a dans sa base de données une petite table `ZZSVCOPS` ayant une ligne par _service_ qui donne la liste des opérateurs proposant ce service avec l'URL d'accès correspondante.
 
-Une **application déployée** dispose dans sa configuration de l'URL d'accès à MASTERDIR ce qui lui permet d'obtenir pour le service `randos` par exemple les URLS pour les opérateurs **Rouge** ou **Bleu**.
+Une **application déployée** dispose dans sa configuration de l'URL d'accès à **Master Directory** ce qui lui permet d'obtenir pour le service `randos` par exemple les URLS pour les opérateurs **Rouge** ou **Bleu**.
 
 Un utilisateur _terminal_ a les moyens techniques de vérifier que l'application déployée qu'il entend utiliser,
 - correspond bien au logiciel _officiel_ (et non pirate) mis en ligne en _source_ par son _éditeur_: sa version a pu être certifiée par une autorité de sécurité indépendante.
@@ -200,7 +202,7 @@ Un utilisateur _terminal_ a les moyens techniques de vérifier que l'application
 > Il est possible d'accorder sa confiance à une application déployée d'un éditeur la rendant accessible en _open source_ parce qu'il est possible à une entité de certification externe à l'éditeur de vérifier la conformité de ses déploiements.
 
 ## Une application terminale peut accéder à plus d'une organisation
-> La table `SAFEORGS` du MASTERDIR dispose d'une ligne par _organisation_ donnant _pour chaque service_ le code de l'opérateur choisi par l'organisation.
+> La table `ZZORGS` du Mastr Directory dispose d'une ligne par _organisation_ donnant _pour chaque service_ le code de l'opérateur choisi par l'organisation.
 
 Dans le cas de l'application `randos`, un utilisateur peut être membre de plus d'une association de randonneurs: une pour ses randonnées près de chez lui, une autre pour les randonnées de montagne et une troisième pour les treks lointains. Depuis la même application il peut basculer d'une organisation à une autre.
 
@@ -734,3 +736,151 @@ Quand un utilisateur U fait une demande d'invitation en spécifiant un major ou 
 
 ### Retrait des droits de sponsoring
 Un _sponsoring_ correspondant à un credential, la logique applicative peut avoir des opérations invalidant un credential de `Sponsor.` (comme de tout autre rôle).
+
+# Master Directory et _safe stores_
+## Safe stores
+Les _safe stores_ sont des services Web cryptés / sécurisés de stockage du _safe_ des utilisateurs.
+- le code du service est `SAFE`.
+- le _code_ d'un safe store est celui de l'opérateur qui l'héberge: l'URL d'accès est celle déclarée pour l'opérateur et le service SAFE.
+- l'interface d'accès HTTP comporte une vingtaine de requêtes.
+- un script PHP en donne une implémentation pour un site Web hébergé utilisant une base MySQL d'une seule table.
+
+Le _safe store_ **STANDARD** est une implémentation dont l'URL d'accès est fixée dans le source des applications: c'est par défaut celle proposée lors de la création de son _safe_ par un utilisateur.
+
+Un utilisateur accède à son _safe_ en fournissant:
+- son ID,
+- l'une de ses deux phrases secrètes ou son code PIN si la connexion s'opère depuis un terminal certifié de confiance par l'utilisateur.
+
+Le contenu d'un _safe_ est _crypté_ et personne d'autre que lui ne peut lire son contenu ni lui adresser des requêtes de mise à jour SAUF UNE:
+- un autre utilisateur disposant de l'ID d'une safe _peut_ y faire enregistrer des _propositions d'invitations_.
+  - chaque proposition a une durée de vie de quelques jours.
+  - in fine chaque proposition doit être validée par l'utilisateur (ou déclinée) pour être effective. Il n'y a pas de validation par défaut.
+
+### Backups, transfert d'un store à un autre
+L'utilisateur peut:
+- effectuer un backup de son propre _safe_ dans un format standardisé indépendant de l'opérateur assurant son stockage. L'utilisateur doit prouver être le propriétaire pour pouvoir effectuer cette opération.
+  -  un backup est un fichier externe crypté par un mot de passe long donné par l'utilisateur.
+- transférer son _safe_ d'un store à un autre en utilisant un fichier de backup:
+  - il doit prouver être propriétaire du _safe_ extrait du backup.
+  - l'ancien stockage du _safe_ est invalidé et le nouveau validé; un utilisateur n'a qu'un seul _safe_ utilisable en ligne à un instant donné.
+
+> L'utilisateur peut _lire_ l'intégralité du contenu de son _safe_: lire est un bien grand mot, l'essentiel des données y étant des données cryptographiques binaires non interprétables humainement.
+
+### Données _publiques_ du safe d'un utilisateur
+Son ID est une donnée publique mais non interprétable humainement générée aléatoirement à la création.
+
+A la création sont deux couples de clés sont générés pour un utilisateur U:
+- un couple de clés de cryptage C / décryptage D:
+  - la clé de cryptage C est **publique**: elle permet à un autre utilisateur A de crypter un texte que seul U peut décrypter s'il a accès à la clé publique C de A et à sa propre clé privée D.
+  - la clé de décryptage D est **privée**: seul U en a connaissance.
+- un couple de clés de vérification V / signature S:
+  - la clé de vérification V est **publique**: elle permet à un autre utilisateur A de vérifier qu'un texte donné a bien été signé par U.
+  - la clé de signature S est **privée**: seul U en a connaissance.
+
+> **ID, clé C et clé V** sont trois informations **publiques** à propos d'un safe d'un utilisateur que n'importe qui peut lire et utiliser: ces données sont **immuables** et ne changent jamais après création d'un safe.
+
+## Master Directory
+Le _master directory_ est un service standard unique:
+- son URL d'accès figure _en dur_ dans les applications déployées.
+- ce directory a une _entrée_ par utilisateur, son ID est celle de l'utilisateur qui est aussi celle de son _safe_ actif stocké chez l'opérateur choisi par l'utilisateur.
+
+### Alias d'une ID
+Un utilisateur U peut déclarer à un instant donné jusqu'à 2 alias de son ID:
+- un alias a au moins 10 signes.
+- à un instant donné un alias donné ne peut correspondre qu'un seul utilisateur U.
+- seul U peut changer / supprimer ses alias, du moment que les nouveaux proposés ne sont pas déjà les alias d'un autre utilisateur.
+
+> Un alias _peut_ être un texte relatif à l'utilisateur comme son numéro de mobile, une de ses adresses e-mail, son prénom / nom etc. Mais il peut aussi n'être qu'un pseudo sans aucune relation avec le propriétaire de l'ID. Connaître un alias d'une ID ne donne aucune indication utilisable sur son propriétaire dans le vrai monde.
+
+#### Un alias est enregistré
+- **crypté pour U seulement dans son _safe_**: l'utilisateur U peut lire ses propres alias courants mais même le piratage de la DB hébergeant le _safe_ ne permet pas d'y accéder.
+- **haché dans le Master Directory**: un utilisateur A peut accéder à l'entrée de U dans le Master Directory en saisissant un des alias de U, mais le Master Directory n'enregistre pas la valeur en clair de l'alias, même le piratage de la DB hébergeant le _master directory_ ne permet pas d'y accéder.
+
+### Propriétés d'une entrée du Master Directory
+Chaque entrée correspondant au _safe_ d'un utilisateur U:
+- `id` : ID de l'utilisateur (et clé primaire d'accès).
+- `hal1`: hash du premier alias de U (index unique d'accès) ou une chaîne vide.
+- `hal2`: hash du second alias de U (index unique d'accès) ou une chaîne vide.
+- `C` : clé C publique de cryptage de U.
+- `V` : clé V publique de vérification de U.
+- `store`: code de l'opérateur hébergeant actuellement le safe de U, ou une chaîne vide si c'est le storage STANDARD.
+
+Un utilisateur A peut accéder à ces données en fournissant soit l'ID de U, soit plus vraisemblablement un de ses alias et peut ainsi:
+- **crypter un texte** que seul U pourra lire ultérieurement en utilisant sa clé D. En général A joint au texte crypté, soit sa propre ID, soit sa propre clé C pour que U puisse décrypter le texte transmis.
+- **vérifier la signature d'un texte** censé avoir été signé par U l'effectivement été.
+- **envoyer au _safe_ de U une _proposition d'invitation_** (à rejoindre un groupe, à créer un compte, à détenir des droits d'accès, etc.)
+
+## Contenu d'un _safe_
+Un _safe_ est un enregistrement stocké dans un _safe store_ accessible par son ID et comporte plusieurs sections:
+- entête,
+- terminaux certifiés de confiance,
+- droits d'accès,
+- profils de sessions favorites,
+- préférences d'affichage et de comportement,
+- invitations en cours.
+
+L'entête contient les données cryptographiques nécessaires à la sécurité du _safe_ et à sa maîtrise par son propriétaires.
+
+> D'autres données cryptograpiques sont stckées dans les sections _terminaux certifiés_ et _droits d'accès_ (principalement).
+
+### Propriétés de l'entête
+A la création du _safe_ d'un utilisateur U **certaines propriétés invariantes** sont générées:
+- `id` : identifiant unique généré aléatoirement.
+- `K` : clé symétrique AES majeure de l'utilisateur.
+- `CD` : couple de clés de cryptage / décryptage.
+- `SV` : couple de clés de signature / validation.
+
+Les propriétés suivantes sont fournies par U à la création mais U _peut_ les changer quand il le souhaite:
+- `ps1` : phrase secrète 1, d'au moins 24 signes.
+- `ps2` : phrase secrète 2, d'au moins 24 signes.
+- `al1` : alias 1 d'au moins 10 signes, garanti unique par le _Master Directory_.
+- `al2` : alias 2 d'au moins 10 signes, garanti unique par le _Master Directory_.
+
+A un instant donné il existe toujours:
+- au moins une des deux phrases `ps1` ou `ps2`,
+- au moins un deux alias `al1` ou `al2`.
+
+**Rappel:** pour une ID donnée, le _Master Directory_ détient une **copie** des données suivantes:
+- `id`
+- `hal1`: le hash (court) de `al1` (s'il existe).
+- `hal2`: le hash (court) de `al2` (s'il existe).
+- `C` et `V`: les clés publiques de cryptage et de vérification de U.
+- `store`: le code du store où est stocké à l'instant actuel le _safe_ de U.
+
+#### Problèmes de discordance potentielle entre _safe_ et _master directory_
+Ces deux DB étant distinctes la mise à jour rigoureusement synchronisée des deux est impossible: l'une peut avoir été mise à jour et l'autre pas encore. En cas d'incident (certes improbable) entre ces deux étapes, les données sont discordantes. 
+
+Le protocole suivant permet de rétablir la cohérence entre elles. Exemple pour le changement de l'alias 1 par U.
+- **Phase 1**: U change son alias 1 et son _safe_ détient pour celui-ci deux _valeurs_
+  - Actuelle: l'alias A_al1 crypté par sa clé K, A_ha1 son hash et A_dh sa date-heure de déclaration.
+  - Future: le futur alias F_al1 crypté par sa clé K, F_ha1 son hash et F_dh sa date-heure de déclaration (postérieure donc à A_dh).
+- **Phase 2**: le _safe_ envoie au _master directory_ F_ha1 pour replacer ha1. Mais ceci _peut_ échouer si le nouvel alias F_ha1 a déjà été réservé par un autre utilisateur en tant qu'alias 1 ou 2.
+- **Phase 3-ok**: le _master directory_ a accepté F_ha1.
+  - le _safe_ supprime _l'actuel_ (A_al1 A_ha1 A_dh1) et renomme le _futur_: F_al1 devient A_al1, F_ha1 devient A_ha1 et F_dh1 devient A_dh1.
+  - _safe_ et _master directory_ sont cohérents entre eux.
+- **Phase 3-ko**: le _master directory_ a refusé F_ha1 (doublon).
+  - le _safe_ supprime le _futur_ (F_al1 F_ha1 F_dh1).
+  - _safe_ et _master directory_ sont cohérents entre eux.
+
+#### Inconsistance possible 1: la phase 1 a eu lieu mais pas la 2
+Un utilisateur qui utiliserait l'alias 1 pour obtenir une ID se trouverait face à un _safe_ ayant deux valeurs possibles actuelle et future
+
+#### `id` : identifiant de l'utilisateur
+
+- `lam` : dernier mois d'accès YYYYMM au _safe_: toute utilisation recule cette date qui permet une _purge_ périodique des _safe_ obsolètes / fantômes.
+- `lm` : _epoch_ en secondes de dernière mise à jour.
+- `C` : clé de cryptage en clair (PEM).
+- `D` : clé de décryptage (PEM) cryptée par la clé `K` et mise en base 64.
+- `S` : clé de signature (PEM) cryptée par la clé `K` et mise en base 64.
+- `V` : clé de vérification en clair (PEM).
+- `hp0` : index unique, `SH(p0)` en base 64.
+- `hr0` : index unique, `SH(r0)` en base 64.
+- `hhp1` : SHA court de `SH(p1)`.
+- `hhr1` : SHA court de `SH(r1)`.
+- `hhk` : SHA court de `SH(K)`.
+- `Ka` : clé `K` du safe cryptée par `SH(p0, p1)` en base 64.
+- `Kr` : clé `K` du safe cryptée par `SH(r0, r1)` en base 64.
+- `contact` : pseudo temporaire de contact externe crypté par la clé K.
+- `hct` : SH du contact en b64 (indexé en base).
+- `admins` : cryptage de l'encode de la liste des couples SVC.$OP dont l'utilisateur a déclaré être l'administrateur ce qui est vérifié lors de la déclaration mais subsiste même quand il ne l'est plus.
+- `pseudo` : pseudo crypté par la clé K du _safe_ et mis en base 64.
