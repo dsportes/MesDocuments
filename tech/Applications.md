@@ -848,22 +848,28 @@ A un instant donné il existe toujours:
 - `store`: le code du store où est stocké à l'instant actuel le _safe_ de U.
 
 #### Problèmes de discordance potentielle entre _safe_ et _master directory_
-Ces deux DB étant distinctes la mise à jour rigoureusement synchronisée des deux est impossible: l'une peut avoir été mise à jour et l'autre pas encore. En cas d'incident (certes improbable) entre ces deux étapes, les données sont discordantes. 
+Les deux DB étant distinctes, la mise à jour rigoureusement synchronisée des deux est impossible: l'une peut avoir été mise à jour et l'autre pas encore. En cas d'incident (certes improbable) entre ces deux étapes, les données sont discordantes. 
 
-Le protocole suivant permet de rétablir la cohérence entre elles. Exemple pour le changement de l'alias 1 par U.
-- **Phase 1**: U change son alias 1 et son _safe_ détient pour celui-ci deux _valeurs_
-  - Actuelle: l'alias A_al1 crypté par sa clé K, A_ha1 son hash et A_dh sa date-heure de déclaration.
-  - Future: le futur alias F_al1 crypté par sa clé K, F_ha1 son hash et F_dh sa date-heure de déclaration (postérieure donc à A_dh).
-- **Phase 2**: le _safe_ envoie au _master directory_ F_ha1 pour replacer ha1. Mais ceci _peut_ échouer si le nouvel alias F_ha1 a déjà été réservé par un autre utilisateur en tant qu'alias 1 ou 2.
-- **Phase 3-ok**: le _master directory_ a accepté F_ha1.
-  - le _safe_ supprime _l'actuel_ (A_al1 A_ha1 A_dh1) et renomme le _futur_: F_al1 devient A_al1, F_ha1 devient A_ha1 et F_dh1 devient A_dh1.
+Le protocole suivant permet de rétablir la cohérence entre elles. Exemple pour le changement des alias par U.
+- **Phase 1**: U change ses alias, son _safe_ détient pour ceux-ci deux groupes de _valeurs_
+  - Actuel: les alias al1 / al2 cryptés par la clé K, hal1 / hal2 leur. hash.
+  - Future: idem pour les valeurs _futures_.
+- **Phase 2**: le _safe_ envoie au _master directory_ ha1 / ha2 pour replacer les valeurs détenues. Mais ceci _peut_ échouer si les nouveaux alias ha1 ou ha2 ont déjà été réservés par un autre utilisateur en tant qu'alias 1 ou 2.
+- **Phase 3-ok**: le _master directory_ a accepté ha1 / ha2.
+  - le _safe_ supprime _l'actuel_ et renomme le _futur_ en _actuel_.
   - _safe_ et _master directory_ sont cohérents entre eux.
-- **Phase 3-ko**: le _master directory_ a refusé F_ha1 (doublon).
-  - le _safe_ supprime le _futur_ (F_al1 F_ha1 F_dh1).
+- **Phase 3-ko**: le _master directory_ a refusé l'opération.
+  - le _safe_ supprime le _futur_.
   - _safe_ et _master directory_ sont cohérents entre eux.
+  - l'opération retourne un avis d'échec à U.
 
-#### Inconsistance possible 1: la phase 1 a eu lieu mais pas la 2
-Un utilisateur qui utiliserait l'alias 1 pour obtenir une ID se trouverait face à un _safe_ ayant deux valeurs possibles actuelle et future
+#### Inconsistances possibles
+- la phase 1 a eu lieu mais pas la 2.
+- les phases 1 et 2 ont eu lieu mais pas la 3.
+
+Un utilisateur qui utiliserait l'alias 1 pour obtenir une ID se trouverait face à un _safe indécis_ ayant deux valeurs possibles actuelle et future.
+
+Quand il est en _indécision_ 
 
 #### `id` : identifiant de l'utilisateur
 
