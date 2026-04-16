@@ -244,10 +244,11 @@ A un instant donné il existe toujours:
 - au moins un deux alias `al1` ou `al2`.
 
 **Rappel:** pour une ID donnée, le _Master Directory_ détient une **copie** des données suivantes:
-- `id`
+- `userId`
 - `hsha1`: le SHA raccourci du Strong Hash de l'alias 1 (s'il existe).
 - `hsha2`: le SHA raccourci du Strong Hash de l'alias 2 (s'il existe).
 - `C` et `V`: les clés publiques de cryptage et de vérification de U.
+- `llq`: _last quarter login_. Numéro du trimestre de dernier login, 0 étant le premier de l'an 2000.
 - `store`: le code du store où est stocké à l'instant actuel le _safe_ de U.
 
 #### Problèmes de discordance potentielle entre _safe_ et _master directory_
