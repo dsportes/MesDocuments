@@ -234,21 +234,22 @@ A la création du _safe_ d'un utilisateur U **certaines propriétés invariantes
 - `S V` : couple de clés de signature / validation.
 
 Les propriétés suivantes sont fournies par U à la création mais U _peut_ les changer quand il le souhaite:
-- `ps1` : phrase secrète 1, d'au moins 24 signes.
-- `ps2` : phrase secrète 2, d'au moins 24 signes.
-- `al1` : alias 1 d'au moins 10 signes, garanti unique par le _Master Directory_.
-- `al2` : alias 2 d'au moins 10 signes, garanti unique par le _Master Directory_.
+- `p1` : phrase secrète 1, d'au moins 24 signes.
+- `p2` : phrase secrète 2, d'au moins 24 signes.
+- `a1` : alias 1 d'au moins 10 signes, garanti unique par le _Master Directory_.
+- `a2` : alias 2 d'au moins 10 signes, garanti unique par le _Master Directory_.
 
 A un instant donné il existe toujours:
-- au moins une des deux phrases `ps1` ou `ps2`,
-- au moins un deux alias `al1` ou `al2`.
+- au moins une des deux phrases `p1` ou `p2`,
+- au moins un deux alias `a1` ou `a2`.
 
 **Rappel:** pour une ID donnée, le _Master Directory_ détient une **copie** des données suivantes:
 - `userId`
+- `hshK`: le SHA raccourci du Strong Hash de la clé K.
 - `hsha1`: le SHA raccourci du Strong Hash de l'alias 1 (s'il existe).
 - `hsha2`: le SHA raccourci du Strong Hash de l'alias 2 (s'il existe).
 - `C` et `V`: les clés publiques de cryptage et de vérification de U.
-- `llq`: _last quarter login_. Numéro du trimestre de dernier login, 0 étant le premier de l'an 2000.
+- `llq`: _last login quarter _. Numéro du trimestre de dernier login, 0 étant le premier de l'an 2000.
 - `store`: le code du store où est stocké à l'instant actuel le _safe_ de U.
 
 #### Problèmes de discordance potentielle entre _safe_ et _master directory_
@@ -302,8 +303,8 @@ Les opérations suivantes mettent en jeu à la fois le _safe_ et le _Master Dire
 > Les autres opérations résolvent automatiquement une indécision quand le _safe_ est indécis et à cette occasion s'assure que le _safe_ est bien le courant (sinon se bloquent). En l'absence d'indécision, elles ne vérifient pas que le _safe_ depuis où elles opèrent est bien le courant.
 
 #### Synthèse des propriétés de l'entête d'un _safe_
-- `id` : identifiant de l'utilisateur
-- `lam` : dernier mois d'accès YYYYMM au _safe_: toute utilisation recule cette date qui permet une _purge_ périodique des _safe_ obsolètes / fantômes.
+- `userId` : identifiant de l'utilisateur
+- `llq` : _last login quarter_, trimestre du dernier login. Permet une _purge_ périodique des _safe_ obsolètes / fantômes.
 - `lm` : _epoch_ en secondes de dernière mise à jour.
 - `C` : clé de cryptage en clair (en base 64).
 - `D` : clé de décryptage cryptée par la clé `K` (en base 64).
