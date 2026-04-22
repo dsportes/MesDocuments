@@ -455,23 +455,20 @@ Elle consiste à attacher l'organisation à,
 > Cette configuration est déclarative seulement et ne correspond pas à un _transfert technique_ de base ou de storage, opérations lourdes gérées en ligne de commande par un administrateur système de l'opérateur.
 
 ## Credentials
-UN _credential_ gère UN droit pour,
-- UN utilisateur `userId`,
-- accéder aux opérations d'UN service `SVC`
-- accédant à UNE organisation `org`.
+Un credential est un document dont l'ID `credId` est aléatoirement généré à sa création:
+- de facto il _n'appartient_ qu'au seul utilisateur qui le détient dans sa Safe Box.
+- il définit le droit de cet utilisateur à accéder aux opérations d'UN service `SVC` spécifiquement pour une organisation `org`.
 
-La cible du credential est identifiée par le couple `role/docId`:
+Sa **cible spécifique** est identifiée par le couple `role/docId`:
 - `role` : UN rôle est matérialisé par le couple `classe.role`,
   - d'UNE classe de document (par exemple `Redacteur.`),
   - et éventuellement d'un rôle complémentaire `Redacteur.chef` (quand l'entité correspondante peut être abordée selon plusieurs rôles).
 - `docId` est l'identifiant du document correspondant.
   - quand `docId` est vide, le credential a pour cible TOUS les documents de la classe. C'est typiquement le cas pour `Org.` n'ayant qu'un document _son ID 1_ n'est pas donnée.
 
-> L'ID d'un _credential_ est le hash court de `userId/SVC/org/role/docId`. Pour une ID donnée **plusieurs versions successives** peuvent SUCCESSIVEMENT, chacune étant repéré par son `time` la date-heure en secondes de sa déclaration.
-
 ### `CredSafe` et `Credential`
-`CredSafe` est l'objet représentant du credential enregistrée dans le _Safe_ de l'utilisateur, avec:
-- la **clé privée de signature** de cette version du credential (une version _ultérieure_ aura une nouvelle de signature),
+`CredSafe` est l'objet représentant du credential enregistré dans la _Safe Box_ de l'utilisateur, avec:
+- sa **clé privée de signature** de cette version du credential (une version _ultérieure_ aura une nouvelle de signature),
 - quelques propriétés détaillées ci-après.
 - au détail près du _commentaire_ facultatif donné par l'utilisateur lui-même, cet objet est immuable.
 
@@ -480,42 +477,46 @@ La cible du credential est identifiée par le couple `role/docId`:
 - quelques propriétés détaillées ci-après qui peuvent évoluer au cours du temps.
 
 #### Dans une session de l'application
-- tous les `CredSafe` sont lus depuis le _safe_ de l'utilisateur pour les credentials relatifs à un des services accédés par l'application.
-- les _documents_ `Credential` de tous les services accédés par l'application relatifs au `userId` de l'utilisateur sont lisibles / synchronisables.
-- une application dispose des deux objets représentant le credential, mais:
-  - ne peut mettre à jour QUE la propriété `comment` de `CredSafe`.
-  - ne peut QUE lire le _document_ `Credential` correspondant.
+- tous les `CredSafe` sont lus depuis la _Safe Box_ de l'utilisateur pour les credentials relatifs à un des services accédés par l'application.
+- les _documents_ correspondants `Credential` dans la DB du service `SVC` et l'organisation `org` sont lisibles par accès par la `credId`.
+
+Une application dispose des deux objets représentant le credential, mais:
+- ne peut mettre à jour QUE la propriété `comment` de `CredSafe`.
+- ne peut QUE lire le _document_ `Credential` DB correspondant.
 
 #### Dans une opération d'un service
-- tous les _documents_ `Credential` citées par l'objet `AuthRecord` attaché à la requête sont lisibles.
-- les objets `CredSafe` ne sont pas accessibles.
+- tous les _documents_ `Credential` citées par l'objet `AuthRecord` attaché à la requête sont lisibles simplement du fait que leur `credId` y figure.
+- les objets correspondants `CredSafe` ne sont pas accessibles. L'ID de la Safe Box propriétaire en'est pas enregistrée dans le document Credential afin d'éviter de pouvoir lister les cibles d'un utilisateur et de faire des rapprochements indésirables.
 
 ### Cycle de vie d'un credential
 Pour simplifier on se fixe sur UN credential (pour un service, une organisation et un utilisateur) identifié par `role / docId`.
-- lors de l'opération **Validation d'une invitation** par l'utilisateur U (voir plus avant) sa création est faite par **inscription conjointe** dans le safe de l'utilisateur et le document dans la DB du service. Le couple de clés de signature (safe) et de vérification (BD du service) est cohérent. Sa date-heure `time` (de création) est fixée.
-- des opérations peuvent faire évoluer le document en DB:
+- lors de l'opération **Validation d'une invitation** par l'utilisateur U (voir plus avant) sa création est faite par **inscription conjointe**,
+  - dans la Safe Box de l'utilisateur,
+  - du document correspondant dans la DB du service. Le couple de clés de signature (présente dans la Safe Box) et de vérification (BD du service) est cohérent. Sa date-heure `time` (de création) est fixée.
+  - c'est une opération du service SVC qui inscrit ce document et c'est lui qui en gère le contenu.
+- des opérations du service ayant connaissance de son `credId` peuvent faire évoluer le document en DB:
   - modification des conditions d'application de la propriété `cond`, offrant plus ou moins de _pouvoirs_ au détenteur du credential.
   - inscription / effacement de la date-heure `limit` invalidant or revalidant l'usage du credential **dans le futur**.
 - une **suppression**,
- - soit **conjointe** dans le safe et la DB du service demandée par l'utilisateur (qui efface les deux),
- - soit par fixation par une opération de `limit` au jour J (ou dans le passé) correspondant à une suppression (logique puis à terme physique) du _document_.
+ - soit **conjointe** dans la Safe Box et la DB du service demandée par l'utilisateur (qui efface les deux),
+ - soit par fixation par une opération du service de `limit` au jour J (ou dans le passé) correspondant à une suppression (logique puis à terme physique) du _document_.
 
-> Au début d'une opération, un jeton émis par la session est vérifié, la signature du challenge  par la clé de signature _safe_ est vérifiée par la clé de vérification détenue la DB du service. Mais le credential peut être marqué hors limite: la session n'en n'a pas été informée. 
+> Au début d'une opération, un jeton émis par la session est vérifié, la signature du challenge par la clé de signature extraite de la _Safe Box_ est vérifiée par la clé de vérification détenue la DB du service. Mais le credential peut être marqué hors limite: la session n'en n'a pas été informée. 
 
 #### Credentials _brisés_
 Un credential est _brisé_ quand,
-- il est connu par un `CredSafe` dans un _safe_ et inconnu en tant que document `Credential` dans la DB du service: typiquement par une action en deux phases safe / service, la seconde ayant techniquement échoué.
-- une limite inférieure au jour J a été inscrite dans la DB par une opération du service, mais l'objet correspondant `CredSafe` n'a pas été détruit.
+- il est connu par un `CredSafe` dans une _Safe Box_ et inconnu en tant que document `Credential` dans la DB du service: typiquement par une action en deux phases Safe Box / opération du service, la seconde ayant techniquement échoué.
+- une limite inférieure au jour J a été inscrite dans la DB par une opération du service, mais l'objet correspondant `CredSafe` n'a pas été détruit (et ne peut pas l'être, l'id de la Safe Box (de l'utilisateur) lui est inconnue et un service ne peut pas écrire dans une Safe Box -sauf dans le cas de l'inscription d'une invitation-).
 
 ### Synchronisation des credentials _service_
-Pour éviter ses discordances, les documents _Credential_ sont synchronisés en début (et en cours) de session par abonnement:
-- la mise à jour du `CredSafe` dans le _safe_ associée se limite à sa suppression suite à la détection de la suppression du _document_ (ayant un `limit` en deçà du jour courant).
+Pour éviter ses discordances, les documents _Credential_ sont synchronisés en début (et en cours) de session par abonnement àchacun des credential de la session identifiés par leur credId:
+- la mise à jour du `CredSafe` dans la _Safe Box_ se limite à sa suppression suite à la détection de la suppression du _document_ (ayant un `limit` en deçà du jour courant).
 - de facto le `CredSafe` d'un credential ne sert qu'à,
   - porter la clé de signature,
   - porter un commentaire fixé par l'utilisateur pour lui permettre, a) de supprimer les credentials considérés comme désormais sans intérêt, b) de gérer ses _profils de session_ par inclusion des credentials jugés pertinents pour chaque profil.
 
 ### Propriétés de `CredSafe`
-Parmi les propriétés _communes_ `ID userId SVC org role docId time`, la propriété `userId` n'est pas stockée, puisque le _safe_ est dédié à ce `userId`.
+Les propriétés _communes_ : `credId SVC org role docId time`.
 
 Les autres propriétés sont:
 - `privs`: la clé privée de signature générée pour cette version du credential.
@@ -529,7 +530,7 @@ Les autres propriétés sont:
 - `autoRevokeCreds`: suppression d'une liste de `CredSafe`.
 
 ### Propriétés du _document_ `Credential` stocké en DB du service
-Parmi les propriétés _communes_ `ID userId SVC org role docId time`,
+Parmi les propriétés _communes_ `credId SVC org role docId time`,
 les propriétés `SVC org` ne sont pas stockées explicitement _dans_ le document (`org` est stockée à part et tous les documents de la base de données sont spécifiques du service `SVC`).
 
 Les autres propriétés sont:
@@ -539,19 +540,22 @@ Les autres propriétés sont:
 
 ## L'objet `AuthRecord`
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
-- `userId`: de l'utilisateur.
 - `sessionId`: identifiant de session.
 - `time`: date-heure en seconde de création du record.
-- _challenge_: propriété virtuelle _userId + '/' + time_
-- `userSign`: signature par la clé privée de signature de l'utilisateur, du _challenge_.
-- `signatures`: objet ayant une propriété par ID de credential inscrit dans le record donnant la signature du challenge par la clé privée de signature du credential.
+- _challenge_: propriété virtuelle _sessionId '/' time_
+- Si l'utilisateur doit être authentifié en tant que tel:
+  - `userId`: de l'utilisateur.
+  - `userSign`: signature par la clé privée de signature de l'utilisateur, du _challenge_.
+- `signatures`: objet ayant une propriété par `credId` de credential inscrit dans le record donnant la signature du challenge par la clé privée de signature du credential.
 
 Au démarrage d'une opération, le `AuthRecord` joint est scanné:
-- si la signature du `userId` n'est pas validé, c'est un échec.
-- une map des  `docClass.role/docId` dont la signature a été vérifiée et validée est établie et pointe sur le document _credential_ correspondant.
+- si la signature du `userId` est présente mais pas validée, c'est un échec.
+- une map des  `docClass.role/docId` dont la signature a été vérifiée et validée est établie et pointe sur le document _credential_ correspondant (obtenu depuis son `credId`).
 - la liste de ceux en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
 
 Dans le cours du traitement de l'opération, cette map est consultable par la logique de l'application pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du `cond` attaché au credential validé.
+
+> Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
 
 # Invitations
 
@@ -736,3 +740,4 @@ Quand un utilisateur U fait une demande d'invitation en spécifiant un major ou 
 
 ### Retrait des droits de sponsoring
 Un _sponsoring_ correspondant à un credential, la logique applicative peut avoir des opérations invalidant un credential de `Sponsor.` (comme de tout autre rôle).
+
