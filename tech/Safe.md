@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Utilisateurs et "coffres forts"
+title: Utilisateurs, leur "Safe Box"
 ---
 
 Un _utilisateur_ désigne ici une personne physique utilisant une application depuis un _terminal_.
