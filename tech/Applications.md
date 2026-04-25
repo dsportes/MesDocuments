@@ -690,18 +690,18 @@ Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations 
 #### `$mdInvitNew` : création (ajout) d'une nouvelle invitation
 - **soit par U**: il fournit la signature d'un _challenge_ pour justifier de son droit à cette opération.
 - **soir par un sponsor** qui fournit:
-  - la référence `spCredId` de son credential de sponsoring justifiant cette action ainsi que `etcSign` la signature de `etc` par la clé privée de signature que le sponsor était censé posséder. 
+  - la référence `spCredId` de son credential de sponsoring justifiant cette action ainsi que `sign` la signature du challenge par la clé privée de signature que le sponsor était censé posséder. 
   - L'opération peut accéder à sa DB (de `svc org`) et lui demander de vérifier,
     - que ce sponsor est bien détenteur de ce credential,
-    - que le `rôle docId` de ce credential lui ouvre bien le droit à traiter le `major minor` de l'invitation à ajouter,
-    - et de lui retourner la clé de la vérification de ce credential: `etcSign` comportant la signature de `etc` afin de vérifier celle-ci.
+    - que le `role docId` de ce credential lui ouvre bien le droit à traiter le `major minor` de l'invitation à ajouter,
+    - et de lui retourner la clé de la vérification de ce credential afin de vérifier que `sign` est la signature du challenge.
 
 **Cas particulier d'un sponsoring par un _administrateur_:**
 - le _major_ est `Org.manager` (pas de _minor_).
 - les credential de _role_ `Sponsor.` et _docId_ `Org.manager` ne peuvent attribués que par un _administrateur_ du service.
 - au lieu de fournir `spCredId`, il est fourni:
   - le `userId` du sponsor censé être _administrateur_,
-  - `etcSign` est signé par sa signature personnelle.
+  - `sign` est la signature du challenge par la clé de signature du sponsor (administrateur).
 - l'opération demande au service,
   - de vérifier que `userId` est bien un de ses _administrateur_,
   - si oui de retourner sa clé publique de vérification.
