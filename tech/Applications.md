@@ -643,14 +643,14 @@ Une **invitation** a quelques propriétés immuables dans le temps:
 - `major minor`: _l'objet de l'invitation_ distingué entre un code de catégorie majeur et un code complémentaire précisant sa nature fine.
 
 **Autres informations dynamiques:**
-- `v` : c'est la date-heure (_epoch en seconde_) de sa dernière évolution, que soit par U ou par un des sponsors.
-- `waiting` : voir ci-dessus.
+- `v` : c'est la date-heure (_epoch_) de sa dernière évolution, que soit par U ou par un des sponsors.
+- `byU` : voir ci-dessus.
 - `tab` : voir ci-dessus.
-- `etc` : c'est un objet écrit exclusivement par les sponsors intervenant et contenant toutes les données nécessaires à la _validation_ de l'invitation. En pratique c'est une _sérialisation_ d'un objet.
-- `spCredId` : ID du credential de sponsoring sous lequel le dernier sponsor est intervenu.
-- `etcSign`: signature par le credential `spCredId` utilisé par le sponsor du `etc` qu'il a construit.
+- `etc` : c'est un objet écrit exclusivement par les sponsors intervenant et contenant toutes les données nécessaires à la _validation_ de l'invitation.
 
-L'opération de _validation_ vérifie depuis la clé de vérification contenue dans le credential identifié par spCredId que le sponsor en disposait bien de la clé privée de signature. Elle vérifie aussi que le `role / docId` de ce credential donnait bien pouvoir au sponsor de traiter l'invitation selon son `major minor`.
+A la création / mise à jour d'une invitation par un sponsor, il est vérifié que le credential qu'il a fourni lui permet de traiter l'invitation selon son `major minor`.
+
+L'opération de _validation_ vérifie que le `etc` fourni par le sponsor est bien formé.
 
 #### Document `Invitation`
 Il contient les propriétés précédentes et est stocké dans la DB de l'organisation pour le service (`svc org` n'y figurent donc pas explicitement).
@@ -661,10 +661,12 @@ Il contient les propriétés précédentes et est stocké dans la DB de l'organi
 #### Opérations de _validation_
 Le traitement de validation lancé par U comporte plusieurs phases:
 - (1) génération de clés requises pour les credentials à créer et celles à intégrer dans les documents créés ou mis à jour.
-- (2) lancement de l'opération _validation_: les arguments comportent les clés _publiques_ ci-dessus. L'authentification de U est vérifiée et sa conformité avec le `userId` détenu dans le document `Invitation` correspondant au `invitId` passé en argument est vérifiée.
+- (2) lancement de l'opération _validation_: les arguments comportent les clés _publiques_ ci-dessus.
   - l'opération créé les documents et credentials dont les paramètres sont dans `etc`, complétés des clés publiques des credentials qui viennent d'être reçues en argument.
-  - l'opération se termine en supprimant le document `Invitation` et en supprimant sa référence dans le _Master Directory_ (table `ZZINVITS`). 
-- la session de U enregistre dans sa _Safe Box_ les credentials éventuellement créés et dont les clés _privées_ viennent d'être générées en phase (1).
+  - l'opération se termine en supprimant le document `Invitation`. 
+- (3) la session de U:
+  - supprime la référence de l'invitation dans le _Master Directory_ (table `ZZINVITS`),
+  - enregistre dans sa _Safe Box_ les credentials éventuellement créés et dont les clés _privées_ viennent d'être générées en phase (1).
 
 ### Remarques
 Pour créer un _credential_ il faut disposer d'un couple de clés signature / vérification:
@@ -683,7 +685,7 @@ Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations 
 - `v`: version, date-heure de la dernière mise à jour de l'invitation dans la DB. Cette propriété a un double rôle:
   - indexée avec `userId` pour ne récupérer que les invitations ayant changé depuis la dernière demande,
   - destruction automatique au delà de N jours après `v`.
-- `lastView` : date-heure à laquelle l'utilisateur a consulté pour la dernière fois l'invitation (lui permettant de voir lesquelles ont changé).
+- `lv` : date-heure à laquelle l'utilisateur a consulté pour la dernière fois l'invitation (lui permettant de voir lesquelles ont changé).
 - `data`: sérialisation cryptée des propriétés `svc org major minor` immutables de l'invitation. Une session de U sera en mesure d'obtenir auprès du service servant `svc org` le contenu complet de l'invitation.
 
 ### Opérations sur `ZZINVITS`
