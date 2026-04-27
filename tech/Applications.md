@@ -612,12 +612,9 @@ In fine une **invitation** disparaît:
 - soit par _obsolescence_: une invitation s'auto-détruit au bout de quelques jours sans intervention de U ou d'un sponsor.
 
 Une **invitation** a un _statut d'attente_:
-- `waiting` _false_. Le dernier sponsor intervenant a considéré que _la balle est dans le camp de l'utilisateur_ et que c'est à lui d'effectuer une action. Toutefois, même dans cet état un sponsor _peut_ intervenir pour la faire évoluer s'il le souhaite.
-- `waiting` _true_. Soit ...
-  - l'invitation n'est **pas** en état d'être _validée_ faute de contenir les éléments suffisants que seul un sponsor peut fournir (dans la propriété `etc`).
-  - soit elle _pourrait_ être validée en l'état mais U n'est pas satisfait de la proposition et a considéré préférable d'en attendre une autre / meilleure.
+- `byU`: _true_ si la dernière mise à jour a été faite par U, sinon _false_.
 
-> _A priori_ les sponsors ne cherchent à intervenir QUE sur des invitations _en attente_, mais peuvent toutefois à la limite changer leur offre de leur propre initiative.
+> _A priori_ les sponsors ne cherchent à intervenir QUE sur des invitations ou `byU` est _true_, mais peuvent toutefois à la limite changer leur offre de leur propre initiative.
 
 Une **invitation** a une **ardoise** (`tab`) d'échange textuel:
 - elle permet à U et au(x) sponsor(s) de s'expliquer en termes humains.
