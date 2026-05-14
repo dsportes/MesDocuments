@@ -335,7 +335,7 @@ Comme pour le store _générique_ des Safe Box, il n'y a qu'un seul MASTERDIR de
 - `value`: un texte JSON donnant pour chaque opérateur son URL:
 
     { 
-      "$RED1": { "url": "https://..."}, 
+      "$RED": { "url": "https://..."}, 
       "$BLUE": { "url": "https:// ..."}
     }
 
@@ -344,10 +344,12 @@ Comme pour le store _générique_ des Safe Box, il n'y a qu'un seul MASTERDIR de
 - `v` : _epoch_ en secondes de mise à jour.
 - `value`: un texte JSON donnant pour chaque service le code de l'opérateur qui l'assure:
 
-    { "AS2": "$BLUE", "CG1": "$RED" }
+    {
+      "amis94": { "RANDO": "$BLUE", "ASSO": "$RED" },
+      "balad59": { "RANDO": "$BLUE", "ASSO": "$RED" },
+    }
 
-#### Table `ZZUSERS`
-Voir le document 
+#### Table `ZZUSERS` 
 Une ligne est déclaré pour chaque utilisateur à l'occasion de la création de sa Safe Box:
 - `userId`: clé primaire.
 - `hshk`: hash du Strong Hash de sa clé K, servant à vérifier sur certaines opérations que demandeur est bien propriétaire de la Safe Box d'ID userId.
@@ -358,8 +360,13 @@ Une ligne est déclaré pour chaque utilisateur à l'occasion de la création de
 - `llq`: dernier trimestre d'accès à la Safe Box.
 - `store`: code de l'opérateur gérant la Safe Box si ce n'est pas l'opérateur générique.
 
+    {
+      "qzFuser1...": { "alias": ["Leon14...", ""], "store": ""},
+      "9Kvuser2...": { "alias": ["Paulo...", "BigMoi"], "store": "$RED"},
+    }
+
 Les objectifs de cette table sont les suivants:
-- fournir le userId et le store d'un utilisateur depuis un des deux alias qu'il a déclaré.
+- fournir le `userId` et le `store` d'un utilisateur depuis un des deux alias qu'il a déclaré.
   - lors du login de l'utilisateur pour lui permettre _d'ouvrir_ sa Safe Box (après avoir fourni sa phrase secrète d'ouverture).
   - pour un utilisateur _sponsor_ d'obtenir le userId d'un utilisateur dont il connaît un alias.
 - fournir aux services les clés publiques de cryptage et de vérification de signature d'un utilisateur.
@@ -375,11 +382,42 @@ Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations 
 - `lastView` : date-heure à laquelle l'utilisateur a consulté pour la dernière fois l'invitation.
 - `data`: une sérialisation cryptée des propriétés `svc org major minor` immutables de l'invitation.
 
+    {
+      "Fgtinv2...": { "userId": "qzFuser1..." "data": "RANDO/amis94/Anim./"},
+    }
+
 #### Table `ZZSAFE`
-Pour les utilisateurs dont la Safe Box est hébergée dans store _générique_ des Safe Box.
+Pour les utilisateurs dont la Safe Box est hébergée dans le store _générique_ des Safe Box.
 - `userId`: ID du propriétaire de la Safe Box.
 - `llq` : numéro du dernier trimestre d'accès.
-- `data` : contenu crypté de la Safe Box.
+- `data` : contenu crypté de la Safe Box. Sections: `auth devices, creds profiles prefs`
+
+    {
+      "qzFuser1...": { auth:{}, devices:{}, creds:{}, profiles:{}, prefs:{} },
+    }
+
+## Schéma général : exemple
+
+<img src="../tech/archi-1.svg" style="background-color:white">
+
+#### Scenario
+##### Obtention de la Safe Box
+- L'utilisateur d'alias `Leon27` ouvre l'application **MesRandos** qui se trouve hébergée sous _github.io_ à l'URL `https://jollyapps.github.io/mesrandos`
+- Il saisit son alias `Leon27` :
+  - l'application consulte le _Master Directory_ dont l'URL figure dans sa configuration: la réponse est tirée de `USERS` qui indique que l'alias `Leon27` est bien enregistré et correspond au userId `qsduUs1` dont la Safe Box est hébergée par le _store_ `standard`.
+- L'utilisateur saisit sa phrase secrète: le service _Safe Box standard_ vérifie que cette phrase secrète est bien celle enregistrée pour ce userId et le contenu de la Safe Box est copié dans la session de l'application.
+- Dès lors `Leon27` peut utiliser l'application qui dispose de ses droits d'accès dans sa Safe Box.
+
+##### Lancement d'une opération
+L'application MesRandos a besoin de solliciter une opération `op1` du service `RANDO` sachant que l'utilisateur a désigné son organisation `amis94` dans laquelle il il a un droit d'accès `Animateur/wxfr`.
+- l'application demande au Master Directory l'URL du service correspondant:
+  - Dans `ORGS` il obtient que l'organisation `amis94` a son service `RANDO` hébergé par l'opérateur `$BLUE`.
+  - Dans `SVCOPS` il obtient que le service `RANDO` est assuré par l'opérateur `$BLUE` à l'URL `rndx.blue.org`.
+- l'application envoie donc sa requête à cette URL.
+- une table locale au service dans base de données _maître_ indique que l'organisation `amis94` est gérée par la base de données `DB-A`.
+- l'opération accède aux données / traitement demandé:
+  - elle a vérifié que la session disposait bien du droit d'accès correspondant identifié `RANDO/amis94/Animateur/wxfr`.
+  - la session a signé un jeton par sa clé de signature et le service a vérifié par la clé de vérification détenue dans DB-A que ce jeton était bien signé.
 
 ## Status
 
