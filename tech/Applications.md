@@ -13,14 +13,15 @@ Les utilisateurs peuvent exécuter une **application** sur un de leurs _appareil
 > Sur un terminal donné, l'application `monAppli` est ou n'est pas en exécution, il n'est pas possible d'en lancer plusieurs simultanément.
 
 ### Les "services" de traitement des données
-Un **service** porte un nom et est localisé par une URL:
-- un service supporte plusieurs **opérations**. 
-- les opérations sont demandées par une application. Une opération,
+Un **service**:
+- porte un nom qui qualifie synthétiquement son _objet / fonctionnalité_.
+- il supporte plusieurs **opérations**: il correspond à un logiciel qui peut être déployé par un ou plusieurs _opérateurs_.
+- les opérations sont demandées par une application en citant l'URL qu'un opérateur a utilisée pour déployer le service. Une opération,
   - reçoit en entrée des paramètres, 
   - effectue le traitement demandé, 
   - retourne un résultat qui en général va influer sur l'affichage de l'application l'ayant sollicitée.
 
-En première approche lorsqu'une opération d'un **service** est invoquée, un programme démarre _quelque part sur Internet_, exécute le traitement demandé puis s'arrête.
+En première approche lorsqu'une opération d'un **service** (déployé par un _opérateur_) est invoquée, un **programme** démarre _quelque part sur Internet_, exécute le traitement demandé puis s'arrête.
 
 Si logiquement ceci est perçu comme tel vu de l'extérieur, le scénario _technique_ est un peu différent:
 - au lieu de se terminer après la fin de l'opération, le programme reste _vivant_ en attendant qu'une autre opération soit demandée afin que l'énergie de calcul dépensée pour le chargement du programme soit _amortie_ sur un plus grand nombre d'opérations.
@@ -32,13 +33,13 @@ Si logiquement ceci est perçu comme tel vu de l'extérieur, le scénario _techn
 
 > Certaines configurations peuvent fixer un nombre fixe de ces exécutions et spécifier que les programmes ne s'arrêtent pas même en l'absence de trafic: les choix résultent d'une valorisation économique dépendant des tarifs des fournisseurs de traitements à distance.
 
-> UNE **application** donnée, par exemple `monAppli`, peut faire appel à plusieurs **services**, par exemple `compta` et `rando`. Une application qui ne fait appel à aucun service a un comportement de _calculette_ et n'utilise aucune donnée externe.
+> UNE **application** donnée, par exemple `monAppli`, peut faire appel à plusieurs **services**, par exemple `assocs` et `rando`. Une application qui ne fait appel à aucun service a un comportement de _calculette_ et n'utilise aucune donnée externe.
 
 ### La "base de donnée d'un service", sa partition par "organisation"
-En première approche un **service** (`rando` par exemple) a **SA** base de données (`rando-1` par exemple): deux services différent ne partagent pas une même base.
+En première approche un **service** déployé (`rando` par exemple) a **SA** base de données (`DB-A` par exemple): deux services différents ne partagent pas une même base.
 
 La base de données est **partitionnée** par **organisation**:
-- Les données relatives à une organisation `IDF` sont totalement disjointes de celles de l'organisation `PACA` mais la structure des données est unique.
+- Les données relatives à une organisation `amis94` sont totalement disjointes de celles de l'organisation `balad59` mais la structure des données est unique.
 - **une opération d'un service est strictement spécifique à UNE organisation** et n'accède dans la base de données qu'aux données de celle-ci.
 
 > Ce dispositif _multi-tenant_ rend possible d'ajouter une nouvelle organisation sans interruption des services (même ceux en cours d'exécution).
@@ -67,34 +68,34 @@ Comme pour une base de données, au cas où le volume l'exigerait, plusieurs _st
 >- dont le contenu est en général _opaque_ pour les services (mais ce n'est pas obligatoire),
 >- adapté à l'archivage de données de _legacy_.
 
-### Les "Utilisateurs" et leurs _droits d'accès / credential_ 
+### Les "Utilisateurs" et leurs _pouvoirs / credentials_ 
 Les **utilisateurs** sont identifiés par un identifiant aléatoire et anonyme, sans référence avec des identifiants personnels dans la _vraie_ vie.
 
-Depuis un appareil quelconque un utilisateur peut lancer une application dès lors qu'il en connaît l'URL. Celle-ci peut invoquer des **services** et leurs opérations MAIS toute opération exige en général que l'utilisateur exhibe un ou des _droits d'accès_ appropriés pour l'opération demandée et ses paramètres.
+Depuis un appareil quelconque un utilisateur peut lancer une application dès lors qu'il en connaît l'URL. Celle-ci peut invoquer des **services** et leurs opérations MAIS toute opération exige en général que l'utilisateur exhibe un ou des _pouvoirs_ appropriés pour l'opération demandée et ses paramètres.
 
-Par exemple une opération d'accès aux données d'un `adhérent` identifié `abcd` va exiger que l'application communique à l'opération un _jeton_ qui prouve que l'utilisateur dispose du droit d'accéder aux données de cet adhérent. Le _droit_ requis peut être différent selon que l'opération effectue une lecture ou une mise à jour de l'adhérent.
+Par exemple une opération d'accès aux données d'un `adhérent` identifié `abcd` va exiger que l'application communique à l'opération un _jeton_ qui prouve que l'utilisateur dispose du pouvoir d'accéder aux données de cet adhérent. Le _pouvoir_ requis peut être différent selon que l'opération effectue une lecture ou une mise à jour de l'adhérent.
 
-Un _droit d'accès_ comporte deux parties:
+Un _pouvoir_ comporte deux parties:
 - **une partie conservée par l'utilisateur** dont le texte comporte les éléments cryptographiques lui permettant de _signer_ chaque jeton attaché à une demande d'une opération.
-- **une partie conservée dans la base de données du service pour l'organisation souhaitée** qui permet à l'opération de _vérifier_ que le jeton reçu en paramètre de l'opération est effectivement valide et contient bien les données qu'il prétend détenir.
+- **une partie conservée dans la base de données du service pour l'organisation souhaitée** qui permet à l'opération de _vérifier_ que le jeton reçu en paramètre de l'opération est effectivement valide et contient bien les données qu'il prétend détenir, bref que l'utilisateur détient bien le _pouvoir_ qu'il prétend avoir.
 
 Ce mécanisme détaillé par ailleurs permet,
 - de ne pas stocker dans la base de données les éléments de _signature_,
 - de pouvoir refuser des _jetons usurpés_, c'est à dire ayant déjà été présentés une fois et représentés plus tard.
 
 ### _Safe Box_ d'un utilisateur
-Chaque _droit d'accès_ est un texte long, comportant des textes d'apparence aléatoire, bref impossibles à mémoriser (et à inventer par _force brute_). 
+Chaque _pouvoir_ est un texte long, comportant des données d'apparence aléatoire, bref impossibles à mémoriser (et à inventer par _force brute_). 
 
 L'utilisateur pourrait certes disposer d'un fichier personnel où il les rangerait mais la sécurité et l'accès depuis plusieurs terminaux à ce fichier exposerait ces données de sécurité _critiques_ aux pertes et aux vols.
 
-Chaque utilisateur dispose à cet effet d'une _Safe Box_ personnelle où ses droits d'accès sont rangés, cryptés et sécurisés. 
+Chaque utilisateur dispose à cet effet d'une _Safe Box_ personnelle où ses pouvoirs sont rangés, cryptés et sécurisés. 
 
 La _Safe Box_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou à  l'inverse un utilisateur est identifié par le numéro de sa Safe Box). Il comporte plusieurs _rubriques_:
 - son **entête** qui détient les éléments cryptographiques techniques nécessaires à son fonctionnement.
-- la **liste de ses droits d'accès**.
+- la **liste de ses pouvoirs**.
 - une **liste de terminaux certifiés de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
 - une **liste de préférences** de comportement et d'affichage de son choix afin de retrouver en lançant une nouvelle session, l'organisation de l'écran qu'il souhaite, les options de son choix, sa langue de travail, etc.
-- une **liste des profils de sessions favorites**, un profil ouvrant une session avec une liste de droits d'accès réduite à ceux requis pour ouvrir une session avec un but spécifique. 
+- une **liste des profils de sessions favorites**, un profil ouvrant une session avec une liste de pouvoirs réduite à ceux requis pour couvrir un but spécifique. 
 
 #### Dépôts des Safe Box: _standard_ ou _opérateur spécifique_
 Un **dépôt _standard_** est géré: tout utilisateur peut en disposer pour y déposer sa Safe Box.
@@ -105,7 +106,7 @@ Chaque utilisateur (ou groupes d'utilisateurs) peut déployer son propre dépôt
 
 Des moyens sont données pour basculer du dépôt _standard_ vers un _dépôt spécifique_ (et réciproquement), ainsi que pour effectuer des _backup_: l'image d'une _Safe Box_ peut être exportée cryptée par une clé détenue par le seul utilisateur.
 
-> Le _contenu_ d'un coffre-fort est lisible _en clair_ **pour son propriétaire et seulement lui**, ... mais étant plein de données cryptographiques le terme _en clair_ est un peu une vue de l'esprit.
+> Le _contenu_ d'une Safe Box est lisible _en clair_ **pour son propriétaire et seulement lui**, ... mais étant plein de données cryptographiques le terme _en clair_ est un peu une vue de l'esprit.
 
 ### Exécution d'une application en _mode AVION_
 Quand un utilisateur a déclaré un ou des terminaux qu'il a certifié **de confiance** et qu'il y ouvre une session d'une application, celle-ci peut utiliser une **mémoire cache de documents et fichiers**, cryptée et sécurisée sur le terminal.
@@ -121,7 +122,7 @@ Elles font appel à des **services de traitement des données** distants, chacun
 
 Chaque requête à une opération est dédiée à UNE organisation et n'accède qu'à la partition de la base de données dédiée à cette organisation et / ou du storage dédié à cette organisation.
 
-Tout **utilisateur** dispose d'une **Safe Box** détenant en particulier ses _droits d'accès_ requis à l'appel des opérations des services par une application. Un utilisateur peut décider de confier la gestion de SA Safe Box, soit au **dépôt standard**, soit à un **dépôt spécifique** géré par l'opérateur de son choix.
+Tout **utilisateur** dispose d'une **Safe Box** détenant en particulier ses _pouvoirs_ requis à l'appel des opérations des services par une application. Un utilisateur peut décider de confier la gestion de SA Safe Box, soit au **dépôt standard**, soit à un **dépôt spécifique** géré par l'opérateur de son choix.
 
 # Installation des applications sur un _terminal_
 
@@ -190,7 +191,7 @@ Les données d'un service d'un opérateur sont stockées dans deux _mémoires pe
 
 ## Applications / services
 
-> Un service MASTER d'accès au **Master Directory** a dans sa base de données une petite table `ZZSVCOPS` ayant une ligne par _service_ qui donne la liste des opérateurs proposant ce service avec l'URL d'accès correspondante.
+> Un service **Master Directory** a dans sa base de données une petite table `ZZSVCOPS` ayant une ligne par _service_ qui donne la liste des opérateurs proposant ce service avec l'URL d'accès correspondante.
 
 Une **application déployée** dispose dans sa configuration de l'URL d'accès à **Master Directory** ce qui lui permet d'obtenir pour le service `randos` par exemple les URLS pour les opérateurs **Rouge** ou **Bleu**.
 
@@ -295,37 +296,37 @@ Définit une liste d'opérations qui peuvent être invoquées avec leurs signatu
 ### Opérateur
 Un opérateur fournit des prestations de calcul / stockage de données pour plusieurs services.
 - code `$OP`: $ + 2 à 7 majuscules / chiffres : `$RED1`
-- **chaque service supporté à son URL**.
+- **chaque service supporté a son URL**.
 - l'URL d'un `service opérateur` peut changer.
 
 ### Organisation
 Une organisation dispose de ses propres données regroupées par **service**.
-- son code `org`: minuscule + 2 à 15 minuscules / chiffres: `test demo dodacoltes`
+- son code `org`: minuscule + 2 à 15 minuscules / chiffres: `test demo amis94`
 - pour chaque **service** elle a choisi UN **opérateur**. 
 - l'opérateur d'un `organisation service` peut changer.
 
 Un `service opérateur`(une URL) dispose d'un document `singletons` de clé primaire `orgs` donnant _pour chaque organisation_ le couple des codes de la base de données et du storage hébergeant ses données.
 
-    { "demo": ["sqlite_A", "storage_a"], "doda": [...] }
+    { "demo": ["sqlite_A", "storage_a"], "amis94": [...] }
 
 ### Opérations standard
 L'identifiant complet d'une opération est le couple _service opération_.
 - le code d'une opération est un nom de classe.
-- elle est invoquée par l'URL du `service opérateur` avec:
-  - son **code d'opération** (relatif à son service),
+- elle est invoquée par l'URL du `service opérateur` avec en arguments:
+  - son **code d'opération** `opName` (relatif à son service),
   - un **code organisation** `org` : une opération est strictement dédiée à une seule organisation.
 
 ### Opérations d'administration d'un service d'un opérateur
 Son URL est celle de son `service opérateur` avec:
-- son **code d'opération** (relatif à son service) se termine par $ ce qui permet d'ouvrir la base de données par défaut du service (et non celle associée à l'organisation),
+- son **code d'opération** (relatif à son service) se termine par `$` ce qui permet d'ouvrir la base de données par défaut du service (et non celle associée à l'organisation),
 - le code de l'opérateur `$OP`.
 
-## Le directory central MASTERDIR
+## Le directory central MASTER DIRECTORY
 Il est hébergé dans la base de données d'un opérateur dont l'URL est donnée dans la configuration statique de chaque application.
 
-Comme pour le store _générique_ des Safe Box, il n'y a qu'un seul MASTERDIR de production.
+Comme pour le store _générique_ des Safe Box, il n'y a qu'un seul MASTER DIRECTORY de production.
 
-> Il peut y avoir autant de MASTERDIR de test que souhaité par les développeurs pouvant ainsi disposer chacun d'environnements totalement privatifs.
+> Il peut y avoir autant de MASTER DIRECTORY de test que souhaité par les développeurs pouvant ainsi disposer chacun d'environnements totalement privatifs.
 
 ### Tables: `ZZSVCOPS ZZORGS ZZUSERS ZZINVITS`
 
@@ -334,9 +335,12 @@ Comme pour le store _générique_ des Safe Box, il n'y a qu'un seul MASTERDIR de
 - `v` : _epoch_ en secondes de mise à jour.
 - `value`: un texte JSON donnant pour chaque opérateur son URL:
 
-    { 
+    {
+    "RANDO" : { 
       "$RED": { "url": "https://..."}, 
       "$BLUE": { "url": "https:// ..."}
+    },
+    "ASSOCS": {}
     }
 
 #### Table `ZZORGS`
@@ -345,14 +349,14 @@ Comme pour le store _générique_ des Safe Box, il n'y a qu'un seul MASTERDIR de
 - `value`: un texte JSON donnant pour chaque service le code de l'opérateur qui l'assure:
 
     {
-      "amis94": { "RANDO": "$BLUE", "ASSO": "$RED" },
-      "balad59": { "RANDO": "$BLUE", "ASSO": "$RED" },
+      "amis94": { "RANDO": "$BLUE", "ASSOCS": "$RED" },
+      "balad59": { "RANDO": "$BLUE", "ASSOCS": "$RED" },
     }
 
 #### Table `ZZUSERS` 
-Une ligne est déclaré pour chaque utilisateur à l'occasion de la création de sa Safe Box:
+Une ligne est déclarée pour chaque utilisateur à l'occasion de la création de sa Safe Box:
 - `userId`: clé primaire.
-- `hshk`: hash du Strong Hash de sa clé K, servant à vérifier sur certaines opérations que demandeur est bien propriétaire de la Safe Box d'ID userId.
+- `hshk`: hash du Strong Hash de sa clé K, servant à vérifier sur certaines opérations que le demandeur est bien propriétaire de la Safe Box d'ID userId.
 - `hsha1`: hash du Strong Hash de l'alias 1 de l'utilisateur.
 - `hsha2`: hash du Strong Hash de l'alias 2 de l'utilisateur.
 - `C` : clé publique de cryptage.
@@ -361,7 +365,7 @@ Une ligne est déclaré pour chaque utilisateur à l'occasion de la création de
 - `store`: code de l'opérateur gérant la Safe Box si ce n'est pas l'opérateur générique.
 
     {
-      "qzFuser1...": { "alias": ["Leon14...", ""], "store": ""},
+      "qzFuser1...": { "alias": ["Leon27...", ""], "store": ""},
       "9Kvuser2...": { "alias": ["Paulo...", "BigMoi"], "store": "$RED"},
     }
 
@@ -462,39 +466,39 @@ Certes cette autorité supérieure pourrait n'agir que sur donnée d'un mot de p
 
 ## Opérations d'Administration Technique
 Tout utilisateur peut être reconnu _Administrateur Technique_ à l'hébergement d'un service par un opérateur: son ID est ajouté aux listes statiques de configuration:
-- `MASTERDIRADMINUSERS` : pour le MASTERDIR,
+- `MASTERDIRADMINUSERS` : pour le MASTER DIRECTORY,
 - `ADMINUSERS` : pour les autres services déployés.
 
 Lors du contrôle d'authentification à l'entrée d'une opération requérant un droit d'Administrateur, le `userId` du requérant est,
 - certifié par vérification de la signature du _challenge_ par usage de la clé publique de vérification de cet utilisateur obtenu de la table `ZZUSERS`,
 - par présence du `userId` dans,
   - la liste `ADMINUSERS` du déploiement d'UN service SVC / $OP.
-  - la liste `MASTERDIRADMINUSERS` pour l'Administrateur du MASTERDIR.
+  - la liste `MASTERDIRADMINUSERS` pour l'Administrateur du MASTER DIRECTORY.
 
 ### Liste des rôles ADMIN s'un utilisateur
 Pour pouvoir afficher la page _Administration Technique_, un utilisateur doit auto-déclarer dans sa _Safe Box_ la liste des couples `SVC $OP` pour lesquels il a ce pouvoir:
 - quand il en ajoute un, le fait qu'il le soit réellement est vérifié.
 - si son `userId` est ensuite retiré de la configuration, il doit remettre à jour cette liste.
-- sil ne s'inscrit pas de lui-même de facto il ne peut pas atteindre la page d'administration.
+- sil ne s'inscrit pas de lui-même, de facto il ne peut pas atteindre la page d'administration.
 
 > La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS / MASTERDIRADMINUSERS` correspondante et en redéployant le logiciel.
 
 ## Depuis les _Outils Techniques >> Hot_
-Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur du _MASTERDIR_.
+Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur du _MASTER DIRECTORY_.
 
 #### Déclaration de l'URL d'un service SVC hébergé par un opérateur $OP
 Cette opération créé / met à jour l'URL correspondante pour $OP dans la ligne SVC de la table `ZZSVCOPS`.
 
 Ceci vaut _déclaration d'existence_ au couple `SVC / $OP`.
 
-> Le service correspondant n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTERDIR_).
+> Le service correspondant n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTER DIRECTORY_).
 
 #### Activation / révocation d'une organisation `org` pour un `SVC / $OP`
 Pour un service donné, une organisation est hébergée par un seul opérateur: c'est en conséquence une tâche d'Administration générale que d'assigner l'organisation pour chaque service à l'opérateur l'hébergeant. 
 
 Le row `org` de la table `ZZORGS` est créé / mis à jour.
 
-> L'accès à l'organisation correspondante n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTERDIR_).
+> L'accès à l'organisation correspondante n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTER DIRECTORY_).
 
 ## Depuis les _Outils Techniques >> Status des Services_
 Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur _DU service_ `SVC` cité hébergé par _L'opérateur_ `$OP` cité.
@@ -514,15 +518,15 @@ Elle consiste à attacher l'organisation à,
 
 > Cette configuration est déclarative seulement et ne correspond pas à un _transfert technique_ de base ou de storage, opérations lourdes gérées en ligne de commande par un administrateur système de l'opérateur.
 
-# Credentials
+# Credentials (pouvoirs)
 Un credential est un document dont l'ID `credId` est aléatoirement généré à sa création:
 - de facto il _n'appartient_ qu'au seul utilisateur qui le détient dans sa Safe Box.
-- il définit le droit de cet utilisateur à accéder aux opérations d'UN service `svc` spécifiquement pour une organisation `org`.
+- il définit le droit de cet utilisateur à accéder à des opérations d'UN service `svc` spécifiquement pour une organisation `org`.
 
 Sa **cible spécifique** est identifiée par le couple `role/docId`:
 - `role` : UN rôle est matérialisé par le couple `classe.role`,
   - d'UNE classe de document (par exemple `Redacteur.`),
-  - et éventuellement d'un rôle complémentaire `Redacteur.chef` (quand l'entité correspondante peut être abordée selon plusieurs rôles).
+  - et éventuellement d'un rôle complémentaire `Redacteur.chef` quand l'entité correspondante peut être abordée selon plusieurs rôles.
 - `docId` est l'identifiant du document correspondant.
   - quand `docId` est vide, le credential a pour cible TOUS les documents de la classe. C'est typiquement le cas pour `Org.` n'ayant qu'un document _son ID 1_ n'est pas donnée.
 
@@ -538,9 +542,9 @@ Sa **cible spécifique** est identifiée par le couple `role/docId`:
 
 #### Dans une session de l'application
 - tous les `CredSafe` sont lus depuis la _Safe Box_ de l'utilisateur pour les credentials relatifs à un des services accédés par l'application.
-- les _documents_ correspondants `Credential` dans la DB du service `SVC` et l'organisation `org` sont lisibles par accès par la `credId`.
+- les _documents_ correspondants `Credential` dans la DB du service `SVC` et l'organisation `org` sont lisibles par accès par `credId`.
 
-Une application dispose des deux objets représentant le credential, mais:
+Une application dispose en session des deux objets représentant le credential, mais:
 - ne peut mettre à jour QUE la propriété `comment` de `CredSafe`.
 - ne peut QUE lire le _document_ `Credential` DB correspondant.
 
@@ -569,14 +573,14 @@ Un credential est _brisé_ quand,
 - une limite inférieure au jour J a été inscrite dans la DB par une opération du service, mais l'objet correspondant `CredSafe` n'a pas été détruit et ne peut pas l'être par une opération: l'id de la Safe Box (de l'utilisateur) lui est inconnue mais surtout un service ne peut pas écrire dans une Safe Box.
 
 ### Synchronisation des credentials _service_
-Pour éviter ces discordances, les documents _Credential_ sont synchronisés en début (et en cours) de session par abonnement à chacun des credential de la session identifiés par leur `credId`:
+Pour éviter ces discordances, les documents _Credential_ peuvent être synchronisés en début (et en cours) de session par abonnement à chacun des credential de la session identifiés par leur `credId`:
 - la mise à jour du `CredSafe` dans la _Safe Box_ se limite à sa suppression suite à la détection de la suppression du _document_ (ayant un `limit` en deçà du jour courant).
 - de facto le `CredSafe` d'un credential ne sert qu'à,
   - porter la clé de signature,
   - porter un commentaire fixé par l'utilisateur pour lui permettre, a) de supprimer les credentials considérés comme désormais sans intérêt, b) de gérer ses _profils de session_ par inclusion des credentials jugés pertinents pour chaque profil.
 
 ### Propriétés de `CredSafe`
-Les propriétés _communes_ : `credId svc org role docId time`.
+Les propriétés _communes_ : `credId svc org role docId`.
 
 Les autres propriétés sont:
 - `privs`: la clé privée de signature générée pour cette version du credential.
@@ -589,7 +593,7 @@ Les autres propriétés sont:
 - `$AutoRevokeCreds`: suppression d'une liste de `CredSafe` par l'utilisateur.
 
 ### Propriétés du _document_ `Credential` stocké en DB du service
-Parmi les propriétés _communes_ `credId svc org role docId time`,
+Parmi les propriétés _communes_ `credId svc org role docId`,
 les propriétés `svc org` ne sont pas stockées explicitement _dans_ le document (`org` est stockée à part et tous les documents de la base de données sont spécifiques du service `svc`).
 
 Les autres propriétés sont:
@@ -604,9 +608,9 @@ Pour certaines classes de documents, certaines propriétés sont _lisibles_ par 
 
 Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que les _clé AES_ qui ont rendu ces données _opaques_ aux opérations du service, ne sont PAS stockées dans la DB du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
 
-Chaque utilisateur ayant un droit d'accès à ce _comité directeur_ par exemple disposera de cette clé et la stockera dans la propriété `recK` de l'objet `CredSafe` du credential correspondant: il pourra ainsi décrypter ces données _opaques_ pour les opérations du service.
+Chaque utilisateur ayant un droit d'accès au _comité directeur_ par exemple dispose de cette clé et la stocke dans la propriété `recK` de l'objet `CredSafe` du credential correspondant: il peut ainsi décrypter ces données _opaques_ pour les opérations du service.
 
-> Il est toutefois possible que certaines _clés d'opacité_ soient présentes dans un _document_ et non pas uniquement dans les _Safe Box_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ dans un `recK` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la clé _maîtresse_.
+> Il est possible que certaines _clés d'opacité_ soient présentes dans un _document_ et non pas uniquement dans les _Safe Box_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ dans un `recK` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la clé _maîtresse_.
 
 ## L'objet `AuthRecord`
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
@@ -620,25 +624,29 @@ Toute opération requérant la présence d'au moins un credential est sollicité
 
 Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 - si la signature du `userId` est présente mais pas validée, c'est un échec.
-- une map des  `docClass.role/docId` dont la signature a été vérifiée et validée est établie et pointe sur le document _credential_ correspondant (obtenu depuis son `credId`).
-- la liste de ceux en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
+- une map des  `docClass.role/docId` dont la signature a été vérifiée et validée est établie donne le couple [`credId`, `signature`]. credId permet à l'opération,
+  - d'accéder au document _credential_ correspondant,
+  - d'en obtenir la clé de vérification,
+  - de vérifier que le _challenge_ a été correctement signé.
+- la liste des credentials en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
 
-Dans le cours du traitement de l'opération, cette map est consultable par la logique de l'application pour déterminer si l'opération peut ou non être acceptable en fonction de ses propres paramètres, de l'état des documents et des données issues du `cond` attaché au credential validé.
+Dans le cours du traitement de l'opération, cette map est consultable par la logique de l'application qui peut déterminer si l'opération est ou non acceptable en fonction de ses propres paramètres, de l'état des documents et des données contenues dans l'objet `cond` attaché au credential validé.
 
 > Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
 
 # Invitations
 
-Une **invitation** est un processus qui part d'une demande explicite d'un utilisateur U **ou** d'une proposition directe d'un sponsor S faite à U pour aboutir en cas de succès du processus à sa **validation** déclenchée par U:
-- création de 0 à N1 documents (par exemple _Auteur, Relecteur ..._),
-- création de 0 à N2 credentials,
-  - d'accès aux documents créés ou existants,
-  - d'autres natures (credential _Sponsor_ par exemple).
+Une **invitation** est un processus qui part,
+- soit d'une demande explicite d'un utilisateur U,
+- soit d'une proposition (non sollicitée par U) d'un sponsor S faite à U pour aboutir en cas de succès du processus à sa **validation** déclenchée par U:
+- in fine la _validation_ d'une invitation est une opération qui,
+  - peut créer de 0 à N1 documents (par exemple _Auteur, Relecteur ..._) et les initialiser,
+  - peut procéder à la création de 0 à N credentials, soit d'accès aux documents qui viennent créés ou qui existaient, soit d'autres natures (credential _Sponsor_ par exemple).
 
 #### Cycle de vie
 Une **invitation** est un dialogue entre,
 - un utilisateur U ayant un `userId` bénéficiaire,
-- **un ou des sponsors**, utilisateurs ayant un credential de _sponsor_ (ou administrateur). Le dernier _sponsor_ étant intervenu sur l'invitation y a laissé une signature (voir plus loin).
+- **un ou des sponsors**, utilisateurs ayant un credential de _sponsor_ (ou _manager_). Le dernier _sponsor_ étant intervenu sur l'invitation y a laissé les conditions exactes applicables à la validation de l'invitation (voir plus loin).
 
 L'objectif recherché est la **validation** de l'invitation par U qui concrétise ce qu'il demandait (et a obtenu).
 
@@ -662,10 +670,10 @@ Une **invitation** a une **ardoise** (`tab`) d'échange textuel:
 #### Origine d'une invitation
 Une invitation peut être _sollicitée_ par U:
 - il a besoin _d'une autorisation, d'un compte, d'appartenir à un groupe,_ ... 
-- il créé une invitation (avec un `major / minor`) et inscrit sur l'ardoise ses motivations, qui il est, pourquoi il effectue cette demande et toutes précisions souhaitables pour obtenir une proposition d'un sponsor.
+- il créé une invitation (avec un `major / minor`) et inscrit sur l'ardoise ses motivations: qui il est, pourquoi il effectue cette demande et toutes précisions souhaitables pour obtenir une proposition d'un sponsor.
 
 Une invitation peut être _NON sollicitée_ par U:
-- un sponsor fait une proposition à un utilisateur U dont il a eu par exemple un _alias_ ou qui lui a été recommandé, ou qu'il a rencontré dans la vraie vie. Il a déclaré un `major / minor` et inscrit dans etc les données qui seront nécessaires à la validation. Il a aussi écrit un mot sur l'ardoise pour U.
+- un sponsor fait une proposition à un utilisateur U dont il a eu par exemple un _alias_ ou qui lui a été recommandé, ou qu'il a rencontré dans la vraie vie. Il a déclaré un `major / minor` et inscrit dans `etc` les données qui seront nécessaires à la validation. Il a aussi écrit un mot sur l'ardoise pour U.
 - U en sera informé et pourra, soit la valider en l'état, soit demander des précisions / améliorations.
 
 > Hormis U, qui peut intervenir sur une _invitation_ ? Voir la section **Sponsors** qui explicite ce sujet en fonction de _l'objet_ d'une invitation codé par le couple `major / minor`.
@@ -709,7 +717,7 @@ Pour créer un _credential_ il faut disposer d'un couple de clés signature / v�
 - celle de signature est enregistrée en phase (3) dans la _Safe Box_.*
 - le service NE VOIT JAMAIS PASSER la clé de signature.
 
-## Trace des invitations en _Master _Directory_ en `ZZINVITS`
+## Trace des invitations en _Master Directory_ en `ZZINVITS`
 Un utilisateur U peut être concerné plusieurs couples `service org` et une application donnée peut être utilisatrice de plusieurs services.
 
 Or une invitation n'est enregistrée que dans une seule DB correspondant à son couple `svc org`.
@@ -721,7 +729,7 @@ Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations 
   - indexée avec `userId` pour ne récupérer que les invitations ayant changé depuis la dernière demande,
   - destruction automatique au delà de N jours après `v`.
 - `lv` : date-heure à laquelle l'utilisateur a consulté pour la dernière fois l'invitation (lui permettant de voir lesquelles ont changé).
-- `data`: sérialisation cryptée des propriétés `svc org major minor` immutables de l'invitation. Une session de U sera en mesure d'obtenir auprès du service servant `svc org` le contenu complet de l'invitation.
+- `data`: sérialisation cryptée des propriétés `svc org major minor` immutables de l'invitation. Une session de U est en mesure d'obtenir auprès du service servant `svc org` le contenu complet de l'invitation.
 
 ### Opérations sur `ZZINVITS`
 #### `$mdInvitNew` : création (ajout) d'une nouvelle invitation
@@ -745,7 +753,7 @@ Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations 
 
 **Après création toutes les propriétés sont constantes sauf deux:**
 - `v` : change à chaque mise à jour du document `Invitation` correspondant (c'est la copie de son `v`).
-- `lastView` : change a chaque fois que U a signalé avoir _vu_ l'invitation. Si la `lastView` est déjà postérieure à `v`, la mise à jour n'a pas d'intérêt et n'est pas faite.
+- `lv (lastView)` : change a chaque fois que U a signalé avoir _vu_ l'invitation. Si la `lastView` est déjà postérieure à `v`, la mise à jour n'a pas d'intérêt et n'est pas faite.
 
 #### `$mdInvitUpdV` : mise à jour du document de l'invitation
 - soit par U soit par un sponsor.
@@ -761,7 +769,7 @@ Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations 
 # Sponsors
 Un _sponsor_ est un utilisateur qui a un (des) credential de _sponsoring_:
 - soit le credential de _role_ `Sponsor.` et _docId_ `Org.manager` (qui donne droit aux opérations qualifiées de management général): il est _sponsor universel_. Un _manager_ peut faire des propositions pour tous les couples `major/minor`.
-- soit le credential `Sponsor.` avec un `docId` de la forme `major` ou `major/minor`. Il peut faire des propositions (directe ou en réponse à une demande) restreintes aux `major/minor`.
+- soit le credential `Sponsor.` avec un `docId` de la forme `major` ou `major/minor`. Il peut faire des propositions (non sollicitées ou en réponse à une demande) restreintes aux `major/minor`.
 
 ### `Major`
 Une invitation a une cible fonctionnelle bien délimitée dont la liste, fermée, dépend de l'application, représentant en quelque sorte une _classe_ d'invitations. Par exemple:
@@ -774,7 +782,7 @@ La liste des codes **major** est définie et fermée pour chaque _service_.
 ### Minor
 Une invitation a un code `major` et **peut spécifier un code `minor`** selon son `major`.
 
-Certains `major` n'ont pas de `minor`: `Codir` par exemple, on est membre ou non du _comité directeur_ et il n'y en a qu'un dans l'organisation.
+Certains `major` n'ont pas de `minor`: `Codir` par exemple, on est membre ou non DU _comité directeur_ et il n'y en a qu'un dans l'organisation.
 
 **Certains _majors_ ont une liste fermée de _minors_ possibles**: par exemple un _Auteur_ peut avoir une (ou des) prérogatives de sélection d'auteurs selon un _thème_: _science, politique, sociologie ..._ Cette liste,
 - peut évoluer au cours du temps: des _thèmes_ nouveaux peuvent apparaître, des thèmes obsolètes disparaître, etc. mais pas à une fréquence frénétique.
@@ -803,3 +811,19 @@ Quand un utilisateur U fait sollicite une invitation en spécifiant un major ou 
 
 ### Retrait des droits de sponsoring
 Un _sponsoring_ correspondant à un credential, la logique applicative peut avoir des opérations invalidant un credential de `Sponsor.` (comme de tout autre rôle).
+
+### Discussion: transmission d'un credential détenu personnellement
+Soit un utilisateur U1 détenant un credential `Auteur./xqsdfg` qui lui permet d'agir _en tant qu'auteur_ sur l'auteur d'identifiant `xqsdfg`.
+
+U1 peut-il _transmettre_ ce droit à un autre utilisateur U2, dont par exemple il connaît un alias sachant que U1 n'a PAS de credential _Sponsor._ ?
+- U1 peut ouvrir une invitation à U2.
+- quel _[major,  minor]_ ? Par exemple `["@Auteur.", "xqsdfg"]`.
+- le `@` en tête d'un _major_ vaut autorisation de _sponsoring_ (limitée) à condition de vérifier que U1 détient bien le credential `Auteur./xqsdfg`.
+- par défaut ce cas simplifié ne requièrent aucune saisie ni de U& (sauf sur l'ardoise) ne de U2.
+- en mode évolué, la logique applicative peut requérir des saisies complémentaires dédiées à paramétrer l'objet etc utilisé en validation, par exemple si U2 doit récupérer un credential _réduit_ par rapport à celui de U1.
+
+### Remarque: mémorisation dans un document des credentials _associés_
+Dans un document `Auteur`, il peut être requis de connaître _le_ ou _les_ credentials qui s'y rapportent avec plusieurs objectifs:
+- pour un utilisateur en ayant le pouvoir, _réduire / invalider_ certains d'entre eux, bref _gérer_ ces credentials.
+- avec en mémoire que le credential en DB ne détient pas le userId de son propriétaire: c'est donc par des informations dans le cond de celui-ci qu'il faudra puiser l'information de _qui_ restreint-on ou augmente-t-on le pouvoir (typiquement par un _pseudo_ local au document). 
+
