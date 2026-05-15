@@ -8,8 +8,8 @@ Un _utilisateur_ désigne ici une personne physique utilisant une application de
 Les _utilisateurs_ sont **anonymes** dans la mesure où rien, aucun identifiant, n'effectue une corrélation entre un utilisateur et la personne réelle dans la vraie vie.
 - un utilisateur est identifié par un `userId` généré aléatoirement à son enregistrement en tant qu'utilisateur.
 
-Tout utilisateur dispose d'un _coffre fort_ (_safe_) contenant principalement ses données confidentielles d'authentification et ses droits d'accès aux applications.
-- l'identifiant d'un _coffre fort_ est le `userId` de son propriétaire.
+Tout utilisateur dispose d'une _Safe Box_ contenant principalement ses données confidentielles d'authentification et ses pouvoirs d'accès aux applications.
+- l'identifiant d'une _Safe Box_ est le `userId` de son propriétaire.
 
 ## Safe stores
 Les _safe stores_ sont des services Web cryptés / sécurisés de stockage du _safe_ des utilisateurs.
@@ -18,18 +18,14 @@ Les _safe stores_ sont des services Web cryptés / sécurisés de stockage du _s
 - l'interface d'accès HTTP comporte une vingtaine de requêtes.
 - un script PHP en donne, à titre de contribution libre sans obligation d'usage, une implémentation pour un site Web hébergé utilisant une base MySQL d'une seule table.
 
-Le _safe store_ **STANDARD** est une implémentation dont l'URL d'accès est fixée dans le source des applications: c'est par défaut celle proposée lors de la création de son _safe_ par un utilisateur.
+Le _safe store_ **STANDARD** est une implémentation dont l'URL d'accès est fixée dans le source des applications: c'est par défaut celle proposée lors de la création de sa _Safe Box_ par un utilisateur.
 
-> Le contenu du _safe_ d'un utilisateur U est _crypté_ et personne d'autre que U ne peut, ni lire son contenu, ni lui adresser des requêtes.
+> Le contenu de la _Safe Box_ d'un utilisateur U est _crypté_ et personne d'autre que U ne peut, ni lire son contenu, ni lui adresser des requêtes.
 
-**Exception à cette règle**: un utilisateur A disposant de l'ID d'un utilisateur U et d'un de ses _alias_, **peut**,  y faire enregistrer dans son _safe_ des _invitations spontanées_.
-- chacune a une durée de vie de quelques jours.
-- in fine chaque invitation doit être validée par l'utilisateur (ou déclinée) pour être effective. Il n'y a pas de validation par défaut.
-
-### Backups, transfert d'un _safe_ d'un store à un autre
+### Backups, transfert d'une _Safe Box_ d'un store à un autre
 L'utilisateur U peut:
-- effectuer un backup de son propre _safe_ dans un format standardisé indépendant de l'opérateur assurant son stockage. L'utilisateur doit prouver en être le propriétaire pour pouvoir effectuer cette opération.
-  - un backup est un fichier externe crypté par un mot de passe long donné par l'utilisateur.
+- effectuer un backup de sa propre _Safe Box_ dans un format standardisé indépendant de l'opérateur assurant son stockage. L'utilisateur doit prouver en être le propriétaire en donnant l'une de ses phrases secrètes pour pouvoir effectuer cette opération.
+  - un backup est un fichier externe crypté par la phrase secrète donnée par l'utilisateur pour prouver sa détention.
 - importer un _backup_ de son _safe_ dans un autre store (géré par un autre opérateur):
   - il doit prouver être propriétaire du _safe_ extrait du backup.
   - l'ancien opérateur gérant son _safe_ est invalidé et le nouveau validé; un utilisateur n'a qu'un seul _safe_ utilisable en ligne à un instant donné.
