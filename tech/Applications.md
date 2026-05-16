@@ -827,3 +827,151 @@ Dans un document `Auteur`, il peut être requis de connaître _le_ ou _les_ cred
 - pour un utilisateur en ayant le pouvoir, _réduire / invalider_ certains d'entre eux, bref _gérer_ ces credentials.
 - avec en mémoire que le credential en DB ne détient pas le userId de son propriétaire: c'est donc par des informations dans le cond de celui-ci qu'il faudra puiser l'information de _qui_ restreint-on ou augmente-t-on le pouvoir (typiquement par un _pseudo_ local au document). 
 
+# Topics et ardoises
+
+Un utilisateur peut avoir besoin,
+- soit de signaler une situation problématique,
+- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement une opération comportant,
+  - des créations de _documents_ comme des _comptes_ soumis à contrôle,
+  - l'obtention de _credentials_,
+  - l'upgrade de _credentials_ qu'il détient.
+
+Un certain nombre de thèmes de cette nature sont identifiés et classés par le service qui les assure qui a créé des `Topic` pour supporter ces requêtes et leur bonne fin.
+- chaque `Topic` peut être classé dans une ou plusieurs **catégories**: un utilisateur peut obtenir une liste sélective de topics filtrée par l'appartenance à une des catégories choisies.
+
+Un utilisateur peut alors ouvrir une **ardoise** sur un de ces topics et y exposer _son cas_ en spécifiant le cas échéant un `subject` précis. Par exemple:
+- le code d'une catégorie d'auteurs,
+- le code d'une ville,
+- le code d'un groupe qu'il souhaite intégrer.
+
+D'autres utilisateurs **helpers** ont par ailleurs obtenus des credentials sur certains des topics: un credential peut contenir une restriction à ne s'occuper que de certains _sujets_.
+
+Un **helper** peut lister les **ardoises** relatives aux topics pour lesquels il a un credential et les _filtrer_ selon le ou les sujets. Ainsi un **helper** peut ouvrir une ardoise et en traiter le contenu.
+
+**Mais un _helper_ peut aussi prendre l'initiative de créer une ardoise** à destination d'un utilisateur dont il a eu connaissance du _userId_ (par un _alias_ en général): à la prochaine connexion (ou sur demande), l'utilisateur verra ainsi cette ardoise.
+
+### Traitement final d'une ardoise
+L'objectif n'est pas seulement un échange textuel par l'ardoise entre un utilisateur et un des _helpers_, mais a souvent pour but **d'aboutir à un traitement final**:
+- la phase d'échange a permis à un helper de définir les paramètres d'un traitement.
+- in fine, l'utilisateur **valide** ce traitement final qui va s'exécuter: un ou des comptes seront créés, des credentials aussi, etc.
+
+Une ardoise vit peu de temps: quand elle est _annulée_ ou _finalisée_ par son utilisateur, elle devient passive puis s'auto-détruira quelque jours plus tard.
+
+## Topic, catégories de topic
+Un **topic** représente un thème d'échange entre un utilisateur et un service / organisation.
+- un topic est un Document dans la DB du service / org.
+- il est identifié par `topicId` un identifiant aléatoire attribué à la création.
+
+Chaque topic est connu de l'extérieur par:
+- `alias`: un _alias_ externe modifiable mais l'identifiant (relativement au couple svc / org).
+- `categs`: une courte liste modifiable de code de catégorie permettant simplement d'obtenir tous les _topics_ ayant une catégorie fixée.
+
+### Propriétés:
+- `topicId`
+- `alias`
+- `categs`
+- `pubC` : clé publique de cryptage. Générée avec `privD`, clé privée de décryptage.
+- `creds`: liste des ID des credentials attachés au topic.
+
+Quand un credential a été créé pour un topic:
+- son `docClass` est `Topic`
+- son `docId` est le `topicId` du topic.
+- son `cond`:
+  - contient une propriété `TD` qui détient la clé privée de décryptage du topic `privD`. Cette clé se transmet donc par attribution de credential depuis le créateur du topic (qui a généré la paire de clés).
+  - peut contenir un ou plusieurs `subject` restreignant la portée.
+
+## Les ardoises
+Une ardoise (_tab_) est créée à deux occasions:
+- **sur demande d'un user** souhaitant ouvrir une discussion sur un topic donné avec un service / organisation.
+- **sur demande d'une opération** d'un service / organisation souhaitant ouvrir une communication avec un utilisateur.
+
+> Une ardoise a une durée de vie limitée, typiquement 10 jours après sa dernière modification, et s'auto-détruit au delà.
+
+Une `Tab` est un document d'un service / organisation identifié par:
+- `topicId` : ID du topic à propos duquel la conversation s'engage.
+- `tabId` : date-heure (_epoch_) de création en base64.
+
+- `userId`: ID de l'utilisateur détenteur de l'ardoise. Dans une opération du service la clé publique de cryptage `CU` est donc accessible.
+- `CT`: clé publique de cryptage du topic (redondance dans l'ardoise).
+- `subject` : code (facultatif) désignant une cible précise permettant à un utilisateur _helper_ de se concentrer sur un sujet précis. 
+
+La clé _virtuelle_ `X` d'une ardoise est une clé symétrique qui est obtenue indifféremment,
+- depuis `[DU, CT]` dans une session de l'application:
+  - `DU` est détenue par la session.
+  - `CT` est dans le document Tab (pour éviter d'aller la lire dans son topic).
+- depuis `[DT, CU]` dans une opération d'un service.
+  - `DT` est dans le credential de l'opération pour le topic.
+  - `CU` est publique dans le service, retournée depuis userId.
+
+Ces propriétés sont immuables.
+
+**Status d'une ardoise**
+- 1 : _active écrite par U_. Elle peut être mise à jour et peut subir un traitement final. C'est U qui l'a écrite en dernier.
+- 1 : _active écrite par S_. Elle peut être mise à jour et peut subir un traitement final. C'est une opération du service qui l'a écrite en dernier.
+- 3 : _finalisée_. Son traitement final a eu lieu, elle est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
+- 0 : _annulée_. Son traitement final N'A PAS eu lieu, elle a été annulée et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
+
+#### Propriétés
+- `topicId/subject/tabId`
+- `v` : version du document. Elle détermine aussi la limite de validité du document.
+- `userId`: ID de l'utilisateur cible.
+- `status`: 0-annulée 1-active-U 2-active-S 3-finalisée.
+- `CT` : clé publique de cryptage du topic (redondance).
+- `tabX`: texte de l'ardoise crypté par `X` (en base 64).
+- `etc`: objet qui ne peut être écrit que par le service.
+
+### La table `ZZTABS` du Master Directory
+Cette table partagée par tous les utilisateurs et services, sert aux utilisateurs à être informé de l'existence des ardoises de communication actives entre eux et les services, soit d'une nouvelle ardoise, soit d'une nouvelle version d'une ardoise qu'ils n'avaient pas encore lue.
+
+#### Propriétés
+- `svc org` : service détenteur de l'ardoise.
+- `userId`: utilisateur de l'ardoise. Index de sélection.
+- `topicId/tabId` : identifiant de l'ardoise dans le service et pour l'utilisateur.
+  - la clé _primaire_ est `userId topicId tabId`.
+- `v` : version du document dans la DB du service. Elle détermine aussi la limite de validité de l'ardoise.
+- `status`: 0 1 2 3
+- `aboutU`: texte crypté de commentaire pour le seul usage de l'utilisateur.
+- `lv` : dernière version _lue_ par U. La comparaison avec `v` permet de savoir si U a eu connaissance de la dernière évolution produite par le service.
+
+#### Opération `TabSet` sur `ZZTABS`
+- arguments: 
+  - `svc org userId topicId tabId`
+  - _optionnel_: `aboutU`.
+- Création OU mise à jour de `ZZTABS` depuis le document détenu en DB du service.
+  - `v` et `status` sont dupliquées .
+  - `lv` :
+    - si elle n'existait pas, elle est mise à `v` si `status` est _1_, sinon à 0.
+    - si elle existait, elle est mise à `v` si `status` est _1_, sinon est inchangée.
+
+> Sollicité par U, l'opération N'AUTHENTIFIE pas U: on admet que le simple marquage _lu_ et le _aboutU_ sur une ardoise n'est pas une opération stratégique.
+
+> Sollicité par un service, l'opération doit retrouver un document dont l'ID lui est fourni et obtenir v et status, seules données recopiées. La vérification de la concordance de userId est jugée suffisante.
+
+### Dynamique d'une ardoise
+#### Cas 1: création par une opération
+Une opération d'un service prend l'initiative de créer une ardoise:
+- elle dispose du `userId` de l'utilisateur ciblé, typiquement pour l'avoir obtenu depuis un de ses _alias_ publics. Elle connaît donc aussi la clé publique `CU` de cryptage de U.
+- elle dispose d'un _credential_ de _doClass/docId_ `['Topic', topicId]`. Ce credential détient une propriété `cond/topicDT` de _décryptage_ (privée) du topic.
+  - elle calcule la clé `X` depuis `[topicDY, CU]`.
+- elle créé le _document_ `Tab`:
+  - génération de `tabId` depuis la date/heure (epoch) courante.
+  - crypte le texte de l'ardoise tab par `X`.
+  - `status` est 2.
+  - `etc` a été remplie depuis les arguments de l'opération de création de l'ardoise (données que U peut lire mais pas écrire).
+- elle créé un row dans `ZZTABS` par une opération TabSet du Master Directory. 
+
+Quand l'utilisateur U lira à l'ouverture de sa prochaine session (ou sur demande explicite) la table `ZZTABS` du Master Directory pour obtenir toutes les ardoises modifiées depuis sa dernière lecture, sa session obtiendra cette _nouvelle_ ardoise en lisant le document depuis `svc org topicId tabId`.
+- elle calcule `X` depuis `[DU, CT]`: `CT` figure dans le row, `DU` est détenue par la session.
+
+U peut activer l'opération `TabSet` du Master Directory pour faire noter dans `ZZTABS` avoir lu cette nouvelle version (positionnant `lv` à `v`) et fixer le cas échéant une mise à jour de `aboutU`.
+
+##### Mise à jour de l'ardoise par l'utilisateur
+Après lecture en session du document de l'ardoise, des opérations sont possibles afin:
+- de mettre à jour `tabX` crypté par `X`.
+- communiquer aboutU (éventuellement) pour mise à jour par TabSet.
+- indirectement `v` et le `status`: cas _d'annulation_ et de _finalisation_.
+
+C'est l'opération du service met à jour `ZZTABS` par l'opération `TabSet`.
+
+
+
