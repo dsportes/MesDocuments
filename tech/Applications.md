@@ -827,43 +827,51 @@ Dans un document `Auteur`, il peut être requis de connaître _le_ ou _les_ cred
 - pour un utilisateur en ayant le pouvoir, _réduire / invalider_ certains d'entre eux, bref _gérer_ ces credentials.
 - avec en mémoire que le credential en DB ne détient pas le userId de son propriétaire: c'est donc par des informations dans le cond de celui-ci qu'il faudra puiser l'information de _qui_ restreint-on ou augmente-t-on le pouvoir (typiquement par un _pseudo_ local au document). 
 
-# Topics et ardoises
+# _Topics_ et _Cases_
 
 Un utilisateur peut avoir besoin,
-- soit de signaler une situation problématique,
-- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement une opération comportant,
-  - des créations de _documents_ comme des _comptes_ soumis à contrôle,
+- soit de signaler à une _autorité ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple avoir _une augmentation de quotas_.
+- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante:
+  - des créations de _documents_ comme des _comptes_ soumis à contrôle préalable ...
   - l'obtention de _credentials_,
   - l'upgrade de _credentials_ qu'il détient.
 
-Un certain nombre de thèmes de cette nature sont identifiés et classés par le service qui les assure qui a créé des `Topic` pour supporter ces requêtes et leur bonne fin.
-- chaque `Topic` peut être classé dans une ou plusieurs **catégories**: un utilisateur peut obtenir une liste sélective de topics filtrée par l'appartenance à une des catégories choisies.
+Dans le processus de résolution de la situation il intervient,
+- un utilisateur U demandeur / destinataire de l'action.
+- un ou des utilisateurs _helpers_ anonymes ayant le(s) pouvoir(s) de répondre au besoin exprimé.
 
-Un utilisateur peut alors ouvrir une **ardoise** sur un de ces topics et y exposer _son cas_ en spécifiant le cas échéant un `subject` précis. Par exemple:
-- le code d'une catégorie d'auteurs,
-- le code d'une ville,
-- le code d'un groupe qu'il souhaite intégrer.
+Les types d'interventions possibles sont identifiés et classés par le service qui les assure qui a créé des `Topic` pour traiter ces problèmes et pour permettre aux _helpers_ adéquat de se pencher dessus et d'agir.
 
-D'autres utilisateurs **helpers** ont par ailleurs obtenus des credentials sur certains des topics: un credential peut contenir une restriction à ne s'occuper que de certains _sujets_.
+Chaque `Topic` peut être classé dans une ou plusieurs **catégories**: un utilisateur peut obtenir une liste sélective de topics filtrée par l'appartenance à une des catégories choisies.
 
-Un **helper** peut lister les **ardoises** relatives aux topics pour lesquels il a un credential et les _filtrer_ selon le ou les sujets. Ainsi un **helper** peut ouvrir une ardoise et en traiter le contenu.
+Après avoir identifié le `Topic` approprié à son besoin, un utilisateur peut ouvrir un **cas** et y exposer son besoin / problème par un texte écrit sur une _ardoise_ de communication. Selon le Topic il peut lui être demandé de fixer _formellement_ par un code le `sujet` précis de sa demande. Par exemple:
+- pour se faire créer un compte _Auteur_ le code la catégorie d'auteurs (`Roman Nouvelle Science` etc.),
+- pour rejoindre un groupe organisé par _commune_, par exemple un _code postal_,
+- ou plus précisément le code alias exact du groupe qu'il souhaite intégrer et qui lui a été transmis par ailleurs.
+- pour un magasin un code PROMO, etc.
 
-**Mais un _helper_ peut aussi prendre l'initiative de créer une ardoise** à destination d'un utilisateur dont il a eu connaissance du _userId_ (par un _alias_ en général): à la prochaine connexion (ou sur demande), l'utilisateur verra ainsi cette ardoise.
+Les utilisateurs **helpers** ont obtenus des credentials,
+- associés à des Topics dont ils sont en chage,
+- le cas échéant ayant une restriction à ne s'occuper que de certains _sujets_ et pas des autres.
 
-### Traitement final d'une ardoise
-L'objectif n'est pas seulement un échange textuel par l'ardoise entre un utilisateur et un des _helpers_, mais a souvent pour but **d'aboutir à un traitement final**:
-- la phase d'échange a permis à un helper de définir les paramètres d'un traitement.
-- in fine, l'utilisateur **valide** ce traitement final qui va s'exécuter: un ou des comptes seront créés, des credentials aussi, etc.
+Un utilisateur **helper** peut lister les **cas** ouverts sur les topics pour lesquels il a un credential et les _filtrer_ selon le ou les sujets. Ainsi un **helper** peut choisir un _cas_ l'ouvrir et le traiter.
 
-Une ardoise vit peu de temps: quand elle est _annulée_ ou _finalisée_ par son utilisateur, elle devient passive puis s'auto-détruira quelque jours plus tard.
+> **Un _helper_ peut aussi prendre l'initiative de créer un _cas_** à destination d'un utilisateur dont il a eu connaissance du _userId_ (par un _alias_ en général). En quelque sorte il _répond par anticipation_ à une demande qui n'avait pas été explicitement formulé. L'utilisateur verra ainsi ce _cas_, cette _proposition_ exposée, libre à lui de l'accepter ou non.
+
+### Traitement final d'un _cas_
+L'objectif de l'ouverture d'un cas n'est en général pas cantonné à avoir des échanges textuels par l'ardoise entre un utilisateur et un ou des _helpers_, mais a souvent pour but **d'aboutir à un traitement final**:
+- la phase d'échange a permis à un _helper_ de définir les paramètres d'une _solution_.
+- in fine, c'est l'utilisateur **valide** (ou non) le déclenchement du traitement final qui va s'exécuter: _un ou des comptes seront créés, des credentials aussi,_ etc.
+
+Un _cas_ vit peu de temps: quand il est _annulé_ ou _finalisé_ par son utilisateur, il devient passif puis s'auto-détruira quelque jours plus tard.
 
 ## Topic, catégories de topic
 Un **topic** représente un thème d'échange entre un utilisateur et un service / organisation.
-- un topic est un Document dans la DB du service / org.
+- un topic est un _document_ de classe `Topic` dans la DB du service / org.
 - il est identifié par `topicId` un identifiant aléatoire attribué à la création.
 
 Chaque topic est connu de l'extérieur par:
-- `alias`: un _alias_ externe modifiable mais l'identifiant (relativement au couple svc / org).
+- `alias`: un _alias_ externe modifiable l'identifiant (relativement au couple svc / org).
 - `categs`: une courte liste modifiable de code de catégorie permettant simplement d'obtenir tous les _topics_ ayant une catégorie fixée.
 
 ### Propriétés:
@@ -871,31 +879,25 @@ Chaque topic est connu de l'extérieur par:
 - `alias`
 - `categs`
 - `pubC` : clé publique de cryptage. Générée avec `privD`, clé privée de décryptage.
-- `creds`: liste des ID des credentials attachés au topic.
+- `creds`: liste des credentials attachés au topic.
 
 Quand un credential a été créé pour un topic:
-- son `docClass` est `Topic`
+- son `docCl` est `Topic`
 - son `docId` est le `topicId` du topic.
-- son `cond`:
-  - contient une propriété `TD` qui détient la clé privée de décryptage du topic `privD`. Cette clé se transmet donc par attribution de credential depuis le créateur du topic (qui a généré la paire de clés).
-  - peut contenir un ou plusieurs `subject` restreignant la portée.
+- il a comme tout credential une propriété pubV pour vérifier la signature d'un détenteur.
+- il contient une propriété `TD` qui détient la clé privée de décryptage du topic `privD`. Cette clé se transmet donc par attribution de credential depuis le créateur du topic (qui a généré la paire de clés).
+- il peut contenir un ou plusieurs `subject` restreignant la portée.
 
-## Les ardoises
-Une ardoise (_tab_) est créée à deux occasions:
-- **sur demande d'un user** souhaitant ouvrir une discussion sur un topic donné avec un service / organisation.
-- **sur demande d'une opération** d'un service / organisation souhaitant ouvrir une communication avec un utilisateur.
+## Les _cases_
+Un _case_ est un document de classe `Case` identifié par:
+- `topicId` : ID du topic auquel le cas se rapporte.
+- `caseId` : date-heure (_epoch_) de création en base64.
 
-> Une ardoise a une durée de vie limitée, typiquement 10 jours après sa dernière modification, et s'auto-détruit au delà.
+- `userId`: ID de l'utilisateur détenteur du cas. Depuis une opération du service la clé publique de cryptage `CU` est donc accessible.
+- `CT`: clé publique de cryptage du topic (redondance dans le _case_).
+- `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _helper_ de se concentrer sur un sujet précis. 
 
-Une `Tab` est un document d'un service / organisation identifié par:
-- `topicId` : ID du topic à propos duquel la conversation s'engage.
-- `tabId` : date-heure (_epoch_) de création en base64.
-
-- `userId`: ID de l'utilisateur détenteur de l'ardoise. Dans une opération du service la clé publique de cryptage `CU` est donc accessible.
-- `CT`: clé publique de cryptage du topic (redondance dans l'ardoise).
-- `subject` : code (facultatif) désignant une cible précise permettant à un utilisateur _helper_ de se concentrer sur un sujet précis. 
-
-La clé _virtuelle_ `X` d'une ardoise est une clé symétrique qui est obtenue indifféremment,
+La clé _virtuelle_ `X` d'un _case_ est une clé symétrique qui est obtenue indifféremment,
 - depuis `[DU, CT]` dans une session de l'application:
   - `DU` est détenue par la session.
   - `CT` est dans le document Tab (pour éviter d'aller la lire dans son topic).
@@ -905,73 +907,171 @@ La clé _virtuelle_ `X` d'une ardoise est une clé symétrique qui est obtenue i
 
 Ces propriétés sont immuables.
 
-**Status d'une ardoise**
-- 1 : _active écrite par U_. Elle peut être mise à jour et peut subir un traitement final. C'est U qui l'a écrite en dernier.
-- 1 : _active écrite par S_. Elle peut être mise à jour et peut subir un traitement final. C'est une opération du service qui l'a écrite en dernier.
-- 3 : _finalisée_. Son traitement final a eu lieu, elle est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
-- 0 : _annulée_. Son traitement final N'A PAS eu lieu, elle a été annulée et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
+**Status d'un _case_**
+- 1 : _actif écrit par U_. Il peut être mise à jour et peut subir un traitement final. C'est U qui l'a écrit en dernier.
+- 2 : _actif écrit par H_. Il peut être mise à jour et peut subir un traitement final. C'est une opération du service sollicitée par un _helper_ H qui l'a écrit en dernier.
+- 3 : _finalisé_. Son traitement final a eu lieu, il est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
+- 0 : _annulé_. Son traitement final N'A PAS eu lieu, il a été annulé par U et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
 
 #### Propriétés
-- `topicId/subject/tabId`
+- `topicId/subject/caseId`
 - `v` : version du document. Elle détermine aussi la limite de validité du document.
 - `userId`: ID de l'utilisateur cible.
-- `status`: 0-annulée 1-active-U 2-active-S 3-finalisée.
+- `status`: 0-annulé 1-actif-U 2-actif-H 3-finalisé.
 - `CT` : clé publique de cryptage du topic (redondance).
 - `tabX`: texte de l'ardoise crypté par `X` (en base 64).
-- `etc`: objet qui ne peut être écrit que par le service.
+- `etc`: objet qui ne peut être écrit configuré que par une opération d'un _helper_ autorisé.
 
-### La table `ZZTABS` du Master Directory
-Cette table partagée par tous les utilisateurs et services, sert aux utilisateurs à être informé de l'existence des ardoises de communication actives entre eux et les services, soit d'une nouvelle ardoise, soit d'une nouvelle version d'une ardoise qu'ils n'avaient pas encore lue.
+### La table `ZZCASES` du Master Directory
+Cette table partagée par tous les utilisateurs et services, sert à un utilisateur à être informé,
+- de l'existence des cases actifs entre lui et des _helpers_, 
+- soit de l'inscription d'un nouveau _case_ créé par un _helper_,
+- soit d'une nouvelle version d'un _case_ qu'il n'avait pas encore lue.
 
 #### Propriétés
 - `svc org` : service détenteur de l'ardoise.
 - `userId`: utilisateur de l'ardoise. Index de sélection.
-- `topicId/tabId` : identifiant de l'ardoise dans le service et pour l'utilisateur.
-  - la clé _primaire_ est `userId topicId tabId`.
-- `v` : version du document dans la DB du service. Elle détermine aussi la limite de validité de l'ardoise.
+- `topicId/caseId` : identifiant du _cas_ dans le service et pour l'utilisateur.
+  - la clé _primaire_ est `userId topicId caseId`.
+- `v` : version du document dans la DB du service. Elle détermine aussi la limite de validité du cas.
 - `status`: 0 1 2 3
 - `aboutU`: texte crypté de commentaire pour le seul usage de l'utilisateur.
 - `lv` : dernière version _lue_ par U. La comparaison avec `v` permet de savoir si U a eu connaissance de la dernière évolution produite par le service.
 
-#### Opération `TabSet` sur `ZZTABS`
+#### Opération `TabSet` sur `ZZCASES`
 - arguments: 
-  - `svc org userId topicId tabId`
+  - `svc org userId topicId caseId`
   - _optionnel_: `aboutU`.
-- Création OU mise à jour de `ZZTABS` depuis le document détenu en DB du service.
-  - `v` et `status` sont dupliquées .
-  - `lv` :
-    - si elle n'existait pas, elle est mise à `v` si `status` est _1_, sinon à 0.
-    - si elle existait, elle est mise à `v` si `status` est _1_, sinon est inchangée.
+- Création OU mise à jour de `ZZCASES` depuis le document détenu en DB du service.
+  - les propriétés `v` et `status` sont dupliquées .
+  - la propriété `lv` est fixée,
+    - si elle n'existait pas, à `v` si `status` est _1_, sinon à 0.
+    - si elle existait, à `v` si `status` est _1_, sinon est inchangée.
 
-> Sollicité par U, l'opération N'AUTHENTIFIE pas U: on admet que le simple marquage _lu_ et le _aboutU_ sur une ardoise n'est pas une opération stratégique.
+> Sollicité par U, l'opération N'AUTHENTIFIE pas U: on admet que le simple marquage _lu_ et le _aboutU_ sur un cas n'est pas une opération stratégique.
 
-> Sollicité par un service, l'opération doit retrouver un document dont l'ID lui est fourni et obtenir v et status, seules données recopiées. La vérification de la concordance de userId est jugée suffisante.
+> Sollicité par un service, l'opération doit retrouver un document dont l'ID lui est fourni et obtenir `v` et `status`, seules données recopiées. La vérification de la concordance de `userId` est jugée suffisante.
 
-### Dynamique d'une ardoise
-#### Cas 1: création par une opération
-Une opération d'un service prend l'initiative de créer une ardoise:
+### Cycle de vie d'un _case_: création par une opération
+Un _helper_ prend l'initiative de lancer une opération créant un _case_:
 - elle dispose du `userId` de l'utilisateur ciblé, typiquement pour l'avoir obtenu depuis un de ses _alias_ publics. Elle connaît donc aussi la clé publique `CU` de cryptage de U.
-- elle dispose d'un _credential_ de _doClass/docId_ `['Topic', topicId]`. Ce credential détient une propriété `cond/topicDT` de _décryptage_ (privée) du topic.
-  - elle calcule la clé `X` depuis `[topicDY, CU]`.
-- elle créé le _document_ `Tab`:
-  - génération de `tabId` depuis la date/heure (epoch) courante.
+- elle dispose d'un _credential_ de _doCl/docId_ `['Topic', topicId]` détient la propriété `topicDT` de _décryptage_ privée du topic.
+  - elle calcule la clé `X` depuis `[topicDT, CU]`.
+- elle créé le _document_ `Case`:
+  - génére `caseId` depuis la date/heure (epoch) courante.
   - crypte le texte de l'ardoise tab par `X`.
   - `status` est 2.
-  - `etc` a été remplie depuis les arguments de l'opération de création de l'ardoise (données que U peut lire mais pas écrire).
-- elle créé un row dans `ZZTABS` par une opération TabSet du Master Directory. 
+  - `etc` est rempli depuis les arguments de l'opération de création du case (données que U peut lire mais pas écrire).
+- elle créé un row dans `ZZCASES` par invocation d'une opération `TabSet` du Master Directory. 
 
-Quand l'utilisateur U lira à l'ouverture de sa prochaine session (ou sur demande explicite) la table `ZZTABS` du Master Directory pour obtenir toutes les ardoises modifiées depuis sa dernière lecture, sa session obtiendra cette _nouvelle_ ardoise en lisant le document depuis `svc org topicId tabId`.
-- elle calcule `X` depuis `[DU, CT]`: `CT` figure dans le row, `DU` est détenue par la session.
+Quand l'utilisateur U lira à l'ouverture de sa prochaine session (ou sur demande explicite) la table `ZZCASES` du Master Directory pour obtenir tous les cas modifiés / créés depuis sa dernière lecture, sa session obtiendra ce _nouveau_ case en lisant le document depuis `svc org topicId caseId`.
+- la session calcule `X` depuis `[DU, CT]`: `CT` figure dans le document, `DU` est détenue par la session.
 
-U peut activer l'opération `TabSet` du Master Directory pour faire noter dans `ZZTABS` avoir lu cette nouvelle version (positionnant `lv` à `v`) et fixer le cas échéant une mise à jour de `aboutU`.
+U peut activer l'opération `TabSet` du Master Directory pour faire noter dans `ZZCASES` avoir lu cette nouvelle version (positionnant `lv` à `v`) et fixer le cas échéant une mise à jour de `aboutU`.
 
-##### Mise à jour de l'ardoise par l'utilisateur
-Après lecture en session du document de l'ardoise, des opérations sont possibles afin:
+##### Mise à jour du _case_ par l'utilisateur
+Après lecture en session du document _case_, des opérations sont possibles afin:
 - de mettre à jour `tabX` crypté par `X`.
-- communiquer aboutU (éventuellement) pour mise à jour par TabSet.
-- indirectement `v` et le `status`: cas _d'annulation_ et de _finalisation_.
+- communiquer `aboutU` (éventuellement) pour mise à jour par l'opération `TabSet`.
+  - mise à jour de `v` et `status`: cas _d'annulation_ et de _finalisation_.
 
-C'est l'opération du service met à jour `ZZTABS` par l'opération `TabSet`.
+C'est l'opération du service qui met à jour `ZZCASES` par l'opération `TabSet`.
 
+# Credentials (pouvoirs)
+Un _credential_ est matérialisé **en deux parties en _Safe Box_ et dans un _document_** avec le but d'autoriser,
+- la lecture de documents,
+- l'exécution d'opérations dans un service.
 
+### La partie _Safe box_ d'un credential
+Une session d'une application initiée par un utilisateur authentifié dispose depuis la _Safe Box_ de cet utilisateur de tous SES _credentials_. Un _credential_ dans une _Safe Box_ a les informations suivantes:
+- `svc org` : le service et l'organisation d'exercice du credential.
+- `docCl docId` : l'identifiant du _document_ auquel le credential est attaché et dont il contrôle les opérations.
+- `credId` : un identifiant absolu aléatoire attribué à la création.
+- `privs` : la partie _privée_ de signature d'un couple `[privs pubv]` généré à la création du credential.
+- `objK` : un objet (possiblement vide) crypté par la clé K de l'utilisateur et contenant des données (clés de cryptage, etc.) détenues SEULEMENT dans la _Safe box_ de l'utilisateur et que lui seul peut lire / écrire. 
+  - dans cet objet, la propriété de texte libre `name`, quand elle existe, est utilisée à l'affichage pour expliciter en particulier le `docId` auquel le credential est attaché et souvent constitué d'un code long et non significatif. `name` donne par exemple un _nom d'auteur_ parlant pour l'utilisateur à la place de l'id aléatoire `auteurId`.
+
+### La partie _document_ d'un credential
+#### Option _embarquée_ avec son document _maître_
+Dans cette première approche un credential est un _objet_ attaché à SON _document_:
+- le _document maître_ a une propriété `creds` qui est une **map** dont la clé est `credId` et la valeur un _objet_ `cred` qui contrôle l'authentification d'un accès au document maître et les conditions dans lesquelles les opérations peuvent agir dessus.
+
+Cet objet `cred` a une ou plusieurs propriétés:
+- `pubv` : cette propriété, toujours présente, est la clé publique de _vérification_ de signature du credential. La partie _signature_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
+- **autres propriétés**. Elles dépendent de la classe du _document maître_ et permettent aux opérations d'agir dessus. A titre _d'exemple_:
+  - `limit` : une date-heure (_epoch_ en secondes) limite de validité du credential qui est considéré comme inexistant au-delà de cette limite. C'est la seule propriété qui est interprétée génériquement (quand elle existe).
+  - `mandats` : début et fin de _mandats_ attribués à l'utilisateur l'autorisant à agir selon telle ou telle responsabilité / pouvoir.
+  - `lectureSeule` : les données du _document_ ne peuvent qu'être lues par les opérations sollicitées par les opérations invoquées par l'utilisateur détenteur du credential.
+  - `pseudo` : nom d'usage / _nickname_ de l'utilisateur dans le contexte de ce document. Par extension, _photo_, _carte de visite_, etc.
+
+#### Option _document séparé_ relié à son document maître
+La première approche pose un problème de _volume_ quand un grand nombre de credentials peuvent être attachés au document maître. Par exemple pour un _groupe_ de quelques centaines de membres (donc d'autant de _credentials_), le volume du _document_ représentant le groupe peut devenir considérable.
+
+Dans ce cas un _document_ `Credential` séparé est créé:
+- classe: `Credential`
+- clé primaire: `dCl dId cId` : correspondant aux propriétés `docCl docId credId` du credential avec une indexation `dCl dId` permettant d'acquérir toute la collection des _credentials_ du document maître.
+- `cred` : unique propriété non identifiante du document, exactement le même objet `cred` que quand le credential était _embarqué_ dans son document maître.
+
+> C'est un élément de configuration _statique_ du service qui déclare la liste des _classes_ de documents pour lesquelles les credentials sont _embarqués_, et par conséquence celles (non citées) pour lesquelles un document séparé lié existe.
+
+#### Classes _virtuelles_ de documents maîtres
+Usuellement le `docCl` d'un credential désigne bien une classe de documents dont il existe de _vraies_ instances. C'est obligatoirement le cas pour les credentials _embarqués_.
+
+Toutefois il est possible de désigner des classes _virtuelles_, n'ayant aucune instance de documents MAIS ayant des credentials rattachées. Par exemple:
+- on définit une classe `Section` d'auteurs. Les auteurs sont rattachés à quelques _sections_ (_Roman Nouvelle Science ..._ ) énumérées par une simple liste _configurable_ sans qu'aucun document ne matérialise par exemple `Section Science`.
+- `Section` est un nom de classe de document _virtuelle_, `Roman Nouvelle Science` étant des **identifiants** pré-déclarés.
+- on peut alors déclarer des credentials attachés par exemple à un document maître (et virtuel) `Section Science`. Un utilisateur détenant un tel credential a le _pouvoir_ d'enregistrer des auteurs dans cette section (voire de les changer de section, etc. ceci dépendant du détail du credential).
+
+#### Lecture d'un `cred` dans une session
+Dans une session il est possible de lire tous les objets `creds` associés aux credentials détenus dans sa _Safe Box_. Un affichage détaillé des pouvoirs correspondants est ainsi disponible.
+
+#### Usages de l'objet `objK` d'un credential dans la _Safe Box_
+Pour certaines classes de documents, certaines propriétés sont _lisibles_ par le service, d'autre peuvent être _opaques_ pour le service.
+- **propriétés lisibles**: c'est l'état normal et le logiciel du service peut les utiliser dans ses traitements.
+- **propriétés opaques**: elles sont _cryptées_ par une clé qui n'est disponible QUE dans les applications terminales et sont en conséquences inutilisables par une opération du service.
+
+Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que les _clé AES_ qui ont rendu ces données _opaques_ aux opérations du service, ne sont PAS stockées dans la DB du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
+
+Chaque utilisateur ayant un pouvoir de _comité directeur_ par exemple dispose de cette clé et la stocke dans la propriété `objK` du credential correspondant dans sa _Safe Box_: il peut ainsi décrypter ces données _opaques_ pour les opérations du service.
+
+> Il est possible que certaines _clés d'opacité_ soient présentes dans un _document_ et non pas uniquement dans les _Safe Box_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ dans un `objK` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la clé _maîtresse_.
+
+#### Credentials _brisés_
+Un credential est _brisé_ quand,
+- il est connu dans la _Safe Box_ de l'utilisateur et inconnu dans le document correspondant dans la DB du service (ou réciproquement): 
+  - ce peut être le cas survenant en cas d'incident technique dans une action en deux phases: l'enregistrement dans le document a réussi et l'enregistrement en Safe Box a techniquement échoué.
+- une limite inférieure au jour J a été inscrite dans le document par une opération du service, mais le credential dans la _Safe Box_ correspondante n'a pas été détruit et **ne peut pas l'être par une opération**: 
+  - l'id de la Safe Box (de l'utilisateur) lui est inconnue,
+  - un service ne peut JAMAIS écrire dans une _Safe Box_.
+
+En début de session (ou n'importe quand sur demande), les credentials peuvent être affichés avec les deux parties _Safe Box / document_: ceux _brisés_ peuvent alors être détruits de la _Safe Box_ étant inutilisables. 
+
+> L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
+
+### Credential `Org '1'`
+Par convention le _document_ de classe `Org` et d'ID `1` (c'est un singleton) a un credential spécifique conférant à son détenteur un pouvoir de _manager général_.
+- la portée effective de ce pouvoir dépend du service.
+- quelques fonctionnalités génériques sont développées vis à vis des _managers généraux_, comme par exemple le droit d'inscrire un message général à tous les utilisateurs.
+
+## L'objet `AuthRecord` attaché à toute demande d'opération
+Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
+- `sessionId`: identifiant de session.
+- `time`: date-heure en seconde de création du record.
+- _challenge_: propriété virtuelle _sessionId '/' time_
+- Si l'utilisateur doit être authentifié en tant que tel:
+  - `userId`: de l'utilisateur.
+  - `userSign`: signature par la clé privée de signature de l'utilisateur, du _challenge_.
+- `signatures`: objet ayant une propriété par `credId` de credential inscrit dans le record donnant la signature du challenge par la clé privée de signature du credential.
+
+Au démarrage d'une opération, le `AuthRecord` joint est scanné:
+- si la signature du `userId` est présente mais pas validée, c'est un échec.
+- une map des  `[docCl docId]` dont la signature a été vérifiée et validée est établie donne le couple [`credId`, `signature`]. `credId` permet à l'opération,
+  - soit d'accéder à l'objet `cred` pointée par `credId` dans la map `creds` du document identifié par `docCl docId`
+  - soit, si la classe de documents n'embarque pas les credentials, d'accéder au document _credential_ correspondant et d'en lire l'objet `cred`,
+  - depuis cet objet la clé de vérification permet de vérifier que le _challenge_ a été correctement signé.
+  - l'objet `cred` est conservé dans le `AuthRecord` par l'opération et pourra être consulté à volonté par le traitement de l'opération pour décider ce qu'il peut / doit faire en fonction des paramètres inscrits dans `cred`.
+
+> La liste des credentials en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
+
+> Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
 
