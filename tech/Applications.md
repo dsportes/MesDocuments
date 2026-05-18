@@ -968,7 +968,7 @@ Un _helper_ prend l'initiative de créer une _proposition_ en lançant une opér
 - elle dispose d'un _credential_ de _doCl/docId_ `['Topic', topicId]`. La configuration des topics en cache du service détient la propriété `topicDT` de _décryptage_ privée du topic.
   - elle calcule la clé `X` depuis `[topicDT, CU]`.
 - elle créé le _document_ `Case`:
-  - génére `caseId` depuis la date/heure (epoch) courante.
+  - génère `caseId` depuis la date/heure (epoch) courante.
   - crypte le texte de l'ardoise tab par `X`.
   - `status` est 2.
   - `etc` est rempli depuis les arguments de l'opération de création du case (données que U peut lire mais pas écrire).
@@ -984,7 +984,7 @@ U peut activer l'opération `CaseSet` du Master Directory pour faire noter dans 
 ##### Mise à jour du _case_ par l'utilisateur
 Après lecture en session du document _case_, des opérations sont possibles afin:
 - de mettre à jour `tabX` crypté par `X`.
-- communiquer `aboutU` (éventuellement) pour mise à jour par l'opération `TabSet`.
+- communiquer `aboutU` (éventuellement) pour mise à jour par l'opération `CaseSet`.
   - mise à jour de `v` et `status`: cas _d'annulation_ et de _finalisation_.
 
 C'est l'opération du service qui met à jour `ZZCASES` par l'opération `TabSet`.
