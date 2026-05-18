@@ -830,63 +830,75 @@ Dans un document `Auteur`, il peut être requis de connaître _le_ ou _les_ cred
 # _Topics_ et _Cases_
 
 Un utilisateur peut avoir besoin,
-- soit de signaler à une _autorité ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple avoir _une augmentation de quotas_.
-- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante:
-  - des créations de _documents_ comme des _comptes_ soumis à contrôle préalable ...
-  - l'obtention de _credentials_,
-  - l'upgrade de _credentials_ qu'il détient.
+- soit de signaler à une _autorité ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple avoir _disposer d'un compte d'auteur_.
+- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante (comme par exemple avoir _disposer d'un compte d'auteur_):
+  - création de _documents_ comme des _comptes_ soumis à contrôle / autorisation préalable d'une _autorité_.
+  - obtention de _credentials_,
+  - upgrade de _credentials_ détenus.
 
 Dans le processus de résolution de la situation il intervient,
 - un utilisateur U demandeur / destinataire de l'action.
-- un ou des utilisateurs _helpers_ anonymes ayant le(s) pouvoir(s) de répondre au besoin exprimé.
+- un ou des utilisateurs _helpers_ anonymes ayant le(s) pouvoir(s) de traiter le cas de U.
 
 Les types d'interventions possibles sont identifiés et classés par le service qui les assure qui a créé des `Topic` pour traiter ces problèmes et pour permettre aux _helpers_ adéquat de se pencher dessus et d'agir.
 
-Chaque `Topic` peut être classé dans une ou plusieurs **catégories**: un utilisateur peut obtenir une liste sélective de topics filtrée par l'appartenance à une des catégories choisies.
+**La liste des Topics est consignée dans une configuration _statique_ du service**: cette liste à 2 niveaux propose pour aider à l'affichage un regroupement des topics par catégories.
 
-Après avoir identifié le `Topic` approprié à son besoin, un utilisateur peut ouvrir un **cas** et y exposer son besoin / problème par un texte écrit sur une _ardoise_ de communication. Selon le Topic il peut lui être demandé de fixer _formellement_ par un code le `sujet` précis de sa demande. Par exemple:
+Après avoir identifié le `Topic` approprié à son besoin, un utilisateur peut ouvrir un **cas** et y exposer son besoin / problème par un texte écrit sur une _ardoise_ de communication. Selon le `Topic` il peut lui être demandé de fixer _formellement_ par un code le `sujet` précis de sa demande. Par exemple:
 - pour se faire créer un compte _Auteur_ le code la catégorie d'auteurs (`Roman Nouvelle Science` etc.),
 - pour rejoindre un groupe organisé par _commune_, par exemple un _code postal_,
-- ou plus précisément le code alias exact du groupe qu'il souhaite intégrer et qui lui a été transmis par ailleurs.
-- pour un magasin un code PROMO, etc.
+- pour un groupe de discussion un code _alias_ exact du groupe qu'il souhaite rejoindre et qui lui a été transmis par ailleurs ou a pu rechercher.
+- pour un magasin un code PROMO.
 
-Les utilisateurs **helpers** ont obtenus des credentials,
-- associés à des Topics dont ils sont en chage,
-- le cas échéant ayant une restriction à ne s'occuper que de certains _sujets_ et pas des autres.
+Pour chaque `Topic` sa configuration indique:
+- s'il n'a aucun _sujet_.
+- s'il a une liste de _sujets_ fermée prédéfinis.
+- si sa liste de sujets est ouverte, les codes ne sont pas connus d'avance.
 
-Un utilisateur **helper** peut lister les **cas** ouverts sur les topics pour lesquels il a un credential et les _filtrer_ selon le ou les sujets. Ainsi un **helper** peut choisir un _cas_ l'ouvrir et le traiter.
+Un utilisateur **helpers** a obtenu des credentials,
+- associé chacun à un `Topic` dont il est en charge,
+- avec éventuellement une restriction à ne traiter que les _sujets_ listés.
 
-> **Un _helper_ peut aussi prendre l'initiative de créer un _cas_** à destination d'un utilisateur dont il a eu connaissance du _userId_ (par un _alias_ en général). En quelque sorte il _répond par anticipation_ à une demande qui n'avait pas été explicitement formulé. L'utilisateur verra ainsi ce _cas_, cette _proposition_ exposée, libre à lui de l'accepter ou non.
+Un utilisateur **helper** peut lister les **cas** ouverts sur les topics pour lesquels il a un credential et ne voir que ceux ayant un _sujet_ qui l'intéresse. Il peut choisir un _cas_ l'ouvrir et le traiter.
+
+> **Un _helper_ peut aussi prendre l'initiative de créer un _cas_** à destination d'un utilisateur dont il a eu connaissance du _userId_ (typiquement en connaissant un de ses _alias_). Il fait _une proposition_ qu'il pense pouvoir intéresser l'utilisateur, libre à celui-ci de l'accepter ou non.
 
 ### Traitement final d'un _cas_
 L'objectif de l'ouverture d'un cas n'est en général pas cantonné à avoir des échanges textuels par l'ardoise entre un utilisateur et un ou des _helpers_, mais a souvent pour but **d'aboutir à un traitement final**:
 - la phase d'échange a permis à un _helper_ de définir les paramètres d'une _solution_.
-- in fine, c'est l'utilisateur **valide** (ou non) le déclenchement du traitement final qui va s'exécuter: _un ou des comptes seront créés, des credentials aussi,_ etc.
+- in fine, c'est l'utilisateur qui **valide** (ou non) le déclenchement du traitement final qui va s'exécuter selon les conditions fixées par le _helper_: _un ou des comptes seront créés, des credentials aussi,_ etc.
 
-Un _cas_ vit peu de temps: quand il est _annulé_ ou _finalisé_ par son utilisateur, il devient passif puis s'auto-détruira quelque jours plus tard.
+**Un _cas_ vit peu de temps:** quand il est _annulé_ ou _finalisé_ par son utilisateur, il devient passif puis s'auto-détruit quelque jours plus tard.
 
-## Topic, catégories de topic
-Un **topic** représente un thème d'échange entre un utilisateur et un service / organisation.
-- un topic est un _document_ de classe `Topic` dans la DB du service / org.
-- il est identifié par `topicId` un identifiant aléatoire attribué à la création.
+## Topic
+La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en DB pour représenter un topic.
+- un singleton TOPICS énumère en JSON les topics déclarés.
+- il peut être mis à jour par un administrateur technique.
+- il est rechargé dans le service quand la version détenue en cache est trop ancienne.
 
-Chaque topic est connu de l'extérieur par:
-- `alias`: un _alias_ externe modifiable l'identifiant (relativement au couple svc / org).
-- `categs`: une courte liste modifiable de code de catégorie permettant simplement d'obtenir tous les _topics_ ayant une catégorie fixée.
+    [
+      { id: topic1, categ: c1, keys: k12, subjects: [s1, s2 ...] },
+      ...
+    ]
 
-### Propriétés:
-- `topicId`
-- `alias`
-- `categs`
-- `pubC` : clé publique de cryptage. Générée avec `privD`, clé privée de décryptage.
-- `creds`: liste des credentials attachés au topic.
+- `topic1` : ID du topic.
+- `categ`: code catégorie.
+- `keys`: des couples de clés Décryptage/Cryptage sont enregistrés dans la configuration du service sous un _code_ à donner dans `keys`.
+- `subjects`:
+  - absent: le topic n'a pas de sujets.
+  - liste: les sujets sont listés. Si le premier sujet est `*` la liste est ouverte, admet d'autres sujets que ceux listés, sinon seuls ceux-ci peuvent être employés.
 
-Quand un credential a été créé pour un topic:
-- son `docCl` est `Topic`
-- son `docId` est le `topicId` du topic.
-- il a comme tout credential une propriété pubV pour vérifier la signature d'un détenteur.
-- il contient une propriété `TD` qui détient la clé privée de décryptage du topic `privD`. Cette clé se transmet donc par attribution de credential depuis le créateur du topic (qui a généré la paire de clés).
-- il peut contenir un ou plusieurs `subject` restreignant la portée.
+En début de session, les applications demandent aux services qu'elles gèrent la configuration des topics:
+- l'array correspond à l'image du singleton JSON.
+- la propriété `keys` est remplacée par `pubC`, la clé de cryptage publique correspondant au code dans la configuration du service.
+
+### Credential pour un topic:
+Topic étant une classe _virtuelle_, les credentials associés sont des documents de class `Credential`:
+- `docCl`: `Topic`
+- `docId`: le `topicId` du topic.
+- `cred`: { pubV, subjects: [] }
+  - `pubV` pour vérifier la signature d'un détenteur.
+  - `subjects`: si présente cette liste contient un ou plusieurs `subject` restreignant la portée du credential.
 
 ## Les _cases_
 Un _case_ est un document de classe `Case` identifié par:
@@ -894,16 +906,15 @@ Un _case_ est un document de classe `Case` identifié par:
 - `caseId` : date-heure (_epoch_) de création en base64.
 
 - `userId`: ID de l'utilisateur détenteur du cas. Depuis une opération du service la clé publique de cryptage `CU` est donc accessible.
-- `CT`: clé publique de cryptage du topic (redondance dans le _case_).
 - `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _helper_ de se concentrer sur un sujet précis. 
 
 La clé _virtuelle_ `X` d'un _case_ est une clé symétrique qui est obtenue indifféremment,
 - depuis `[DU, CT]` dans une session de l'application:
   - `DU` est détenue par la session.
-  - `CT` est dans le document Tab (pour éviter d'aller la lire dans son topic).
+  - `CT` : clé publique de cryptage du topic obtenu en session par la configuration des topics chargée en début de session.
 - depuis `[DT, CU]` dans une opération d'un service.
-  - `DT` est dans le credential de l'opération pour le topic.
-  - `CU` est publique dans le service, retournée depuis userId.
+  - `DT` clé privée de décryptage du topic disponible en _cache_ dans le service (obtenue depuis le singleton TOPICS).
+  - `CU` est publique dans le service, retournée depuis `userId`.
 
 Ces propriétés sont immuables.
 
@@ -918,7 +929,6 @@ Ces propriétés sont immuables.
 - `v` : version du document. Elle détermine aussi la limite de validité du document.
 - `userId`: ID de l'utilisateur cible.
 - `status`: 0-annulé 1-actif-U 2-actif-H 3-finalisé.
-- `CT` : clé publique de cryptage du topic (redondance).
 - `tabX`: texte de l'ardoise crypté par `X` (en base 64).
 - `etc`: objet qui ne peut être écrit configuré que par une opération d'un _helper_ autorisé.
 
@@ -938,7 +948,7 @@ Cette table partagée par tous les utilisateurs et services, sert à un utilisat
 - `aboutU`: texte crypté de commentaire pour le seul usage de l'utilisateur.
 - `lv` : dernière version _lue_ par U. La comparaison avec `v` permet de savoir si U a eu connaissance de la dernière évolution produite par le service.
 
-#### Opération `TabSet` sur `ZZCASES`
+#### Opération `CaseSet` sur `ZZCASES`
 - arguments: 
   - `svc org userId topicId caseId`
   - _optionnel_: `aboutU`.
@@ -952,10 +962,10 @@ Cette table partagée par tous les utilisateurs et services, sert à un utilisat
 
 > Sollicité par un service, l'opération doit retrouver un document dont l'ID lui est fourni et obtenir `v` et `status`, seules données recopiées. La vérification de la concordance de `userId` est jugée suffisante.
 
-### Cycle de vie d'un _case_: création par une opération
-Un _helper_ prend l'initiative de lancer une opération créant un _case_:
+### Cycle de vie d'un _case_ créé par un _helper_
+Un _helper_ prend l'initiative de créer une _proposition_ en lançant une opération créant un _case_:
 - elle dispose du `userId` de l'utilisateur ciblé, typiquement pour l'avoir obtenu depuis un de ses _alias_ publics. Elle connaît donc aussi la clé publique `CU` de cryptage de U.
-- elle dispose d'un _credential_ de _doCl/docId_ `['Topic', topicId]` détient la propriété `topicDT` de _décryptage_ privée du topic.
+- elle dispose d'un _credential_ de _doCl/docId_ `['Topic', topicId]`. La configuration des topics en cache du service détient la propriété `topicDT` de _décryptage_ privée du topic.
   - elle calcule la clé `X` depuis `[topicDT, CU]`.
 - elle créé le _document_ `Case`:
   - génére `caseId` depuis la date/heure (epoch) courante.
@@ -965,9 +975,11 @@ Un _helper_ prend l'initiative de lancer une opération créant un _case_:
 - elle créé un row dans `ZZCASES` par invocation d'une opération `TabSet` du Master Directory. 
 
 Quand l'utilisateur U lira à l'ouverture de sa prochaine session (ou sur demande explicite) la table `ZZCASES` du Master Directory pour obtenir tous les cas modifiés / créés depuis sa dernière lecture, sa session obtiendra ce _nouveau_ case en lisant le document depuis `svc org topicId caseId`.
-- la session calcule `X` depuis `[DU, CT]`: `CT` figure dans le document, `DU` est détenue par la session.
+- la session calcule `X` depuis `[DU, CT]`: 
+  - `CT` figure dans la session qui a chargé la configuration (publique) des topics du service. 
+  - `DU` est détenue par la session.
 
-U peut activer l'opération `TabSet` du Master Directory pour faire noter dans `ZZCASES` avoir lu cette nouvelle version (positionnant `lv` à `v`) et fixer le cas échéant une mise à jour de `aboutU`.
+U peut activer l'opération `CaseSet` du Master Directory pour faire noter dans `ZZCASES` avoir lu cette nouvelle version (positionnant `lv` à `v`) et fixer le cas échéant une mise à jour de `aboutU`.
 
 ##### Mise à jour du _case_ par l'utilisateur
 Après lecture en session du document _case_, des opérations sont possibles afin:
