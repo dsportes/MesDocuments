@@ -1000,21 +1000,46 @@ Une session d'une application initiée par un utilisateur authentifié dispose d
 - `docCl docId` : l'identifiant du _document_ auquel le credential est attaché et dont il contrôle les opérations.
 - `credId` : un identifiant absolu aléatoire attribué à la création.
 - `privs` : la partie _privée_ de signature d'un couple `[privs pubv]` généré à la création du credential.
-- `objK` : un objet (possiblement vide) crypté par la clé K de l'utilisateur et contenant des données (clés de cryptage, etc.) détenues SEULEMENT dans la _Safe box_ de l'utilisateur et que lui seul peut lire / écrire. 
-  - dans cet objet, la propriété de texte libre `name`, quand elle existe, est utilisée à l'affichage pour expliciter en particulier le `docId` auquel le credential est attaché et souvent constitué d'un code long et non significatif. `name` donne par exemple un _nom d'auteur_ parlant pour l'utilisateur à la place de l'id aléatoire `auteurId`.
+- `privd` : la partie _privée_ de décryptage d'un couple [privd pubc]  généré à la création du credential.
+- `nameK` : propriété facultative de texte libre crypté par la clé K de l'utilisateur utilisée à l'affichage pour expliciter le `docId` souvent constitué d'un code long et non significatif. Donne par exemple un _nom d'auteur_ parlant pour l'utilisateur à la place de l'id aléatoire `auteurId`.
 
 ### La partie _document_ d'un credential
+##### `docKey` d'un _document_
+Certaines classes de documents ont une clé AES symétrique de cryptage utilisée pour rendre _opaque_ certaines propriétés du document aux opérations du service qui ne peuvent pas en voir le contenu. Par exemple un texte d'information confidentiel, d'autres clés diverses, etc. qui ne pourront jamais être obtenues même en dérobant frauduleusement le contenu de la DB.
+
+> Les propriétés _opaques_ ne peuvent être vues / éditées que dans une session d'une application disposant de la `docKey` (inscrite cryptée dans les credentials).
+
+Le couple `[docKey_B pubc_A]` d'un document dans un credential B est:
+- `pubc_A` est la clé publique de cryptage du credential A qui a transmis la _docKey_ à B.
+- `docKey_B` est cryptée par `[privd_B pubc_A]` où `privd_B` est la clé privée du credential B (que B a dans sa Safe Box): B peut à tout instant décoder `docKey_B`.
+
+Quand B doit transmettre _docKey_ à un credential C:
+- B décrypte `docKey_B` en _docKey_.
+- B crypte _docKey_ en `docKey_C` par `[privd_B, pubc_C]` où `pubc_C` est la clé publique de cryptage du credential C.
+- B transmet au credential C le couple `[docKey_C pubc_B]`.
+
+Mais le _créateur_ A du document qui a généré cette clé ne l'a pas _reçue_:
+- il génère un couple `[privd_X pubc_X]` _simulant_ l'avoir reçue d'un transmetteur X.
+- il crypte _docKey_ en `docKey_A` par `[privd_A pubc_X]` et stocke dans son credential `[docKey_A pubc_X]`.
+- à noter que `privd_X` n'est pas utilisé (personne ne lui transmet).
+
 #### Option _embarquée_ avec son document _maître_
 Dans cette première approche un credential est un _objet_ attaché à SON _document_:
 - le _document maître_ a une propriété `creds` qui est une **map** dont la clé est `credId` et la valeur un _objet_ `cred` qui contrôle l'authentification d'un accès au document maître et les conditions dans lesquelles les opérations peuvent agir dessus.
 
-Cet objet `cred` a une ou plusieurs propriétés:
-- `pubv` : cette propriété, toujours présente, est la clé publique de _vérification_ de signature du credential. La partie _signature_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
-- **autres propriétés**. Elles dépendent de la classe du _document maître_ et permettent aux opérations d'agir dessus. A titre _d'exemple_:
-  - `limit` : une date-heure (_epoch_ en secondes) limite de validité du credential qui est considéré comme inexistant au-delà de cette limite. C'est la seule propriété qui est interprétée génériquement (quand elle existe).
-  - `mandats` : début et fin de _mandats_ attribués à l'utilisateur l'autorisant à agir selon telle ou telle responsabilité / pouvoir.
-  - `lectureSeule` : les données du _document_ ne peuvent qu'être lues par les opérations sollicitées par les opérations invoquées par l'utilisateur détenteur du credential.
-  - `pseudo` : nom d'usage / _nickname_ de l'utilisateur dans le contexte de ce document. Par extension, _photo_, _carte de visite_, etc.
+L'objet `cred` a plusieurs propriétés génériques:
+- `pubv` : clé publique de _vérification_ de signature du credential. La partie _signature_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
+- `pubc` : clé publique de _cryptage_ de signature du credential. La partie _décryptage_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
+- `limit` : une date-heure (_epoch_ en secondes) limite de validité du credential qui est considéré comme inexistant au-delà de cette limite (quand elle existe).
+- `docKey pubX`: la clé du document crypté et la clé publique qui permettra de décrypter _docKey_ depuis la clé privée du credential.
+- `opaque` : cet objet, dont la structure dépend de la classe de documents est crypté par docKey.
+  - il est _opaque_ aux opérations mais en revanche tous les credentials peuvent le décrypter et le contenu peut s'afficher dans leur session.
+  - il permet à chaque utilisateur d'exposer des informations sur lui-même visible à tous ceux ayant un credential sur le même document maître.
+  - par convention `toString(opaque)` retourne un surnom / nom / pseudo ... à propos de l'utilisateur du credential.
+
+L'objet `cred` peut avoir **d'autres propriétés spécifiques** qui dépendent de la classe du _document maître_ et permettent aux opérations d'agir dessus. A titre _d'exemple_:
+- `mandats` : début et fin de _mandats_ attribués à l'utilisateur l'autorisant à agir selon telle ou telle responsabilité / pouvoir.
+- `lectureSeule` : les données du _document_ ne peuvent qu'être lues par les opérations sollicitées par les opérations invoquées par l'utilisateur détenteur du credential.
 
 #### Option _document séparé_ relié à son document maître
 La première approche pose un problème de _volume_ quand un grand nombre de credentials peuvent être attachés au document maître. Par exemple pour un _groupe_ de quelques centaines de membres (donc d'autant de _credentials_), le volume du _document_ représentant le groupe peut devenir considérable.
