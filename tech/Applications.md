@@ -813,7 +813,7 @@ Quand un utilisateur U fait sollicite une invitation en spécifiant un major ou 
 Un _sponsoring_ correspondant à un credential, la logique applicative peut avoir des opérations invalidant un credential de `Sponsor.` (comme de tout autre rôle).
 
 ### Discussion: transmission d'un credential détenu personnellement
-Soit un utilisateur U1 détenant un credential `Auteur./xqsdfg` qui lui permet d'agir _en tant qu'auteur_ sur l'auteur d'identifiant `xqsdfg`.
+Soit un utilisateur U1 détenant un credential `Auteur/xqsdfg` qui lui permet d'agir _en tant qu'auteur_ sur l'auteur d'identifiant `xqsdfg`.
 
 U1 peut-il _transmettre_ ce droit à un autre utilisateur U2, dont par exemple il connaît un alias sachant que U1 n'a PAS de credential _Sponsor._ ?
 - U1 peut ouvrir une invitation à U2.
@@ -822,25 +822,20 @@ U1 peut-il _transmettre_ ce droit à un autre utilisateur U2, dont par exemple i
 - par défaut ce cas simplifié ne requièrent aucune saisie ni de U& (sauf sur l'ardoise) ne de U2.
 - en mode évolué, la logique applicative peut requérir des saisies complémentaires dédiées à paramétrer l'objet etc utilisé en validation, par exemple si U2 doit récupérer un credential _réduit_ par rapport à celui de U1.
 
-### Remarque: mémorisation dans un document des credentials _associés_
-Dans un document `Auteur`, il peut être requis de connaître _le_ ou _les_ credentials qui s'y rapportent avec plusieurs objectifs:
-- pour un utilisateur en ayant le pouvoir, _réduire / invalider_ certains d'entre eux, bref _gérer_ ces credentials.
-- avec en mémoire que le credential en DB ne détient pas le userId de son propriétaire: c'est donc par des informations dans le cond de celui-ci qu'il faudra puiser l'information de _qui_ restreint-on ou augmente-t-on le pouvoir (typiquement par un _pseudo_ local au document). 
-
 # _Topics_ et _Cases_
 
 Un utilisateur peut avoir besoin,
-- soit de signaler à une _autorité ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple avoir _disposer d'un compte d'auteur_.
-- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante (comme par exemple avoir _disposer d'un compte d'auteur_):
+- soit de signaler à une _autorité ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple _blocage par insuffisance de quotas d'articles_.
+- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante. Par exemple  _disposer d'un compte d'auteur_:
   - création de _documents_ comme des _comptes_ soumis à contrôle / autorisation préalable d'une _autorité_.
   - obtention de _credentials_,
   - upgrade de _credentials_ détenus.
 
 Dans le processus de résolution de la situation il intervient,
 - un utilisateur U demandeur / destinataire de l'action.
-- un ou des utilisateurs _helpers_ anonymes ayant le(s) pouvoir(s) de traiter le cas de U.
+- un ou des utilisateurs _helpers_ anonymes pour U ayant le(s) pouvoir(s) de traiter le cas de U.
 
-Les types d'interventions possibles sont identifiés et classés par le service qui les assure qui a créé des `Topic` pour traiter ces problèmes et pour permettre aux _helpers_ adéquat de se pencher dessus et d'agir.
+Les types d'interventions possibles sont identifiés et classés par le service en définissant un `Topic` pour traiter chacun de ces types de problèmes et pour permettre aux _helpers_ adéquat de se pencher dessus et d'agir.
 
 **La liste des Topics est consignée dans une configuration _statique_ du service**: cette liste à 2 niveaux propose pour aider à l'affichage un regroupement des topics par catégories.
 
@@ -852,8 +847,8 @@ Après avoir identifié le `Topic` approprié à son besoin, un utilisateur peut
 
 Pour chaque `Topic` sa configuration indique:
 - s'il n'a aucun _sujet_.
-- s'il a une liste de _sujets_ fermée prédéfinis.
-- si sa liste de sujets est ouverte, les codes ne sont pas connus d'avance.
+- s'il a une liste fermée de _sujets_ prédéfinis.
+- si sa liste de sujets est ouverte, les codes ne sont pas tous connus d'avance.
 
 Un utilisateur **helpers** a obtenu des credentials,
 - associé chacun à un `Topic` dont il est en charge,
@@ -872,7 +867,7 @@ L'objectif de l'ouverture d'un cas n'est en général pas cantonné à avoir des
 
 ## Topic
 La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en DB pour représenter un topic.
-- un singleton TOPICS énumère en JSON les topics déclarés.
+- un singleton `topics` énumère en JSON les topics déclarés.
 - il peut être mis à jour par un administrateur technique.
 - il est rechargé dans le service quand la version détenue en cache est trop ancienne.
 
@@ -1005,23 +1000,13 @@ Une session d'une application initiée par un utilisateur authentifié dispose d
 
 ### La partie _document_ d'un credential
 ##### `docKey` d'un _document_
-Certaines classes de documents ont une clé AES symétrique de cryptage utilisée pour rendre _opaque_ certaines propriétés du document aux opérations du service qui ne peuvent pas en voir le contenu. Par exemple un texte d'information confidentiel, d'autres clés diverses, etc. qui ne pourront jamais être obtenues même en dérobant frauduleusement le contenu de la DB.
+Certaines classes de documents ont pour chaque document une clé AES symétrique de cryptage utilisée pour rendre _opaque_ certaines propriétés du document aux opérations du service qui ne peuvent pas en voir le contenu. Par exemple un texte d'information confidentiel, d'autres clés diverses, etc. qui ne pourront jamais être obtenues même en dérobant frauduleusement le contenu de la DB.
 
 > Les propriétés _opaques_ ne peuvent être vues / éditées que dans une session d'une application disposant de la `docKey` (inscrite cryptée dans les credentials).
 
-Le couple `[docKey_B pubc_A]` d'un document dans un credential B est:
-- `pubc_A` est la clé publique de cryptage du credential A qui a transmis la _docKey_ à B.
-- `docKey_B` est cryptée par `[privd_B pubc_A]` où `privd_B` est la clé privée du credential B (que B a dans sa Safe Box): B peut à tout instant décoder `docKey_B`.
-
-Quand B doit transmettre _docKey_ à un credential C:
-- B décrypte `docKey_B` en _docKey_.
-- B crypte _docKey_ en `docKey_C` par `[privd_B, pubc_C]` où `pubc_C` est la clé publique de cryptage du credential C.
-- B transmet au credential C le couple `[docKey_C pubc_B]`.
-
-Mais le _créateur_ A du document qui a généré cette clé ne l'a pas _reçue_:
-- il génère un couple `[privd_X pubc_X]` _simulant_ l'avoir reçue d'un transmetteur X.
-- il crypte _docKey_ en `docKey_A` par `[privd_A pubc_X]` et stocke dans son credential `[docKey_A pubc_X]`.
-- à noter que `privd_X` n'est pas utilisé (personne ne lui transmet).
+Dans un credential ayant un tel document comme maître, la propriété docKey est la valeur de cette clé **cryptée par la keyK** de l'utilisateur:
+- à la création du document c'est l'utilisateur créateur qui l'a générée et fait inscrire dans le credential.
+- en cours de vie du document, un credential de B reçoit de la part d'un credential de A  possédant cette clé, sa valeur cryptée par la clé publique de cryptage de A.
 
 #### Option _embarquée_ avec son document _maître_
 Dans cette première approche un credential est un _objet_ attaché à SON _document_:
@@ -1031,10 +1016,9 @@ L'objet `cred` a plusieurs propriétés génériques:
 - `pubv` : clé publique de _vérification_ de signature du credential. La partie _signature_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
 - `pubc` : clé publique de _cryptage_ de signature du credential. La partie _décryptage_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
 - `limit` : une date-heure (_epoch_ en secondes) limite de validité du credential qui est considéré comme inexistant au-delà de cette limite (quand elle existe).
-- `docKey pubX`: la clé du document crypté et la clé publique qui permettra de décrypter _docKey_ depuis la clé privée du credential.
-- `opaque` : cet objet, dont la structure dépend de la classe de documents est crypté par docKey.
-  - il est _opaque_ aux opérations mais en revanche tous les credentials peuvent le décrypter et le contenu peut s'afficher dans leur session.
-  - il permet à chaque utilisateur d'exposer des informations sur lui-même visible à tous ceux ayant un credential sur le même document maître.
+- `opaque` : cet objet, quand il existe a une structure dépendante de la classe de documents et est crypté par `docKey`.
+  - il est _opaque_ aux opérations.
+  - il permet aux utilisateurs d'exposer des informations sur eux-mêmes visibles de tous les autres ayant un credential sur le même document maître.
   - par convention `toString(opaque)` retourne un surnom / nom / pseudo ... à propos de l'utilisateur du credential.
 
 L'objet `cred` peut avoir **d'autres propriétés spécifiques** qui dépendent de la classe du _document maître_ et permettent aux opérations d'agir dessus. A titre _d'exemple_:
@@ -1042,44 +1026,33 @@ L'objet `cred` peut avoir **d'autres propriétés spécifiques** qui dépendent 
 - `lectureSeule` : les données du _document_ ne peuvent qu'être lues par les opérations sollicitées par les opérations invoquées par l'utilisateur détenteur du credential.
 
 #### Option _document séparé_ relié à son document maître
-La première approche pose un problème de _volume_ quand un grand nombre de credentials peuvent être attachés au document maître. Par exemple pour un _groupe_ de quelques centaines de membres (donc d'autant de _credentials_), le volume du _document_ représentant le groupe peut devenir considérable.
+La première approche pose un problème de _volume_ quand un grand nombre de credentials peuvent être attachés au document maître. Par exemple pour un _groupe_ de quelques centaines de membres (donc d'autant de _credentials_), le volume du _document_ représentant le groupe pourrait devenir considérable.
 
 Dans ce cas un _document_ `Credential` séparé est créé:
 - classe: `Credential`
 - clé primaire: `dCl dId cId` : correspondant aux propriétés `docCl docId credId` du credential avec une indexation `dCl dId` permettant d'acquérir toute la collection des _credentials_ du document maître.
 - `cred` : unique propriété non identifiante du document, exactement le même objet `cred` que quand le credential était _embarqué_ dans son document maître.
 
-> C'est un élément de configuration _statique_ du service qui déclare la liste des _classes_ de documents pour lesquelles les credentials sont _embarqués_, et par conséquence celles (non citées) pour lesquelles un document séparé lié existe.
+> Un élément de configuration _statique_ du service déclare la liste des _classes_ de documents pour lesquelles les credentials sont _embarqués_, et par conséquence celles (non citées) pour lesquelles un document séparé lié existe.
 
 #### Classes _virtuelles_ de documents maîtres
-Usuellement le `docCl` d'un credential désigne bien une classe de documents dont il existe de _vraies_ instances. C'est obligatoirement le cas pour les credentials _embarqués_.
+Usuellement le `docCl` d'un credential désigne une classe de documents dont il existe de _vraies_ instances et c'est obligatoirement le cas pour les credentials _embarqués_.
 
-Toutefois il est possible de désigner des classes _virtuelles_, n'ayant aucune instance de documents MAIS ayant des credentials rattachées. Par exemple:
+Il est aussi possible de désigner des classes _virtuelles_, n'ayant aucune instance de documents MAIS ayant des credentials rattachées. Par exemple:
 - on définit une classe `Section` d'auteurs. Les auteurs sont rattachés à quelques _sections_ (_Roman Nouvelle Science ..._ ) énumérées par une simple liste _configurable_ sans qu'aucun document ne matérialise par exemple `Section Science`.
 - `Section` est un nom de classe de document _virtuelle_, `Roman Nouvelle Science` étant des **identifiants** pré-déclarés.
-- on peut alors déclarer des credentials attachés par exemple à un document maître (et virtuel) `Section Science`. Un utilisateur détenant un tel credential a le _pouvoir_ d'enregistrer des auteurs dans cette section (voire de les changer de section, etc. ceci dépendant du détail du credential).
+- on peut déclarer des credentials attachés par exemple à un document maître virtuel `Section Science`. Un utilisateur détenant un tel credential a le _pouvoir_ d'enregistrer des auteurs dans cette section (voire de les changer de section, etc. ceci dépendant du détail du credential).
 
 #### Lecture d'un `cred` dans une session
-Dans une session il est possible de lire tous les objets `creds` associés aux credentials détenus dans sa _Safe Box_. Un affichage détaillé des pouvoirs correspondants est ainsi disponible.
-
-#### Usages de l'objet `objK` d'un credential dans la _Safe Box_
-Pour certaines classes de documents, certaines propriétés sont _lisibles_ par le service, d'autre peuvent être _opaques_ pour le service.
-- **propriétés lisibles**: c'est l'état normal et le logiciel du service peut les utiliser dans ses traitements.
-- **propriétés opaques**: elles sont _cryptées_ par une clé qui n'est disponible QUE dans les applications terminales et sont en conséquences inutilisables par une opération du service.
-
-Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que les _clé AES_ qui ont rendu ces données _opaques_ aux opérations du service, ne sont PAS stockées dans la DB du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
-
-Chaque utilisateur ayant un pouvoir de _comité directeur_ par exemple dispose de cette clé et la stocke dans la propriété `objK` du credential correspondant dans sa _Safe Box_: il peut ainsi décrypter ces données _opaques_ pour les opérations du service.
-
-> Il est possible que certaines _clés d'opacité_ soient présentes dans un _document_ et non pas uniquement dans les _Safe Box_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ dans un `objK` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la clé _maîtresse_.
+Dans une session il est possible de lire tous les objets `creds` associés aux credentials détenus dans sa _Safe Box_ et d'en avoir un affichage détaillé.
 
 #### Credentials _brisés_
-Un credential est _brisé_ quand,
-- il est connu dans la _Safe Box_ de l'utilisateur et inconnu dans le document correspondant dans la DB du service (ou réciproquement): 
-  - ce peut être le cas survenant en cas d'incident technique dans une action en deux phases: l'enregistrement dans le document a réussi et l'enregistrement en Safe Box a techniquement échoué.
-- une limite inférieure au jour J a été inscrite dans le document par une opération du service, mais le credential dans la _Safe Box_ correspondante n'a pas été détruit et **ne peut pas l'être par une opération**: 
-  - l'id de la Safe Box (de l'utilisateur) lui est inconnue,
-  - un service ne peut JAMAIS écrire dans une _Safe Box_.
+Un credential est _brisé_ quand:
+- soit il est présent dans un document ou en tant que credential séparé mais absent de la _Safe Box_. 
+  - ce peut être le cas en cas d'incident technique lors de la création, l'enregistrement dans le document a réussi et l'enregistrement en Safe Box a techniquement échoué.
+- soit il est présent dans la _Safe Box_ de l'utilisateur et absent du document correspondant, ou que le document n'existe plus, ou que son credential séparé n'existe plus.
+  - une limite inférieure au jour J a été inscrite dans le document par une opération du service ce qui vaut une suppression.
+  - le credential dans la _Safe Box_ correspondante n'a pas été détruit et **ne peut pas l'être par une opération**: a) l'id de la Safe Box (de l'utilisateur) lui est inconnue, b) un service ne peut JAMAIS écrire dans une _Safe Box_.
 
 En début de session (ou n'importe quand sur demande), les credentials peuvent être affichés avec les deux parties _Safe Box / document_: ceux _brisés_ peuvent alors être détruits de la _Safe Box_ étant inutilisables. 
 
@@ -1112,3 +1085,28 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 
 > Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
 
+## _Chats_ entre utilisateurs d'un même document maître
+Ce dispositif est autorisé ou non par classe de documents.
+
+Cette classe peut être _virtuelle_.
+
+Les credentials d'un même document maître forme une sorte de _groupe_ dont les membres peuvent se connaître en particulier d'après les informations _opaques_ qu'ils ont dans leurs credentials et bien entendu par les autres propriétés dépendantes de la classe.
+- ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
+- chaque credential disposant d'une clé publique de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
+
+Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit par A est dédoublé:
+- une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B.
+- une copie cryptée par A avec sa propre clé publique de cryptage et stockée dans le credential de A.
+
+> Un item peut être _multi-destinataire_: le même item est envoyé N fois (avec des CC), l'expéditeur n'en ayant qu'une copie (et non N).
+
+### Quelques règles:
+- un item peut être marqué _important_ par son destinataire.
+- le nombre d'items de chat par credential est limité.
+- le volume total des items par credential est aussi limité.
+- quand le volume est excessif, les plus anciens disparaissent en essayant de conserver ceux _importants_.
+- **A dispose d'une liste noire**. Si B est en liste noire de A,
+  - il n'a droit qu'à un item chez A (les précédents s'effacent),
+  - cet item est limité en taille (50 signes),
+  - il est marqué _liste noire_ et est prioritaire à l'effacement en cas d'excès de volume.
+- **A peut à l'inverse exprimer une liste blanche**, tous ceux non cités sont en liste noire.
