@@ -845,10 +845,11 @@ Après avoir identifié le `Topic` approprié à son besoin, un utilisateur peut
 - pour un groupe de discussion un code _alias_ exact du groupe qu'il souhaite rejoindre et qui lui a été transmis par ailleurs ou a pu rechercher.
 - pour un magasin un code PROMO.
 
-Pour chaque `Topic` sa configuration indique:
-- s'il n'a aucun _sujet_.
-- s'il a une liste fermée de _sujets_ prédéfinis.
-- si sa liste de sujets est ouverte, les codes ne sont pas tous connus d'avance.
+Pour chaque `Topic` sa configuration indique la composition de sa liste de sujets:
+- aucun _sujet_.
+- liste de _sujets_ statiquement prédéfinie: ils changent peu et sont peu nombreux.
+- liste de sujets définie par un _singleton_: ils peuvent changer assez souvent mais la liste est assez courte pour pouvoir être transférée en session sur demande (le choix s'opérant par filtrage local).
+- liste constituée des _alias_ d'une classe de documents, donc **par organisation**: le code est saisi en session et son existence est confirmé / infirmée par le service.
 
 Un utilisateur **helpers** a obtenu des credentials,
 - associé chacun à un `Topic` dont il est en charge,
@@ -872,7 +873,7 @@ La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en 
 - il est rechargé dans le service quand la version détenue en cache est trop ancienne.
 
     [
-      { id: topic1, categ: c1, keys: k12, subjects: [s1, s2 ...] },
+      { id: topic1, categ: c1, keys: k12, subjects: "..." },
       ...
     ]
 
@@ -881,11 +882,16 @@ La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en 
 - `keys`: des couples de clés Décryptage/Cryptage sont enregistrés dans la configuration du service sous un _code_ à donner dans `keys`.
 - `subjects`:
   - absent: le topic n'a pas de sujets.
-  - liste: les sujets sont listés. Si le premier sujet est `*` la liste est ouverte, admet d'autres sujets que ceux listés, sinon seuls ceux-ci peuvent être employés.
+  - `"a b c "`. Valeurs séparées par un espace.
+  - `"@sujet35"` : ID du _singleton_ (du service) portant cette liste.
+  - `"$sujet35"` : ID du _Property_ (de l'organisation) portant cette liste.
+  - `"DocCl/alias"` : nom de classe des documents dont `alias` est la propriété définissant un code externe.
 
-En début de session, les applications demandent aux services qu'elles gèrent la configuration des topics:
-- l'array correspond à l'image du singleton JSON.
-- la propriété `keys` est remplacée par `pubC`, la clé de cryptage publique correspondant au code dans la configuration du service.
+En cours de session, les applications demandent aux services qu'elles gèrent la configuration des topics:
+- la propriété `pubC` la clé de cryptage publique correspondant au code dans la configuration du service est transmise (mais pas `privD`). 
+- le cas échéant:
+  - le singleton définissant la liste de valeurs,
+  - la vérification d'existence d'un _alias_.
 
 ### Credential pour un topic:
 Topic étant une classe _virtuelle_, les credentials associés sont des documents de class `Credential`:
