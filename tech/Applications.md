@@ -1021,13 +1021,15 @@ Dans cette première approche un credential est un _objet_ attaché à SON _docu
 L'objet `cred` a plusieurs propriétés génériques:
 - `pubv` : clé publique de _vérification_ de signature du credential. La partie _signature_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
 - `pubc` : clé publique de _cryptage_ de signature du credential. La partie _décryptage_ étant détenue dans la _Safe Box_ de l'utilisateur et ne sortant jamais de la mémoire de ses sessions.
+- `docKey`: clé de cryptage __du document_ cryptée par la clé keyK du détenteur du credential.
 - `limit` : une date-heure (_epoch_ en secondes) limite de validité du credential qui est considéré comme inexistant au-delà de cette limite (quand elle existe).
 - `opaque` : cet objet, quand il existe a une structure dépendante de la classe de documents et est crypté par `docKey`.
   - il est _opaque_ aux opérations.
   - il permet aux utilisateurs d'exposer des informations sur eux-mêmes visibles de tous les autres ayant un credential sur le même document maître.
   - par convention `toString(opaque)` retourne un surnom / nom / pseudo ... à propos de l'utilisateur du credential.
+- `more`
 
-L'objet `cred` peut avoir **d'autres propriétés spécifiques** qui dépendent de la classe du _document maître_ et permettent aux opérations d'agir dessus. A titre _d'exemple_:
+L'objet `cred` peut avoir **d'autres propriétés spécifiques** `more` qui dépendent de la classe du _document maître_ et permettent aux opérations d'agir dessus. A titre _d'exemple_:
 - `mandats` : début et fin de _mandats_ attribués à l'utilisateur l'autorisant à agir selon telle ou telle responsabilité / pouvoir.
 - `lectureSeule` : les données du _document_ ne peuvent qu'être lues par les opérations sollicitées par les opérations invoquées par l'utilisateur détenteur du credential.
 
