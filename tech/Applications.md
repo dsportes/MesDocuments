@@ -888,7 +888,7 @@ La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en 
   - `"DocCl/alias"` : nom de classe des documents dont `alias` est la propriété définissant un code externe.
 
 En cours de session, les applications demandent aux services qu'elles gèrent la configuration des topics:
-- la propriété `pubC` la clé de cryptage publique correspondant au code dans la configuration du service est transmise (mais pas `privD`). 
+- la propriété `pubc` la clé de cryptage publique correspondant au code dans la configuration du service est transmise (mais pas `privd`). 
 - le cas échéant:
   - le singleton définissant la liste de valeurs,
   - la vérification d'existence d'un _alias_.
@@ -897,14 +897,13 @@ En cours de session, les applications demandent aux services qu'elles gèrent la
 Topic étant une classe _virtuelle_, les credentials associés sont des documents de class `Credential`:
 - `docCl`: `Topic`
 - `docId`: le `topicId` du topic.
-- `cred`: { pubV, subjects: [] }
-  - `pubV` pour vérifier la signature d'un détenteur.
+- `cred`: { ..., more: { subjects: [] } }
   - `subjects`: si présente cette liste contient un ou plusieurs `subject` restreignant la portée du credential.
 
 ## Les _cases_
 Un _case_ est un document de classe `Case` identifié par:
 - `topicId` : ID du topic auquel le cas se rapporte.
-- `caseId` : date-heure (_epoch_) de création en base64.
+- `caseId` : généré aléatoirement à la création.
 
 - `userId`: ID de l'utilisateur détenteur du cas. Depuis une opération du service la clé publique de cryptage `CU` est donc accessible.
 - `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _helper_ de se concentrer sur un sujet précis. 
@@ -1052,12 +1051,11 @@ Il est aussi possible de désigner des classes _virtuelles_, n'ayant aucune inst
 - on peut déclarer des credentials attachés par exemple à un document maître virtuel `Section Science`. Un utilisateur détenant un tel credential a le _pouvoir_ d'enregistrer des auteurs dans cette section (voire de les changer de section, etc. ceci dépendant du détail du credential).
 
 #### Lecture d'un `cred` dans une session
-Dans une session il est possible de lire tous les objets `creds` associés aux credentials détenus dans sa _Safe Box_ et d'en avoir un affichage détaillé.
+Dans une session il est possible de lire les objets `creds` associés aux credentials détenus dans sa _Safe Box_ et d'en avoir un affichage détaillé.
 
 #### Credentials _brisés_
 Un credential est _brisé_ quand:
-- soit il est présent dans un document ou en tant que credential séparé mais absent de la _Safe Box_. 
-  - ce peut être le cas en cas d'incident technique lors de la création, l'enregistrement dans le document a réussi et l'enregistrement en Safe Box a techniquement échoué.
+- soit il est présent dans un document ou en tant que credential séparé mais absent de la _Safe Box_. En cas d'incident technique lors de la création, l'enregistrement dans le document a réussi et l'enregistrement en Safe Box a techniquement échoué. Mais ceci est improbable, l'écriture en Safe Box venant avant l'autre qui n'est pas exécutée en cas d'incident de la première. Quoi qu'il en soit, ce credential est inutilisable et impossible à nettoyer.
 - soit il est présent dans la _Safe Box_ de l'utilisateur et absent du document correspondant, ou que le document n'existe plus, ou que son credential séparé n'existe plus.
   - une limite inférieure au jour J a été inscrite dans le document par une opération du service ce qui vaut une suppression.
   - le credential dans la _Safe Box_ correspondante n'a pas été détruit et **ne peut pas l'être par une opération**: a) l'id de la Safe Box (de l'utilisateur) lui est inconnue, b) un service ne peut JAMAIS écrire dans une _Safe Box_.
