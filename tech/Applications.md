@@ -833,9 +833,9 @@ Un utilisateur peut avoir besoin,
 
 Dans le processus de résolution de la situation il intervient,
 - un utilisateur U demandeur / destinataire de l'action.
-- un ou des utilisateurs _helpers_ anonymes pour U ayant le(s) pouvoir(s) de traiter le cas de U.
+- un ou des utilisateurs _sponsors_ anonymes pour U ayant le(s) pouvoir(s) de traiter le cas de U.
 
-Les types d'interventions possibles sont identifiés et classés par le service en définissant un `Topic` pour traiter chacun de ces types de problèmes et pour permettre aux _helpers_ adéquat de se pencher dessus et d'agir.
+Les types d'interventions possibles sont identifiés et classés par le service en définissant un `Topic` pour traiter chacun de ces types de problèmes et pour permettre aux _sponsors_ adéquat de se pencher dessus et d'agir.
 
 **La liste des Topics est consignée dans une configuration _statique_ du service**: cette liste à 2 niveaux propose pour aider à l'affichage un regroupement des topics par catégories.
 
@@ -851,18 +851,18 @@ Pour chaque `Topic` sa configuration indique la composition de sa liste de sujet
 - liste de sujets définie par un _singleton_: ils peuvent changer assez souvent mais la liste est assez courte pour pouvoir être transférée en session sur demande (le choix s'opérant par filtrage local).
 - liste constituée des _alias_ d'une classe de documents, donc **par organisation**: le code est saisi en session et son existence est confirmé / infirmée par le service.
 
-Un utilisateur **helpers** a obtenu des credentials,
+Un utilisateur **sponsors** a obtenu des credentials,
 - associé chacun à un `Topic` dont il est en charge,
 - avec éventuellement une restriction à ne traiter que les _sujets_ listés.
 
-Un utilisateur **helper** peut lister les **cas** ouverts sur les topics pour lesquels il a un credential et ne voir que ceux ayant un _sujet_ qui l'intéresse. Il peut choisir un _cas_ l'ouvrir et le traiter.
+Un utilisateur **sponsor** peut lister les **cas** ouverts sur les topics pour lesquels il a un credential et ne voir que ceux ayant un _sujet_ qui l'intéresse. Il peut choisir un _cas_ l'ouvrir et le traiter.
 
-> **Un _helper_ peut aussi prendre l'initiative de créer un _cas_** à destination d'un utilisateur dont il a eu connaissance du _userId_ (typiquement en connaissant un de ses _alias_). Il fait _une proposition_ qu'il pense pouvoir intéresser l'utilisateur, libre à celui-ci de l'accepter ou non.
+> **Un _sponsor_ peut aussi prendre l'initiative de créer un _cas_** à destination d'un utilisateur dont il a eu connaissance du _userId_ (typiquement en connaissant un de ses _alias_). Il fait _une proposition_ qu'il pense pouvoir intéresser l'utilisateur, libre à celui-ci de l'accepter ou non.
 
 ### Traitement final d'un _cas_
-L'objectif de l'ouverture d'un cas n'est en général pas cantonné à avoir des échanges textuels par l'ardoise entre un utilisateur et un ou des _helpers_, mais a souvent pour but **d'aboutir à un traitement final**:
-- la phase d'échange a permis à un _helper_ de définir les paramètres d'une _solution_.
-- in fine, c'est l'utilisateur qui **valide** (ou non) le déclenchement du traitement final qui va s'exécuter selon les conditions fixées par le _helper_: _un ou des comptes seront créés, des credentials aussi,_ etc.
+L'objectif de l'ouverture d'un cas n'est en général pas cantonné à avoir des échanges textuels par l'ardoise entre un utilisateur et un ou des _sponsors_, mais a souvent pour but **d'aboutir à un traitement final**:
+- la phase d'échange a permis à un _sponsor_ de définir les paramètres d'une _solution_.
+- in fine, c'est l'utilisateur qui **valide** (ou non) le déclenchement du traitement final qui va s'exécuter selon les conditions fixées par le _sponsor_: _un ou des comptes seront créés, des credentials aussi,_ etc.
 
 **Un _cas_ vit peu de temps:** quand il est _annulé_ ou _finalisé_ par son utilisateur, il devient passif puis s'auto-détruit quelque jours plus tard.
 
@@ -901,12 +901,28 @@ Topic étant une classe _virtuelle_, les credentials associés sont des document
   - `subjects`: si présente cette liste contient un ou plusieurs `subject` restreignant la portée du credential.
 
 ## Les _cases_
-Un _case_ est un document de classe `Case` identifié par:
+Un _case_ est un document de classe `Case` identifié par `caseId`:
+- `caseId` : ID universel généré aléatoirement à la création.
+- `v` : version du document. Elle détermine aussi la limite de validité du document.
 - `topicId` : ID du topic auquel le cas se rapporte.
-- `caseId` : généré aléatoirement à la création.
-
 - `userId`: ID de l'utilisateur détenteur du cas. Depuis une opération du service la clé publique de cryptage `CU` est donc accessible.
-- `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _helper_ de se concentrer sur un sujet précis. 
+- `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _sponsor_ de se concentrer sur un sujet précis. 
+- `status`: 0-annulé 1-actif-U 2-actif-H 3-finalisé.
+- `tabX`: texte de l'ardoise crypté par `X` (en base 64).
+- `etc`: objet qui ne peut être écrit configuré que par une opération d'un _sponsor_ autorisé.
+
+`caseId topicId userId subject` : ces propriétés sont immuables.
+
+**Clé primaire et index:**
+- `pk`: `caseId`
+- `topic`: `topicId`
+- `topicsub`: `topicId subject`
+
+**Status d'un _case_**
+- 1 : _actif écrit par U_. Il peut être mise à jour et peut subir un traitement final. C'est U qui l'a écrit en dernier.
+- 2 : _actif écrit par H_. Il peut être mise à jour et peut subir un traitement final. C'est une opération du service sollicitée par un _sponsor_ H qui l'a écrit en dernier.
+- 3 : _finalisé_. Son traitement final a eu lieu, il est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
+- 0 : _annulé_. Son traitement final N'A PAS eu lieu, il a été annulé par U et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
 
 La clé _virtuelle_ `X` d'un _case_ est une clé symétrique qui est obtenue indifféremment,
 - depuis `[DU, CT]` dans une session de l'application:
@@ -916,54 +932,41 @@ La clé _virtuelle_ `X` d'un _case_ est une clé symétrique qui est obtenue ind
   - `DT` clé privée de décryptage du topic disponible en _cache_ dans le service (obtenue depuis le singleton TOPICS).
   - `CU` est publique dans le service, retournée depuis `userId`.
 
-Ces propriétés sont immuables.
-
-**Status d'un _case_**
-- 1 : _actif écrit par U_. Il peut être mise à jour et peut subir un traitement final. C'est U qui l'a écrit en dernier.
-- 2 : _actif écrit par H_. Il peut être mise à jour et peut subir un traitement final. C'est une opération du service sollicitée par un _helper_ H qui l'a écrit en dernier.
-- 3 : _finalisé_. Son traitement final a eu lieu, il est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
-- 0 : _annulé_. Son traitement final N'A PAS eu lieu, il a été annulé par U et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
-
-#### Propriétés
-- `topicId/subject/caseId`
-- `v` : version du document. Elle détermine aussi la limite de validité du document.
-- `userId`: ID de l'utilisateur cible.
-- `status`: 0-annulé 1-actif-U 2-actif-H 3-finalisé.
-- `tabX`: texte de l'ardoise crypté par `X` (en base 64).
-- `etc`: objet qui ne peut être écrit configuré que par une opération d'un _helper_ autorisé.
-
 ### La table `ZZCASES` du Master Directory
 Cette table partagée par tous les utilisateurs et services, sert à un utilisateur à être informé,
-- de l'existence des cases actifs entre lui et des _helpers_, 
-- soit de l'inscription d'un nouveau _case_ créé par un _helper_,
+- de l'existence des cases actifs entre lui et des _sponsors_, 
+- soit de l'inscription d'un nouveau _case_ créé par un _sponsor_,
 - soit d'une nouvelle version d'un _case_ qu'il n'avait pas encore lue.
 
 #### Propriétés
-- `svc org` : service détenteur de l'ardoise.
-- `userId`: utilisateur de l'ardoise. Index de sélection.
-- `topicId/caseId` : identifiant du _cas_ dans le service et pour l'utilisateur.
-  - la clé _primaire_ est `userId topicId caseId`.
+- `caseId` : ID universel généré aléatoirement à la création (clé primaire).
+- `userId`: utilisateur de l'ardoise. Index de sélection (index).
 - `v` : version du document dans la DB du service. Elle détermine aussi la limite de validité du cas.
-- `status`: 0 1 2 3
-- `aboutU`: texte crypté de commentaire pour le seul usage de l'utilisateur.
-- `lv` : dernière version _lue_ par U. La comparaison avec `v` permet de savoir si U a eu connaissance de la dernière évolution produite par le service.
+- `data`:
+  - `chk`: SHA raccourci des données immuables `caseId userId topicId subject svc org`. Permet de vérifier que la demande vient bien d'un détenteur légitime (session ou opération).
+  - `svc org` : service détenteur de l'ardoise.
+  - `topicId` : topic du _cas_.
+  - `subject`: sujet du cas si requis.
+  - `status`: 0 1 2 3
+  - `aboutU`: texte crypté de commentaire pour le seul usage de l'utilisateur.
+  - `lv` : dernière version _lue_ par U. La comparaison avec `v` permet de savoir si U a eu connaissance de la dernière évolution produite par le service.
 
-#### Opération `CaseSet` sur `ZZCASES`
-- arguments: 
-  - `svc org userId topicId caseId`
-  - _optionnel_: `aboutU`.
-- Création OU mise à jour de `ZZCASES` depuis le document détenu en DB du service.
-  - les propriétés `v` et `status` sont dupliquées .
-  - la propriété `lv` est fixée,
-    - si elle n'existait pas, à `v` si `status` est _1_, sinon à 0.
-    - si elle existait, à `v` si `status` est _1_, sinon est inchangée.
+#### Opérations sur `ZZCASES`
+- `mdCaseNew`: _preset_ de création du case avec ses propriétés immuables.
+  - arguments: `caseId userId topicId subject svc org`
+- `mdCaseSync`: synchronise les propriétés variables `v status` avec les valeurs du _document_.
+  - arguments: `caseId chk`
+- `mdCaseUser`: fixe les propriétés variables `lv aboutU` avec les valeurs fixées par l'utilisateur.
+  - arguments: `caseId chk lv aboutU`
+- `mdCaseDel`: suppression d'un case
+  - arguments: `caseId chk`
+- `mdCasePurge`: suppressions des cases dont `v` est inférieure à `limit`.
+  - arguments: `limit`
 
-> Sollicité par U, l'opération N'AUTHENTIFIE pas U: on admet que le simple marquage _lu_ et le _aboutU_ sur un cas n'est pas une opération stratégique.
+> Une session ou une opération _légitime_ connaît les propriétés immuables: au delà de la _pré-création_ la fourniture de chk sert à vérifier cette légitimité.
 
-> Sollicité par un service, l'opération doit retrouver un document dont l'ID lui est fourni et obtenir `v` et `status`, seules données recopiées. La vérification de la concordance de `userId` est jugée suffisante.
-
-### Cycle de vie d'un _case_ créé par un _helper_
-Un _helper_ prend l'initiative de créer une _proposition_ en lançant une opération créant un _case_:
+### Cycle de vie d'un _case_ créé par un _sponsor_
+Un _sponsor_ prend l'initiative de créer une _proposition_ en lançant une opération créant un _case_:
 - elle dispose du `userId` de l'utilisateur ciblé, typiquement pour l'avoir obtenu depuis un de ses _alias_ publics. Elle connaît donc aussi la clé publique `CU` de cryptage de U.
 - elle dispose d'un _credential_ de _doCl/docId_ `['Topic', topicId]`. La configuration des topics en cache du service détient la propriété `topicDT` de _décryptage_ privée du topic.
   - elle calcule la clé `X` depuis `[topicDT, CU]`.
