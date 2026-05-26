@@ -904,8 +904,8 @@ Topic étant une classe _virtuelle_, les credentials associés sont des document
 Un _case_ est un document de classe `Case` identifié par `caseId`:
 - `caseId` : ID universel généré aléatoirement à la création.
 - `v` : version du document. Elle détermine aussi la limite de validité du document.
-- `topicId` : ID du topic auquel le cas se rapporte.
 - `userId`: ID de l'utilisateur détenteur du cas. Depuis une opération du service la clé publique de cryptage `CU` est donc accessible.
+- `topicId` : ID du topic auquel le cas se rapporte.
 - `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _sponsor_ de se concentrer sur un sujet précis. 
 - `status`: 0-annulé 1-actif-U 2-actif-H 3-finalisé.
 - `tabX`: texte de l'ardoise crypté par `X` (en base 64).
@@ -943,7 +943,7 @@ Cette table partagée par tous les utilisateurs et services, sert à un utilisat
 - `userId`: utilisateur de l'ardoise. Index de sélection (index).
 - `v` : version du document dans la DB du service. Elle détermine aussi la limite de validité du cas.
 - `data`:
-  - `chk`: SHA raccourci des données immuables `caseId userId topicId subject svc org`. Permet de vérifier que la demande vient bien d'un détenteur légitime (session ou opération).
+  - `chk`: SHA raccourci des données immuables `userId topicId subject svc org`. Permet de vérifier que la demande vient bien d'un détenteur légitime (session ou opération).
   - `svc org` : service détenteur de l'ardoise.
   - `topicId` : topic du _cas_.
   - `subject`: sujet du cas si requis.
