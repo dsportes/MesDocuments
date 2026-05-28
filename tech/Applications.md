@@ -908,7 +908,7 @@ Un _case_ est un document de classe `Case` identifié par `caseId`:
 - `topicId` : ID du topic auquel le cas se rapporte.
 - `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _sponsor_ de se concentrer sur un sujet précis. 
 - `status`: 0-annulé 1-actif-U 2-actif-H 3-finalisé.
-- `tabX`: texte de l'ardoise crypté par `X` (en base 64).
+- `tabT`: texte de l'ardoise crypté par la clé T/U.
 - `etc`: objet qui ne peut être écrit configuré que par une opération d'un _sponsor_ autorisé.
 
 `caseId topicId userId subject` : ces propriétés sont immuables.
@@ -918,19 +918,35 @@ Un _case_ est un document de classe `Case` identifié par `caseId`:
 - `topic`: `topicId`
 - `topicsub`: `topicId subject`
 
-**Status d'un _case_**
+### Clé T/U pour crypter l'ardoise
+Le cryptage par un _sponsor_ est effectué par:
+- la clé _privée D_ du topic,
+- la clé _publique C_ de U.
+- quand un sponsor est le premier à écrire (proposition), il connaît néanmoins U puisqu'il s'adresse nommément à lui.
+
+Le cryptage par U est effectué par:
+- la clé _privée D_ de U,
+- la clé _publique C_ de T disponible publiquement.
+
+Une session de U est en conséquence capable de crypter / décrypter `tabT`, aussi bien à la création qu'à la mise à jour et en lecture.
+
+Une session d'un _sponsor_ en revanche ne dispose pas _naturellement_ de la clé **privée D** du topic du case:
+- les opérations savent déterminer si un _sponsor_ est habilité à être _sponsor_.
+- les opérations de création / mise à jour pour un _sponsor_ reçoivent en conséquence `tab` en clair et, disposant de la clé privée D du topic et de la clé publique C de U, crypter `tab` en `tabT`.
+
+En conséquence:
+- quand une opération de création / mise à jour reçoit `tab`:
+  - si l'appelant est U `tab` est déjà cryptée en `tabT`.
+  - sinon `tab` est en clair et c'est l'opération qui crypte `tab` en `tabT`.
+- quand l'opération de lecture reçoit une demande _getCase_:
+  - si l'appelant est U, `tabT` est retourné et sera décrypté par la session de U.
+  - sinon l'opération _décrypte_ `tabT` en `tab` et le retourne.
+
+### Status d'un _case_
 - 1 : _actif écrit par U_. Il peut être mise à jour et peut subir un traitement final. C'est U qui l'a écrit en dernier.
 - 2 : _actif écrit par H_. Il peut être mise à jour et peut subir un traitement final. C'est une opération du service sollicitée par un _sponsor_ H qui l'a écrit en dernier.
 - 3 : _finalisé_. Son traitement final a eu lieu, il est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
 - 0 : _annulé_. Son traitement final N'A PAS eu lieu, il a été annulé par U et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
-
-La clé _virtuelle_ `X` d'un _case_ est une clé symétrique qui est obtenue indifféremment,
-- depuis `[DU, CT]` dans une session de l'application:
-  - `DU` est détenue par la session.
-  - `CT` : clé publique de cryptage du topic obtenu en session par la configuration des topics chargée en début de session.
-- depuis `[DT, CU]` dans une opération d'un service.
-  - `DT` clé privée de décryptage du topic disponible en _cache_ dans le service (obtenue depuis le singleton TOPICS).
-  - `CU` est publique dans le service, retournée depuis `userId`.
 
 ### La table `ZZCASES` du Master Directory
 Cette table partagée par tous les utilisateurs et services, sert à un utilisateur à être informé,
