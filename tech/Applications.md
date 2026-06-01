@@ -1124,14 +1124,26 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 
 > Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
 
-## Cases et credentials
-Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un cas_ d'un couple `topicId subject`, il faut que l'utilisateur dispose d'au moins un credential le permettant. 
+## Credentials requis pour traiter un case
+Ou à l'inverse, avec une liste de credentials donnée (celle que l'utilisateur détient) quels cases est-il, en premier filtre, possible de traiter.
 
-De plus le détail `etc` du case correspondant peut être soumis aux contraintes exprimées dans le credential `docCl docId more`.
+Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un cas_ d'un couple `topicId subject`, il faut **a minima** que l'utilisateur dispose d'au moins un credential le permettant. 
 
-Une pré-sélection des cases qu'un utilisateur peut traiter peut s'effectuer sur la liste des `topicId subject` que ses credentials lui permettent **a priori** de traiter.
+Si c'est le cas, encore faut-il que des restrictions éventuelles exprimées dans les données de la propriété `more` du credential ne l'empêchent pas.
 
+### Configuration d'un topic
+Chaque topic est _configuré_ en exprimant quels credentials peuvent a priori permettre de traiter les cas relatifs à ce topic.
 
+En l'occurrence un credential est dans ce cas identifiable par `docCl/docId`. Un topic représente cette liste de credentials par une expression de la forme `"c1 c2 c3 ..."` où les ci peuvent être:
+- `A` : ne représente pas un credential mais le fait que l'utilisateur est administrateur technique du service. Ce sera le cas pour traiter les cases de demande à être _manager_ de l'organisation.
+- `docCl/1` : les credentials ayant le couple `docCl 1` comme `docCl docId` sont candidats.
+- `docCl/S` : les credentials ayant un couple `docCl docId` où `docId` est égal au `subject` du case sont candidats.
+
+Dans une session pour récupérer tous les _cases_ a priori traitables le process suivant est engagé:
+- récupération de tous les credentials de l'utilisateur pour obtenir l'ensemble de leurs couples `[ docCl/docId, ...` où `docId` peut être `1` ou une autre valeur `SSS...` qui sera comparée avec la valeur du _subject_ de chaque case.
+- la requête de l'opération de collecte récupère tous les cases dont le `docCl/docId` matche avec au moins un des termes de la liste élaborée en session.
+
+Le filtrage plus fin retenant un case ou non selon la valeur du more du credential pour le topic du case s'effectue en session.
 
 ## _Chats_ entre utilisateurs d'un même document maître
 Ce dispositif est autorisé ou non par classe de documents.
