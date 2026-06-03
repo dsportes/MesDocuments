@@ -873,7 +873,7 @@ La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en 
 - il est rechargé dans le service quand la version détenue en cache est trop ancienne.
 
     [
-      { id: topic1, categ: c1, keys: k12, subjects: "..." },
+      { id: topic1, categ: c1, keys: k12, subjects: "...", creds: "c1 c2 c3 ..." },
       ...
     ]
 
@@ -893,7 +893,27 @@ En cours de session, les applications demandent aux services qu'elles gèrent la
   - le singleton définissant la liste de valeurs,
   - la vérification d'existence d'un _alias_.
 
-### Credential pour un topic:
+### Credentials de `docCl/docId` associés à un topic
+Chaque topic est _configuré_ en exprimant quels credentials de `docCl/docId` donné confèrent _a priori_ le droit de traiter les cas relatifs à ce topic.
+
+#### Cas spécifique des credentials _managers_
+Ils ne sont par définition attribuables et éditables que par utilisateur _administrateur_ du service pour une organisation donnée.
+- il y en a peu et les _managers_ représentent le top level des habilitations: l'organisation a explicitement demandé hors de l'application à un _administrateur_ d'attribuer à certains utilisateurs un credential de manager.
+- il peut y avoir plusieurs classes de _managers_, chaque classe correspond à une classe de documents virtuels ou non qui sont des `singletons` (`docId` par convention `1`).
+- ces classes sont listées en configuration de l'application.
+
+#### Cas général
+Chaque topic liste les credentials par une expression de la forme `"c1 c2 c3 ..."` où les `ci` peuvent être:
+- `docCl/1` : les credentials ayant le couple `docCl 1` comme `docCl docId` sont candidats.
+- `docCl/S` : les credentials ayant un couple `docCl docId` où `docId` est égal au `subject` du case sont candidats.
+
+Dans une session pour récupérer tous les _cases_ a priori traitables le process suivant est engagé:
+- récupération de tous les credentials de l'utilisateur pour obtenir l'ensemble de leurs couples `[ docCl/docId, ...` où `docId` peut être `1` ou une autre valeur `SSS...` qui sera comparée avec la valeur du _subject_ de chaque case.
+- la requête de l'opération de collecte récupère tous les cases dont le `docCl/docId` matche avec au moins un des termes de la liste élaborée en session.
+
+Le filtrage plus fin retenant un case ou non selon la valeur du more du credential pour le topic du case s'effectue en session.
+
+### Credential d'un topic
 Topic étant une classe _virtuelle_, les credentials associés sont des documents de class `Credential`:
 - `docCl`: `Topic`
 - `docId`: le `topicId` du topic.
@@ -928,11 +948,11 @@ Le cryptage par U est effectué par:
 - la clé _privée D_ de U,
 - la clé _publique C_ de T disponible publiquement.
 
-Une session de U est en conséquence capable de crypter / décrypter `tabT`, aussi bien à la création qu'à la mise à jour et en lecture.
+**Une session de U** est en conséquence capable de crypter / décrypter `tabT`, aussi bien à la création qu'à la mise à jour et en lecture.
 
-Une session d'un _sponsor_ en revanche ne dispose pas _naturellement_ de la clé **privée D** du topic du case:
+**Une session d'un _sponsor_** en revanche ne dispose pas _naturellement_ de la clé **privée D** du topic du case:
 - les opérations savent déterminer si un _sponsor_ est habilité à être _sponsor_.
-- les opérations de création / mise à jour pour un _sponsor_ reçoivent en conséquence `tab` en clair et, disposant de la clé privée D du topic et de la clé publique C de U, crypter `tab` en `tabT`.
+- les opérations de création / mise à jour pour un _sponsor_ reçoivent en conséquence `tab` en clair et, disposant de la clé _privée D_ du topic et de la clé _publique C_ de U, crypter `tab` en `tabT`.
 
 En conséquence:
 - quand une opération de création / mise à jour reçoit `tab`:
@@ -1131,19 +1151,7 @@ Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un ca
 
 Si c'est le cas, encore faut-il que des restrictions éventuelles exprimées dans les données de la propriété `more` du credential ne l'empêchent pas.
 
-### Configuration d'un topic
-Chaque topic est _configuré_ en exprimant quels credentials peuvent a priori permettre de traiter les cas relatifs à ce topic.
 
-En l'occurrence un credential est dans ce cas identifiable par `docCl/docId`. Un topic représente cette liste de credentials par une expression de la forme `"c1 c2 c3 ..."` où les ci peuvent être:
-- `A` : ne représente pas un credential mais le fait que l'utilisateur est administrateur technique du service. Ce sera le cas pour traiter les cases de demande à être _manager_ de l'organisation.
-- `docCl/1` : les credentials ayant le couple `docCl 1` comme `docCl docId` sont candidats.
-- `docCl/S` : les credentials ayant un couple `docCl docId` où `docId` est égal au `subject` du case sont candidats.
-
-Dans une session pour récupérer tous les _cases_ a priori traitables le process suivant est engagé:
-- récupération de tous les credentials de l'utilisateur pour obtenir l'ensemble de leurs couples `[ docCl/docId, ...` où `docId` peut être `1` ou une autre valeur `SSS...` qui sera comparée avec la valeur du _subject_ de chaque case.
-- la requête de l'opération de collecte récupère tous les cases dont le `docCl/docId` matche avec au moins un des termes de la liste élaborée en session.
-
-Le filtrage plus fin retenant un case ou non selon la valeur du more du credential pour le topic du case s'effectue en session.
 
 ## _Chats_ entre utilisateurs d'un même document maître
 Ce dispositif est autorisé ou non par classe de documents.
