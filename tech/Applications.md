@@ -328,7 +328,7 @@ Comme pour le store _générique_ des Safe Box, il n'y a qu'un seul MASTER DIREC
 
 > Il peut y avoir autant de MASTER DIRECTORY de test que souhaité par les développeurs pouvant ainsi disposer chacun d'environnements totalement privatifs.
 
-### Tables: `ZZSVCOPS ZZORGS ZZUSERS ZZINVITS`
+### Tables: `ZZSVCOPS ZZORGS ZZUSERS ZZCASES`
 
 #### Table `ZZSVCOPS`
 - `key` : clé primaire, le code d'un service.
@@ -376,19 +376,14 @@ Les objectifs de cette table sont les suivants:
 - fournir aux services les clés publiques de cryptage et de vérification de signature d'un utilisateur.
 - accessoirement, déterminer les utilisateurs inactifs depuis un certain temps et lancer des _garbage collectors_.
 
-#### Table `ZZINVITS`
+#### Table `ZZCASES`
 Elle est détaillée plus avant dans ce document.
 
-Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations en cours, cette table énumère les références des invitations ouvertes. Elle comporte les propriétés suivantes:
-- `invitId`: c'est sa clé primaire.
+Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses demandes / propositions en cours, cette table énumère les références de ses _cases_ ouverts. Elle comporte les propriétés suivantes:
+- `caseId`: c'est sa clé primaire.
 - `userId`: utilisateur de l'invitation.
 - `v`: version de l'invitation dans la DB.
-- `lastView` : date-heure à laquelle l'utilisateur a consulté pour la dernière fois l'invitation.
-- `data`: une sérialisation cryptée des propriétés `svc org major minor` immutables de l'invitation.
-
-    {
-      "Fgtinv2...": { "userId": "qzFuser1..." "data": "RANDO/amis94/Anim./"},
-    }
+- `data`: une sérialisation cryptée des autres propriétés.
 
 #### Table `ZZSAFE`
 Pour les utilisateurs dont la Safe Box est hébergée dans le store _générique_ des Safe Box.
@@ -413,7 +408,7 @@ Pour les utilisateurs dont la Safe Box est hébergée dans le store _générique
 - Dès lors `Leon27` peut utiliser l'application qui dispose de ses droits d'accès dans sa Safe Box.
 
 ##### Lancement d'une opération
-L'application MesRandos a besoin de solliciter une opération `op1` du service `RANDO` sachant que l'utilisateur a désigné son organisation `amis94` dans laquelle il il a un droit d'accès `Animateur/wxfr`.
+L'application _MesRandos_ a besoin de solliciter une opération `op1` du service `RANDO` sachant que l'utilisateur a désigné son organisation `amis94` dans laquelle il il a un droit d'accès `Animateur/wxfr`.
 - l'application demande au Master Directory l'URL du service correspondant:
   - Dans `ORGS` il obtient que l'organisation `amis94` a son service `RANDO` hébergé par l'opérateur `$BLUE`.
   - Dans `SVCOPS` il obtient que le service `RANDO` est assuré par l'opérateur `$BLUE` à l'URL `rndx.blue.org`.
@@ -448,22 +443,6 @@ Le status d'une organisation est enregistré dans un document:
   - `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
   - _autres propriétés dépendante du service._
 
-#### Discussion
-Idéalement on pourrait souhaiter que les _managers_ d'une organisation (pour un service / opérateur) puissent disposer d'une clé par exemple pour que leur _chat_ soit confidentiel, c'est à dire NON lisibles par l'opérateur.
-- ceci imposerait de stocker cette clé quelque part, typiquement une sorte d'entrée de _Safe_ pour l'organisation.
-- mais ceci impose qu'une ou des personnes en maîtrisent les pseudo / phrase correspondantes: d'où un risque de perte irrémédiable. Ce n'est pas un _simple utilisateur isolé_ qui peut disparaître mais une organisation alors que tout a été fait pour permettre à un _opérateur_ de supporter une organisation simplement par déclaration de l'ID d'un _administrateur_ dans sa configuration de déploiement.
-- il faut se résigner à ce que _l'opérateur_ ait accès aux _chats_ des managers d'une organisation.
-- ceux-ci peuvent ouvrir des _chats_ privés sur invitation pour échanger en toute confidentialité mais avec la fragilité,
-  - que tout nouveau _manager_ n'en fasse pas partie automatiquement,
-  - que le _chat privé_ s'auto dissolve quand son dernier membre a disparu (avec perte des échanges).
-
-Un **groupe privé** fonctionne par _cooptation_ qui est le mécanisme permettant de transmettre une clé à un nouvel entrant de par l'action d'un membre actuel.
-- une action externe au groupe ne peut jamais inscrire de force un nouvel entrant faute de disposer de la clé.
-- c'est une assurance de confidentialité intégrale dans le groupe mais une vulnérabilité pour la vie du groupe lui-même qui peut disparaître par suite de la disparition ou inactivité longue (d'où disparition) de ses membres sans jamais qu'un nouvel entrant puisse y être intégrer de l'extérieur.
-- pour rendre ça possible il faut disposer d'une _autorité supérieure_ ayant toutes les clés de tous les groupes privés entraînant le risque d'y faire entrer des indésirables non cooptés.
-
-Certes cette autorité supérieure pourrait n'agir que sur donnée d'un mot de passe par exemple, communiqué hors du système par le _propriétaire contractuel_ du groupe à cette autorité. **Mais** qui enregistrerait le mot de passe de _panique_, qui pourrait le changer, sous quelle authentification ? Double clé avec l'Administrateur ?
-
 ## Opérations d'Administration Technique
 Tout utilisateur peut être reconnu _Administrateur Technique_ à l'hébergement d'un service par un opérateur: son ID est ajouté aux listes statiques de configuration:
 - `MASTERDIRADMINUSERS` : pour le MASTER DIRECTORY,
@@ -479,7 +458,7 @@ Lors du contrôle d'authentification à l'entrée d'une opération requérant un
 Pour pouvoir afficher la page _Administration Technique_, un utilisateur doit auto-déclarer dans sa _Safe Box_ la liste des couples `SVC $OP` pour lesquels il a ce pouvoir:
 - quand il en ajoute un, le fait qu'il le soit réellement est vérifié.
 - si son `userId` est ensuite retiré de la configuration, il doit remettre à jour cette liste.
-- sil ne s'inscrit pas de lui-même, de facto il ne peut pas atteindre la page d'administration.
+- s'il ne s'inscrit pas de lui-même, de facto il ne peut pas atteindre la page d'administration.
 
 > La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS / MASTERDIRADMINUSERS` correspondante et en redéployant le logiciel.
 
@@ -518,101 +497,103 @@ Elle consiste à attacher l'organisation à,
 
 > Cette configuration est déclarative seulement et ne correspond pas à un _transfert technique_ de base ou de storage, opérations lourdes gérées en ligne de commande par un administrateur système de l'opérateur.
 
-# Credentials (pouvoirs)
-Un credential est un document dont l'ID `credId` est aléatoirement généré à sa création:
-- de facto il _n'appartient_ qu'au seul utilisateur qui le détient dans sa Safe Box.
-- il définit le droit de cet utilisateur à accéder à des opérations d'UN service `svc` spécifiquement pour une organisation `org`.
-
-Sa **cible spécifique** est identifiée par le couple `role/docId`:
-- `role` : UN rôle est matérialisé par le couple `classe.role`,
-  - d'UNE classe de document (par exemple `Redacteur.`),
-  - et éventuellement d'un rôle complémentaire `Redacteur.chef` quand l'entité correspondante peut être abordée selon plusieurs rôles.
-- `docId` est l'identifiant du document correspondant.
-  - quand `docId` est vide, le credential a pour cible TOUS les documents de la classe. C'est typiquement le cas pour `Org.` n'ayant qu'un document _son ID 1_ n'est pas donnée.
-
-### `CredSafe` et `Credential`
-`CredSafe` est l'objet représentant du credential enregistré dans la _Safe Box_ de l'utilisateur, avec:
-- sa **clé privée de signature** du credential,
-- quelques propriétés détaillées ci-après.
-- au détail près du _commentaire_ facultatif donné par l'utilisateur lui-même, cet objet est immuable.
-
-`Credential` est un document enregistré dans la base de données du service, avec:
-- la **clé publique de vérification** de cette version du credential.
-- quelques propriétés détaillées ci-après qui peuvent évoluer au cours du temps.
-
-#### Dans une session de l'application
-- tous les `CredSafe` sont lus depuis la _Safe Box_ de l'utilisateur pour les credentials relatifs à un des services accédés par l'application.
-- les _documents_ correspondants `Credential` dans la DB du service `SVC` et l'organisation `org` sont lisibles par accès par `credId`.
-
-Une application dispose en session des deux objets représentant le credential, mais:
-- ne peut mettre à jour QUE la propriété `comment` de `CredSafe`.
-- ne peut QUE lire le _document_ `Credential` DB correspondant.
-
-#### Dans une opération d'un service
-- tous les _documents_ `Credential` citées par l'objet `AuthRecord` attaché à la requête sont lisibles simplement du fait que leur `credId` y figure.
-- les objets correspondants `CredSafe` ne sont pas accessibles. L'ID de la Safe Box propriétaire (`userId`) n'est PAS enregistrée dans le document `Credential` afin d'éviter de pouvoir faire des rapprochements basés sur les _credential_ d'un utilisateur.
-
-### Cycle de vie d'un credential
-Pour simplifier on se fixe sur UN credential (pour un service, une organisation et un utilisateur) identifié par `role / docId`.
-- lors de l'opération **Validation d'une invitation** par l'utilisateur U (voir plus avant) sa création est faite par **inscription conjointe** du credential,
-  - dans la Safe Box de l'utilisateur,
-  - du document correspondant dans la DB du service.
-  - c'est une opération du service SVC qui inscrit ce document et c'est lui qui en gère le contenu.
-- des opérations du service ayant connaissance de son `credId` peuvent faire évoluer le document en DB:
-  - modification des conditions d'application de la propriété `cond`, offrant plus ou moins de _pouvoirs_ au détenteur du credential.
-  - inscription / effacement de la date-heure `limit` invalidant or revalidant l'usage du credential **dans le futur**.
-- une **suppression**,
- - soit **conjointe** dans la Safe Box et la DB du service demandée par l'utilisateur (qui efface les deux),
- - soit par fixation par une opération du service de `limit` au jour J (ou dans le passé) correspondant à une suppression logique (puis à terme physique) du _document_.
-
 > Au début d'une opération, un jeton émis par la session est vérifié, la signature du challenge par la clé de signature extraite de la _Safe Box_ est vérifiée par la clé de vérification détenue la DB du service. Mais le credential peut être marqué hors limite: la session n'en n'a pas été informée. 
 
-#### Credentials _brisés_
-Un credential est _brisé_ quand,
-- il est connu par un `CredSafe` dans la _Safe Box_ de l'utilisateur et inconnu en tant que document `Credential` dans la DB du service: typiquement par une action en deux phases Safe Box / opération du service, la seconde ayant techniquement échoué.
-- une limite inférieure au jour J a été inscrite dans la DB par une opération du service, mais l'objet correspondant `CredSafe` n'a pas été détruit et ne peut pas l'être par une opération: l'id de la Safe Box (de l'utilisateur) lui est inconnue mais surtout un service ne peut pas écrire dans une Safe Box.
+# Credentials (pouvoirs)
+Un _credential_ est matérialisé **en deux parties en _Safe Box_ et dans un _document_** avec le but d'autoriser pour son service `svc` et son organisation `org`, 
+- la lecture / synchronisation de documents,
+- plus généralement l'exécution d'opérations.
 
-### Synchronisation des credentials _service_
-Pour éviter ces discordances, les documents _Credential_ peuvent être synchronisés en début (et en cours) de session par abonnement à chacun des credential de la session identifiés par leur `credId`:
-- la mise à jour du `CredSafe` dans la _Safe Box_ se limite à sa suppression suite à la détection de la suppression du _document_ (ayant un `limit` en deçà du jour courant).
-- de facto le `CredSafe` d'un credential ne sert qu'à,
-  - porter la clé de signature,
-  - porter un commentaire fixé par l'utilisateur pour lui permettre, a) de supprimer les credentials considérés comme désormais sans intérêt, b) de gérer ses _profils de session_ par inclusion des credentials jugés pertinents pour chaque profil.
+> Un credential est attaché à un **document maître** de classe et ID `docCl docId`.
 
-### Propriétés de `CredSafe`
-Les propriétés _communes_ : `credId svc org role docId`.
+> Un credential en _safe box_ est une copie _retardée_ du document correspondant, mais une copie synchronisée en cours de session.
 
-Les autres propriétés sont:
-- `privs`: la clé privée de signature générée pour cette version du credential.
-- `comment`: un commentaire libre et facultatif de l'utilisateur qui peut l'aider quand il constitue un profil de session ne reprenant que _certains_ des credentials.
-- `recK` : un record facultatif sérialisé crypté par la clé K de l'utilisateur U. Lire plus avant (validation d'une invitation).
+> Un credential reçoit à sa création un couple de clés de _signature / vérification_ `privs pubv` et un couple de clés de _décryptage / cryptage_ `privd pubc`.
 
-#### Opérations
-- `$CreateCred`: création initiale d'un `CredSafe`.
-- `$UpdateCredComment`: mise à jour de la seule propriété non immuable d'un `CredSafe`.
-- `$AutoRevokeCreds`: suppression d'une liste de `CredSafe` par l'utilisateur.
+### Propriétés d'un credential
+#### Propriétés _immuables_
+- `svc org` : le service et l'organisation d'exercice du credential. Ces deux propriétés sont _implicites_ dans le document qui comme tout document est relatif à un couple `svc org`.
+- `docCl docId` : identifiant du _document_ auquel le credential est attaché et dont il contrôle les opérations.
+- `credId` : identifiant absolu attribué à la création.
+- `privs privd`: UNIQUEMENT en _Safe Box_.
+- `pubv pubc`: UNIQUEMENT dans le document.
 
-### Propriétés du _document_ `Credential` stocké en DB du service
-Parmi les propriétés _communes_ `credId svc org role docId`,
-les propriétés `svc org` ne sont pas stockées explicitement _dans_ le document (`org` est stockée à part et tous les documents de la base de données sont spécifiques du service `svc`).
+> Pour un utilisateur donné, il ne peut exister qu'un seul credential pour le quadruplet `svc org docCl docId`. `credId` _aurait pu_ être le hash de `[userId svc org docCl docId]`: toutefois, ce n'est pas le cas car il deviendrait possible par une opération de savoir quel est l'utilisateur détenteur d'un credential en scannant les ID de tous les utilisateurs.
 
-Les autres propriétés sont:
-- `pubv`: la clé publique de vérification générée pour ce credential.
-- `limit`: date-heure en secondes de la limite de validité. Si absente la validité est éternelle. Elle peut être mise à jour par une opération de prolongation / révocation.
-- `cond`: c'est un objet dépendant du _rôle_ du credential contenant les données explicitant les conditions d'exercice du credential: _seuils divers, liste de permissions, etc._
+#### Propriétés présentes en _Safe box_ MAIS PAS dans le document _credential_
+Ces propriétés accessibles par une session d'application ne quittent pas la _Safe Box_ et ne sont ni lisibles ni modifiables par une opération du service.
+- `nameK` : propriété facultative de texte libre crypté par la clé `keyK` de l'utilisateur utilisée à l'affichage pour expliciter le `docId` souvent constitué d'un code long et non significatif. Donne par exemple un _nom d'auteur_ parlant pour l'utilisateur à la place de l'id aléatoire `auteurId`.
+- `dockeyK`: `dockey` est une clé de cryptage immuable associée au document _maître_. Elle est stockée en `dockeyK` cryptée par la clé `keyK` du détenteur du credential.
+  - à la création du document _maître_ c'est l'utilisateur créateur qui l'a générée et inscrite dans le credential.
+  - en cours de vie du document _maître_, lorsque B créera son propre credential sur ce document, il recevra cette clé de la part d'un utilisateur A qui en détenait une (transmise cryptée par la clé de cryptage de B / A).
 
-#### Le record `recK` d'un objet `CredSafe`
-Pour certaines classes de documents, certaines propriétés sont _lisibles_ par le service, d'autre peuvent être _opaques_ pour le service.
-- **propriétés lisibles**: c'est l'état normal et le logiciel du service peut les utiliser dans ses traitements.
-- **propriétés opaques**: elles sont _cryptées_ par une clé qui n'est disponible QUE dans les applications terminales et sont en conséquences inutilisables par une opération du service.
+#### Autres propriétés: spécifiques de la classe `docCl` du document _maître_ 
+- `opaque`: cet objet, quand il existe, est crypté par `dockey` ce qui en rend le contenu _opaque_ aux opérations.
+  - il permet à chaque utilisateur d'exposer des informations sur lui-même visibles de tous les autres ayant un credential **sur le même document maître**.
+  - par convention `toString(opaque)` retourne un surnom / nom / pseudo ... à propos de l'utilisateur du credential.
+- `more`: cet objet N'EST MODIFIABLE QUE par une opération mais est _lisible_ par les applications.
+  - `limit` : la date-heure (_epoch_ en secondes) limite de validité du credential qui est considéré comme inexistant au-delà de cette limite quand elle est est non nulle. C'est la seule propriété toujours présente dans `more`.
+  - Autres à titre _d'exemple_:
+    - `mandats` : début et fin de _mandats_ attribués à l'utilisateur l'autorisant à agir selon telle ou telle responsabilité / pouvoir.
+    - `lectureSeule` : les données du _document_ ne peuvent qu'être lues par les opérations sollicitées par les opérations invoquées par l'utilisateur détenteur du credential.
 
-Dans certains cas des données peuvent être considérées comme _confidentielles_, de lisibilité restreinte, par exemple à un _comité directeur de .._, à un _agent_ pour ses données personnelles, etc. Le principe est que les _clé AES_ qui ont rendu ces données _opaques_ aux opérations du service, ne sont PAS stockées dans la DB du service: même en cas de piratage de celle-ci elles restent inviolées, illisibles.
+##### `docKey` du _document maître_
+Certaines classes de documents ont pour chaque document une clé AES symétrique de cryptage utilisée pour rendre _opaque_ certaines propriétés du document aux opérations du service qui ne peuvent pas en voir le contenu. Par exemple un texte d'information confidentiel, d'autres clés diverses, etc. qui ne pourront jamais être lisibles même en dérobant frauduleusement le contenu de la DB.
 
-Chaque utilisateur ayant un droit d'accès au _comité directeur_ par exemple dispose de cette clé et la stocke dans la propriété `recK` de l'objet `CredSafe` du credential correspondant: il peut ainsi décrypter ces données _opaques_ pour les opérations du service.
+### Credential _embarqué_ DANS son document _maître_
+Dans cette première approche un credential est un _objet_ attaché à SON _document maître_ par sa propriété `creds`: c'est une **map** dont la clé est `credId` et la valeur un _objet_ `cred` qui contrôle l'authentification d'un accès au _document maître_ et les conditions dans lesquelles les opérations peuvent agir dessus.
 
-> Il est possible que certaines _clés d'opacité_ soient présentes dans un _document_ et non pas uniquement dans les _Safe Box_: elles se trouvent alors elles-mêmes cryptées dans des propriétés _opaques_. Une clé _maîtresse_ dans un `recK` peut servir à _opacifier_ un jeu peut-être important de clés _secondaires_ accessibles de facto dès qu'un utilisateur détient la clé _maîtresse_.
+### Credential implémenté par un _document séparé_
+L'approche _embarquée_ pose un problème de _volume_ quand un grand nombre de credentials peuvent être attachés à un même document maître. Par exemple pour un _groupe_ de quelques centaines de membres (donc d'autant de _credentials_), le volume du _document_ représentant le groupe pourrait devenir considérable.
 
-## L'objet `AuthRecord`
+Dans ce cas un _document_ `Credential` séparé est créé:
+- classe: `Credential`
+- clé primaire: `dCl dId cId` : correspondant aux propriétés `docCl docId credId` du credential avec une indexation `dCl dId` permettant d'acquérir toute la collection des _credentials_ du document maître.
+- `cred` : unique propriété non identifiante du document, exactement le même objet `cred` que quand le credential était _embarqué_ dans son document maître.
+
+> Un élément de configuration _statique_ du service déclare la liste des _classes_ de documents pour lesquelles les credentials sont _embarqués_, et par conséquence celles (non citées) pour lesquelles un document séparé lié existe.
+
+### Classes _virtuelles_ de documents maîtres
+Usuellement le `docCl` d'un credential désigne une classe de documents dont il existe de _vraies_ instances et c'est obligatoirement le cas pour les credentials _embarqués_.
+
+Il est aussi possible de désigner des classes _virtuelles_, n'ayant aucune instance de documents MAIS ayant des credentials rattachées. Par exemple:
+- on définit une classe `Section` d'auteurs. Les auteurs sont rattachés à quelques _sections_ (_Roman Nouvelle Science ..._ ) énumérées par une simple liste _configurable_ sans qu'aucun document ne matérialise par exemple `Section Science`.
+- `Section` est un nom de classe de document _virtuelle_, `Roman Nouvelle Science` étant des **identifiants** pré-déclarés.
+- on peut déclarer des credentials attachés par exemple à un _document maître virtuel_ `Section Science`. Un utilisateur détenant un tel credential a le _pouvoir_ d'enregistrer des auteurs dans cette section (voire de les changer de section, etc. ceci dépendant du détail du credential).
+
+### Lecture d'un `cred` dans une session et une opération
+Dans une session il est possible de lire les objets `creds` associés aux credentials détenus dans sa _Safe Box_ et d'en avoir un affichage détaillé:
+- les propriétés `nameK opaque` sont les seules qu'une session d'application peut mettre à jour après création.
+
+Dans une opération pour contrôler ce qu'elles peuvent faire ou non depuis un document _maître_ (virtuel ou réel), il lui faut accéder au credential correspondant:
+- les propriétés `nameK dockeyK` n'y figurent pas (étant indéchiffrables pour l'opération comme pour tout autre utilisateur).
+- `opaque` (cryptée par la `dockey` du document maître) est certes indéchiffrable pour l'opération, MAIS est compréhensible pour les autres sessions ayant un credential sur le même document maître: elle peut être _transmise_ par les opérations.
+- `more` est la seule propriété que les opérations peuvent mettre à jour. C'est dans more que se trouvent toutes les informations permettant de régler finement ce que peuvent faire ou non les opérations (et que l'utilisateur ne peut pas fixer de son propre chef).
+
+#### Credentials _désynchronisés_
+A la création les copies _Safe Box_ et _document_ sont synchrones. Toutefois,
+- la copie _Safe Box_ est écrite avant la copie _document_: si un incident intervient entre ces deux étapes, il existe en _Safe Box_ une copie _fantôme_ et inutilisable.
+
+Depuis une session d'application: 
+- la propriété `nameK` peut être mise à jour dans la _Safe Box_, la copie _document_ n'en n'a cure.
+- la propriété opaque est mise à jour d'abord dans le document puis une demande synchronisation du document vers _Safe box_ est exécutée.
+
+Depuis une opération seule la propriété `more` peut être mise à jour et devra, un jour, être synchronisée, avec la _Safe Box_:
+- au moment de la mise à jour il se peut qu'aucune session d'application ne soit en exécution: la synchronisation est alors différée jusqu'à ce qu'une session s'ouvre et le demande.
+- dans more la propriété limit peut aussi être changée: ceci équivaut à une suppression du credential quand la limite est dans le passé.
+
+En conséquence dans une session d'application, un credential en _Safe Box_,
+- peut être en retard par rapport à la copie _document_.
+- peut exister alors que la copie _document_ a disparu.
+
+> L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
+
+### Credential `Org '1'`
+Par convention le _document_ de classe `Org` et d'ID `1` (c'est un singleton) a un credential spécifique conférant à son détenteur un pouvoir de _manager général_.
+- la portée effective de ce pouvoir dépend du service.
+- quelques fonctionnalités génériques sont développées vis à vis des _managers généraux_, comme par exemple le droit d'inscrire un message général à tous les utilisateurs.
+
+## L'objet `AuthRecord` attaché à toute demande d'opération
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
 - `sessionId`: identifiant de session.
 - `time`: date-heure en seconde de création du record.
@@ -624,15 +605,51 @@ Toute opération requérant la présence d'au moins un credential est sollicité
 
 Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 - si la signature du `userId` est présente mais pas validée, c'est un échec.
-- une map des  `docClass.role/docId` dont la signature a été vérifiée et validée est établie donne le couple [`credId`, `signature`]. credId permet à l'opération,
-  - d'accéder au document _credential_ correspondant,
-  - d'en obtenir la clé de vérification,
-  - de vérifier que le _challenge_ a été correctement signé.
-- la liste des credentials en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
+- une map des  `[docCl docId]` dont la signature a été vérifiée et validée est établie donne le couple [`credId`, `signature`]. `credId` permet à l'opération,
+  - soit d'accéder à l'objet `cred` pointée par `credId` dans la map `creds` du document identifié par `docCl docId`
+  - soit, si la classe de documents n'embarque pas les credentials, d'accéder au document _credential_ correspondant et d'en lire l'objet `cred`,
+  - depuis cet objet la clé de vérification permet de vérifier que le _challenge_ a été correctement signé.
+  - l'objet `cred` est conservé dans le `AuthRecord` par l'opération et pourra être consulté à volonté par le traitement de l'opération pour décider ce qu'il peut / doit faire en fonction des paramètres inscrits dans `cred`.
 
-Dans le cours du traitement de l'opération, cette map est consultable par la logique de l'application qui peut déterminer si l'opération est ou non acceptable en fonction de ses propres paramètres, de l'état des documents et des données contenues dans l'objet `cond` attaché au credential validé.
+> La liste des credentials en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
 
 > Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
+
+## Credentials requis pour traiter un case
+Ou à l'inverse, avec une liste de credentials donnée (celle que l'utilisateur détient) quels cases est-il, en premier filtre, possible de traiter.
+
+Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un cas_ d'un couple `topicId subject`, il faut **a minima** que l'utilisateur dispose d'au moins un credential le permettant. 
+
+Si c'est le cas, encore faut-il que des restrictions éventuelles exprimées dans les données de la propriété `more` du credential ne l'empêchent pas.
+
+
+
+## _Chats_ entre utilisateurs d'un même document maître
+Ce dispositif est autorisé ou non par classe de documents.
+
+Cette classe peut être _virtuelle_.
+
+Les credentials d'un même document maître forme une sorte de _groupe_ dont les membres peuvent se connaître en particulier d'après les informations _opaques_ qu'ils ont dans leurs credentials et bien entendu par les autres propriétés dépendantes de la classe.
+- ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
+- chaque credential disposant d'une clé publique de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
+
+Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit par A est dédoublé:
+- une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B.
+- une copie cryptée par A avec sa propre clé publique de cryptage et stockée dans le credential de A.
+
+> Un item peut être _multi-destinataire_: le même item est envoyé N fois (avec des CC), l'expéditeur n'en ayant qu'une copie (et non N).
+
+### Quelques règles:
+- un item peut être marqué _important_ par son destinataire.
+- le nombre d'items de chat par credential est limité.
+- le volume total des items par credential est aussi limité.
+- quand le volume est excessif, les plus anciens disparaissent en essayant de conserver ceux _importants_.
+- **A dispose d'une liste noire**. Si B est en liste noire de A,
+  - il n'a droit qu'à un item chez A (les précédents s'effacent),
+  - cet item est limité en taille (50 signes),
+  - il est marqué _liste noire_ et est prioritaire à l'effacement en cas d'excès de volume.
+- **A peut à l'inverse exprimer une liste blanche**, tous ceux non cités sont en liste noire.
+
 
 # Invitations
 
@@ -1028,153 +1045,3 @@ Après lecture en session du document _case_, des opérations sont possibles afi
 
 C'est l'opération du service qui met à jour `ZZCASES` par l'opération `TabSet`.
 
-# Credentials (pouvoirs)
-Un _credential_ est matérialisé **en deux parties en _Safe Box_ et dans un _document_** avec le but d'autoriser pour son service `svc` et son organisation `org`, 
-- la lecture / synchronisation de documents,
-- plus généralement l'exécution d'opérations.
-
-> Un credential est attaché à un **document maître** de classe et ID `docCl docId`. Toutefois si docId est absent, il est considéré contrôler tous les documents de la classe `docCl`.
-
-> Un credential en _safe box_ est une copie _retardée_ du document correspondant, mais une copie synchronisée en cours de session.
-
-> Un credential reçoit à sa création un couple de clés de _signature / vérification_ `privs pubv`.
-
-### Propriétés d'un credential
-#### Propriétés _immuables_
-- `svc org` : le service et l'organisation d'exercice du credential. Ces deux propriétés sont _implicites_ dans le document qui comme tout document est relatif à un couple `svc org`.
-- `docCl docId` : identifiant du _document_ auquel le credential est attaché et dont il contrôle les opérations.
-- `credId` : identifiant absolu attribué à la création.
-- `privs`: UNIQUEMENT en _Safe Box_.
-- `pubc`: UNIQUEMENT dans le document.
-
-> Pour un utilisateur donné, il ne peut exister qu'un seul credential pour le quadruplet `svc org docCl docId`. `credId` _pourrait_ être le hash de `[userId svc org docCl docId]`: toutefois, ce n'est pas le cas car il deviendrait possible par une opération de savoir  quel est l'utilisateur détenteur d'un credential en scannant les ID de tous les utilisateurs.
-
-#### Propriétés présentes en _Safe box_ MAIS PAS dans le document _credential_
-Ces propriétés accessibles par une session d'application ne quittent pas la _Safe Box_ et ne sont ni lisibles ni modifiables par une opération du service.
-- `nameK` : propriété facultative de texte libre crypté par la clé `keyK` de l'utilisateur utilisée à l'affichage pour expliciter le `docId` souvent constitué d'un code long et non significatif. Donne par exemple un _nom d'auteur_ parlant pour l'utilisateur à la place de l'id aléatoire `auteurId`.
-- `dockeyK`: dockey est une clé de cryptage immuable associée au document _maître_. Ellest stockée en `dockeyK` cryptée par la clé `keyK` du détenteur du credential.
-  - à la création du document _maître_ c'est l'utilisateur créateur qui l'a générée et inscrite dans le credential.
-  - en cours de vie du document _maître_, lorsque B créé son propre credential sur ce document, il a reçu cette clé de la part d'un utilisateur A qui en détenait une (transmise cryptée par la clé de cryptage de B / A).
-
-#### Autres propriétés: spécifiques de la classe `docCl` du document _maître_ 
-- `opaque`: cet objet, quand il existe, est crypté par `dockey` ce qui en rend le contenu _opaque_ aux opérations.
-  - il permet à chaque utilisateur d'exposer des informations sur lui-mêmes visibles de tous les autres ayant un credential **sur le même document maître**.
-  - par convention `toString(opaque)` retourne un surnom / nom / pseudo ... à propos de l'utilisateur du credential.
-- `more`: cet objet N'EST MODIFIABLE QUE par une opération mais est _lisible_ par les applications.
-  - `limit` : la date-heure (_epoch_ en secondes) limite de validité du credential qui est considéré comme inexistant au-delà de cette limite quand elle est est non nulle. C'est la seule propriété toujours présente dans `more`.
-  - Autres à titre _d'exemple_:
-    - `mandats` : début et fin de _mandats_ attribués à l'utilisateur l'autorisant à agir selon telle ou telle responsabilité / pouvoir.
-    - `lectureSeule` : les données du _document_ ne peuvent qu'être lues par les opérations sollicitées par les opérations invoquées par l'utilisateur détenteur du credential.
-
-##### `docKey` du _document maître_
-Certaines classes de documents ont pour chaque document une clé AES symétrique de cryptage utilisée pour rendre _opaque_ certaines propriétés du document aux opérations du service qui ne peuvent pas en voir le contenu. Par exemple un texte d'information confidentiel, d'autres clés diverses, etc. qui ne pourront jamais être lisibles même en dérobant frauduleusement le contenu de la DB.
-
-### Credential _embarqué_ DANS son document _maître_
-Dans cette première approche un credential est un _objet_ attaché à SON _document maître_ par sa propriété creds: c'est une **map** dont la clé est `credId` et la valeur un _objet_ `cred` qui contrôle l'authentification d'un accès au _document maître_ et les conditions dans lesquelles les opérations peuvent agir dessus.
-
-### Credential implémenté par un _document séparé_
-L'approche _embarquée_ pose un problème de _volume_ quand un grand nombre de credentials peuvent être attachés à un même document maître. Par exemple pour un _groupe_ de quelques centaines de membres (donc d'autant de _credentials_), le volume du _document_ représentant le groupe pourrait devenir considérable.
-
-Dans ce cas un _document_ `Credential` séparé est créé:
-- classe: `Credential`
-- clé primaire: `dCl dId cId` : correspondant aux propriétés `docCl docId credId` du credential avec une indexation `dCl dId` permettant d'acquérir toute la collection des _credentials_ du document maître.
-- `cred` : unique propriété non identifiante du document, exactement le même objet `cred` que quand le credential était _embarqué_ dans son document maître.
-
-> Un élément de configuration _statique_ du service déclare la liste des _classes_ de documents pour lesquelles les credentials sont _embarqués_, et par conséquence celles (non citées) pour lesquelles un document séparé lié existe.
-
-### Classes _virtuelles_ de documents maîtres
-Usuellement le `docCl` d'un credential désigne une classe de documents dont il existe de _vraies_ instances et c'est obligatoirement le cas pour les credentials _embarqués_.
-
-Il est aussi possible de désigner des classes _virtuelles_, n'ayant aucune instance de documents MAIS ayant des credentials rattachées. Par exemple:
-- on définit une classe `Section` d'auteurs. Les auteurs sont rattachés à quelques _sections_ (_Roman Nouvelle Science ..._ ) énumérées par une simple liste _configurable_ sans qu'aucun document ne matérialise par exemple `Section Science`.
-- `Section` est un nom de classe de document _virtuelle_, `Roman Nouvelle Science` étant des **identifiants** pré-déclarés.
-- on peut déclarer des credentials attachés par exemple à un _document maître virtuel_ `Section Science`. Un utilisateur détenant un tel credential a le _pouvoir_ d'enregistrer des auteurs dans cette section (voire de les changer de section, etc. ceci dépendant du détail du credential).
-
-### Lecture d'un `cred` dans une session et une opération
-Dans une session il est possible de lire les objets `creds` associés aux credentials détenus dans sa _Safe Box_ et d'en avoir un affichage détaillé:
-- les propriétés `nameK opaque` sont les seules qu'une session d'application peut mettre à jour après création.
-
-Dans une opération pour contrôler ce qu'elles peuvent faire ou non depuis un document _maître_ (virtuel ou réel), il lui faut accéder au credential correspondant:
-- les propriétés `nameK dockeyK` n'y figurent pas (étant indéchiffrables pour l'opération comme pour tout autre utilisateur).
-- `opaque` (cryptée par la `dockey` du document maître) est certes indéchiffrable pour l'opération, MAIS est compréhensible pour les autres sessions ayant un credential sur le même document maître: elle peut être _transmise_ par les opérations.
-- `more` est la seule propriété que les opérations peuvent mettre à jour. C'est dans more que se trouvent toutes les informations permettant de régler finement ce que peuvent faire ou non les opérations (et que l'utilisateur ne peut pas fixer de son propre chef).
-
-#### Credentials _désynchronisés_
-A la création les copies _Safe Box_ et _document_ sont synchrones. Toutefois,
-- la copie _Safe Box_ est écrite avant la copie _document_: si un incident intervient entre ces deux étapes, il existe en _Safe Box_ une copie _fantôme_ et inutilisable.
-
-Depuis une session d'application: 
-- la propriété `nameK` peut être mise à jour dans la _Safe Box_, la copie _document_ n'en n'a cure.
-- la propriété opaque est mise à jour d'abord dans le document puis une demande synchronisation du document vers _Safe box_ est exécutée.
-
-Depuis une opération seule la propriété `more` peut être mise à jour et devra, un jour, être synchronisée, avec la _Safe Box_:
-- au moment de la mise à jour il se peut qu'aucune session d'application ne soit en exécution: la synchronisation est alors différée jusqu'à ce qu'une session s'ouvre et le demande.
-- dans more la propriété limit peut aussi être changée: ceci équivaut à une suppression du credential quand la limite est dans le passé.
-
-En conséquence dans une session d'application, un credential en _Safe Box_,
-- peut être en retard par rapport à la copie _document_.
-- peut exister alors que la copie _document_ a disparu.
-
-> L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
-
-### Credential `Org '1'`
-Par convention le _document_ de classe `Org` et d'ID `1` (c'est un singleton) a un credential spécifique conférant à son détenteur un pouvoir de _manager général_.
-- la portée effective de ce pouvoir dépend du service.
-- quelques fonctionnalités génériques sont développées vis à vis des _managers généraux_, comme par exemple le droit d'inscrire un message général à tous les utilisateurs.
-
-## L'objet `AuthRecord` attaché à toute demande d'opération
-Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
-- `sessionId`: identifiant de session.
-- `time`: date-heure en seconde de création du record.
-- _challenge_: propriété virtuelle _sessionId '/' time_
-- Si l'utilisateur doit être authentifié en tant que tel:
-  - `userId`: de l'utilisateur.
-  - `userSign`: signature par la clé privée de signature de l'utilisateur, du _challenge_.
-- `signatures`: objet ayant une propriété par `credId` de credential inscrit dans le record donnant la signature du challenge par la clé privée de signature du credential.
-
-Au démarrage d'une opération, le `AuthRecord` joint est scanné:
-- si la signature du `userId` est présente mais pas validée, c'est un échec.
-- une map des  `[docCl docId]` dont la signature a été vérifiée et validée est établie donne le couple [`credId`, `signature`]. `credId` permet à l'opération,
-  - soit d'accéder à l'objet `cred` pointée par `credId` dans la map `creds` du document identifié par `docCl docId`
-  - soit, si la classe de documents n'embarque pas les credentials, d'accéder au document _credential_ correspondant et d'en lire l'objet `cred`,
-  - depuis cet objet la clé de vérification permet de vérifier que le _challenge_ a été correctement signé.
-  - l'objet `cred` est conservé dans le `AuthRecord` par l'opération et pourra être consulté à volonté par le traitement de l'opération pour décider ce qu'il peut / doit faire en fonction des paramètres inscrits dans `cred`.
-
-> La liste des credentials en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
-
-> Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
-
-## Credentials requis pour traiter un case
-Ou à l'inverse, avec une liste de credentials donnée (celle que l'utilisateur détient) quels cases est-il, en premier filtre, possible de traiter.
-
-Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un cas_ d'un couple `topicId subject`, il faut **a minima** que l'utilisateur dispose d'au moins un credential le permettant. 
-
-Si c'est le cas, encore faut-il que des restrictions éventuelles exprimées dans les données de la propriété `more` du credential ne l'empêchent pas.
-
-
-
-## _Chats_ entre utilisateurs d'un même document maître
-Ce dispositif est autorisé ou non par classe de documents.
-
-Cette classe peut être _virtuelle_.
-
-Les credentials d'un même document maître forme une sorte de _groupe_ dont les membres peuvent se connaître en particulier d'après les informations _opaques_ qu'ils ont dans leurs credentials et bien entendu par les autres propriétés dépendantes de la classe.
-- ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
-- chaque credential disposant d'une clé publique de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
-
-Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit par A est dédoublé:
-- une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B.
-- une copie cryptée par A avec sa propre clé publique de cryptage et stockée dans le credential de A.
-
-> Un item peut être _multi-destinataire_: le même item est envoyé N fois (avec des CC), l'expéditeur n'en ayant qu'une copie (et non N).
-
-### Quelques règles:
-- un item peut être marqué _important_ par son destinataire.
-- le nombre d'items de chat par credential est limité.
-- le volume total des items par credential est aussi limité.
-- quand le volume est excessif, les plus anciens disparaissent en essayant de conserver ceux _importants_.
-- **A dispose d'une liste noire**. Si B est en liste noire de A,
-  - il n'a droit qu'à un item chez A (les précédents s'effacent),
-  - cet item est limité en taille (50 signes),
-  - il est marqué _liste noire_ et est prioritaire à l'effacement en cas d'excès de volume.
-- **A peut à l'inverse exprimer une liste blanche**, tous ceux non cités sont en liste noire.
