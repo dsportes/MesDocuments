@@ -3,7 +3,9 @@ layout: page
 title: Architecture pour des applications réactives
 ---
 
-Le fonctionnement d'une **application réactive** fait intervenir plusieurs éléments logiciels.
+Le fonctionnement d'une **application réactive** fait intervenir plusieurs éléments logiciels décrits dans le chapitre ci-après.
+
+# Vue générale
 
 ### Les "applications"
 Les utilisateurs peuvent exécuter une **application** sur un de leurs _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...). Selon la variante technique choisie, un utilisateur lance une application portant un nom (comme `monAppli`):
@@ -548,10 +550,11 @@ L'approche _embarquée_ pose un problème de _volume_ quand un grand nombre de c
 
 Dans ce cas un _document_ `Credential` séparé est créé:
 - classe: `Credential`
-- clé primaire: `dCl dId cId` : correspondant aux propriétés `docCl docId credId` du credential avec une indexation `dCl dId` permettant d'acquérir toute la collection des _credentials_ du document maître.
-- `cred` : unique propriété non identifiante du document, exactement le même objet `cred` que quand le credential était _embarqué_ dans son document maître.
+- clé primaire: `credId`:
+- l'indexation `docCl docPk` permet d'acquérir la collection des _credentials_ d'un même document maître.
+- `cred` : le même objet `cred` que quand le credential est _embarqué_ dans son document maître.
 
-> Un élément de configuration _statique_ du service déclare la liste des _classes_ de documents pour lesquelles les credentials sont _embarqués_, et par conséquence celles (non citées) pour lesquelles un document séparé lié existe.
+> La configuration _statique_ des classes de documents indique pour chacune si les credentials sont _embarqués_ ou non.
 
 ### Classes _virtuelles_ de documents maîtres
 Usuellement le `docCl` d'un credential désigne une classe de documents dont il existe de _vraies_ instances et c'est obligatoirement le cas pour les credentials _embarqués_.
@@ -563,24 +566,24 @@ Il est aussi possible de désigner des classes _virtuelles_, n'ayant aucune inst
 
 ### Lecture d'un `cred` dans une session et une opération
 Dans une session il est possible de lire les objets `creds` associés aux credentials détenus dans sa _Safe Box_ et d'en avoir un affichage détaillé:
-- les propriétés `nameK opaque` sont les seules qu'une session d'application peut mettre à jour après création.
+- les propriétés `name opaque` sont les seules qu'une session d'application peut mettre à jour après création, `docKey` étant disponible mais immuable.
 
 Dans une opération pour contrôler ce qu'elles peuvent faire ou non depuis un document _maître_ (virtuel ou réel), il lui faut accéder au credential correspondant:
-- les propriétés `nameK dockeyK` n'y figurent pas (étant indéchiffrables pour l'opération comme pour tout autre utilisateur).
+- les propriétés `name dockey` n'y figurent pas (étant indéchiffrables pour l'opération comme pour tout autre utilisateur).
 - `opaque` (cryptée par la `dockey` du document maître) est certes indéchiffrable pour l'opération, MAIS est compréhensible pour les autres sessions ayant un credential sur le même document maître: elle peut être _transmise_ par les opérations.
-- `more` est la seule propriété que les opérations peuvent mettre à jour. C'est dans more que se trouvent toutes les informations permettant de régler finement ce que peuvent faire ou non les opérations (et que l'utilisateur ne peut pas fixer de son propre chef).
+- `more` est la seule propriété que les opérations peuvent mettre à jour. C'est dans `more` que se trouvent toutes les informations permettant de régler finement ce que peuvent faire ou non les opérations (et que l'utilisateur ne peut pas fixer de son propre chef).
 
 #### Credentials _désynchronisés_
 A la création les copies _Safe Box_ et _document_ sont synchrones. Toutefois,
 - la copie _Safe Box_ est écrite avant la copie _document_: si un incident intervient entre ces deux étapes, il existe en _Safe Box_ une copie _fantôme_ et inutilisable.
 
 Depuis une session d'application: 
-- la propriété `nameK` peut être mise à jour dans la _Safe Box_, la copie _document_ n'en n'a cure.
-- la propriété opaque est mise à jour d'abord dans le document puis une demande synchronisation du document vers _Safe box_ est exécutée.
+- la propriété `name` peut être mise à jour dans la _Safe Box_, la copie _document_ n'en n'a cure.
+- la propriété `opaque` est mise à jour d'abord dans le _document_ puis une demande de synchronisation du document vers _Safe box_ est exécutée.
 
 Depuis une opération seule la propriété `more` peut être mise à jour et devra, un jour, être synchronisée, avec la _Safe Box_:
-- au moment de la mise à jour il se peut qu'aucune session d'application ne soit en exécution: la synchronisation est alors différée jusqu'à ce qu'une session s'ouvre et le demande.
-- dans more la propriété limit peut aussi être changée: ceci équivaut à une suppression du credential quand la limite est dans le passé.
+- au moment de la mise à jour il se peut qu'aucune session d'application ne soit en exécution. La synchronisation est par principe différée jusqu'à ce qu'une session s'ouvre et le demande.
+- dans `more` la propriété `limit` peut aussi être changée: ceci équivaut à une suppression du credential quand la limite est dans le passé.
 
 En conséquence dans une session d'application, un credential en _Safe Box_,
 - peut être en retard par rapport à la copie _document_.
@@ -588,10 +591,17 @@ En conséquence dans une session d'application, un credential en _Safe Box_,
 
 > L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
 
-### Credential `Org '1'`
-Par convention le _document_ de classe `Org` et d'ID `1` (c'est un singleton) a un credential spécifique conférant à son détenteur un pouvoir de _manager général_.
-- la portée effective de ce pouvoir dépend du service.
-- quelques fonctionnalités génériques sont développées vis à vis des _managers généraux_, comme par exemple le droit d'inscrire un message général à tous les utilisateurs.
+### Les _managers_
+Certaines classes de document _maître_ sont indiquées _manager_:
+- un utilisateur ayant un credential pour ces documents sont des _managers_.
+- la classe Org est une classe prédéfinie singleton et est de type manager: tout utilisateur ayant un credential sur `Org 1` est un _manager_ (principal).
+- d'autres classes **virtuelles singletons**, par exemple `Redaction` peuvent être déclarées comme _manager_. Un utilisateur ayant un credential `Redaction 1` fait partie du _conseil de rédaction_ et a par exemple le pouvoir de déclarer de nouveaux auteurs (voire de les _fermer_).
+
+> Les credentials _manager_ sont exclusivement attribuables par un administrateur: une organisation a demandé à un administrateur technique du service la supportant d'attribuer ces credentials à des utilisateurs ayant des pouvoirs étendus pour configurer et contrôler l'organisation pour un service donné.
+
+Il n'est pas possible pour un utilisateur manager de gérer les autres, d'en inhiber certains et d'en nommer d'autres ce qui permettrait de véritables prises de contrôles. Cette légitimité ne peut se résoudre qu'extérieurement aux services.
+
+> Les managers d'un type donné, par exemple `Redaction`, peuvent consulter la liste des autres managers et engager avec chacun un chat éventuel.
 
 ## L'objet `AuthRecord` attaché à toute demande d'opération
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
@@ -605,8 +615,8 @@ Toute opération requérant la présence d'au moins un credential est sollicité
 
 Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 - si la signature du `userId` est présente mais pas validée, c'est un échec.
-- une map des  `[docCl docId]` dont la signature a été vérifiée et validée est établie donne le couple [`credId`, `signature`]. `credId` permet à l'opération,
-  - soit d'accéder à l'objet `cred` pointée par `credId` dans la map `creds` du document identifié par `docCl docId`
+- une map des  `[docCl docPk]` dont la signature a été vérifiée et validée est établie donne le couple [`credId`, `signature`]. `credId` permet à l'opération,
+  - soit d'accéder à l'objet `cred` pointée par `credId` dans la map `creds` du document identifié par `docCl docPk`
   - soit, si la classe de documents n'embarque pas les credentials, d'accéder au document _credential_ correspondant et d'en lire l'objet `cred`,
   - depuis cet objet la clé de vérification permet de vérifier que le _challenge_ a été correctement signé.
   - l'objet `cred` est conservé dans le `AuthRecord` par l'opération et pourra être consulté à volonté par le traitement de l'opération pour décider ce qu'il peut / doit faire en fonction des paramètres inscrits dans `cred`.
@@ -615,242 +625,21 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 
 > Une opération _peut_ requérir que l'utilisateur soit _authentifié_, voire qu'il soit inscrit comme _administrateur_ du service.
 
-## Credentials requis pour traiter un case
-Ou à l'inverse, avec une liste de credentials donnée (celle que l'utilisateur détient) quels cases est-il, en premier filtre, possible de traiter.
-
-Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un cas_ d'un couple `topicId subject`, il faut **a minima** que l'utilisateur dispose d'au moins un credential le permettant. 
-
-Si c'est le cas, encore faut-il que des restrictions éventuelles exprimées dans les données de la propriété `more` du credential ne l'empêchent pas.
-
-
-
-## _Chats_ entre utilisateurs d'un même document maître
-Ce dispositif est autorisé ou non par classe de documents.
-
-Cette classe peut être _virtuelle_.
-
-Les credentials d'un même document maître forme une sorte de _groupe_ dont les membres peuvent se connaître en particulier d'après les informations _opaques_ qu'ils ont dans leurs credentials et bien entendu par les autres propriétés dépendantes de la classe.
-- ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
-- chaque credential disposant d'une clé publique de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
-
-Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit par A est dédoublé:
-- une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B.
-- une copie cryptée par A avec sa propre clé publique de cryptage et stockée dans le credential de A.
-
-> Un item peut être _multi-destinataire_: le même item est envoyé N fois (avec des CC), l'expéditeur n'en ayant qu'une copie (et non N).
-
-### Quelques règles:
-- un item peut être marqué _important_ par son destinataire.
-- le nombre d'items de chat par credential est limité.
-- le volume total des items par credential est aussi limité.
-- quand le volume est excessif, les plus anciens disparaissent en essayant de conserver ceux _importants_.
-- **A dispose d'une liste noire**. Si B est en liste noire de A,
-  - il n'a droit qu'à un item chez A (les précédents s'effacent),
-  - cet item est limité en taille (50 signes),
-  - il est marqué _liste noire_ et est prioritaire à l'effacement en cas d'excès de volume.
-- **A peut à l'inverse exprimer une liste blanche**, tous ceux non cités sont en liste noire.
-
-
-# Invitations
-
-Une **invitation** est un processus qui part,
-- soit d'une demande explicite d'un utilisateur U,
-- soit d'une proposition (non sollicitée par U) d'un sponsor S faite à U pour aboutir en cas de succès du processus à sa **validation** déclenchée par U:
-- in fine la _validation_ d'une invitation est une opération qui,
-  - peut créer de 0 à N1 documents (par exemple _Auteur, Relecteur ..._) et les initialiser,
-  - peut procéder à la création de 0 à N credentials, soit d'accès aux documents qui viennent créés ou qui existaient, soit d'autres natures (credential _Sponsor_ par exemple).
-
-#### Cycle de vie
-Une **invitation** est un dialogue entre,
-- un utilisateur U ayant un `userId` bénéficiaire,
-- **un ou des sponsors**, utilisateurs ayant un credential de _sponsor_ (ou _manager_). Le dernier _sponsor_ étant intervenu sur l'invitation y a laissé les conditions exactes applicables à la validation de l'invitation (voir plus loin).
-
-L'objectif recherché est la **validation** de l'invitation par U qui concrétise ce qu'il demandait (et a obtenu).
-
-Au cours de sa vie une invitation subit des interventions de U et de _sponsors_.
-
-In fine une **invitation** disparaît:
-- soit par _validation_ par U.
-- soit par _destruction_ par U, il y renonce.
-- soit par _obsolescence_: une invitation s'auto-détruit au bout de quelques jours sans intervention de U ou d'un sponsor.
-
-Une **invitation** a un _statut d'attente_:
-- `byU`: _true_ si la dernière mise à jour a été faite par U, sinon _false_.
-
-> _A priori_ les sponsors ne cherchent à intervenir QUE sur des invitations ou `byU` est _true_, mais peuvent toutefois à la limite changer leur offre de leur propre initiative.
-
-Une **invitation** a une **ardoise** (`tab`) d'échange textuel:
-- elle permet à U et au(x) sponsor(s) de s'expliquer en termes humains.
-- elle n'est pas cryptée et ne peut pas l'être les sponsors potentiellement intervenant étant inconnus d'avance.
-- chacun peut à son gré en compléter ou remplacer le contenu.
-
-#### Origine d'une invitation
-Une invitation peut être _sollicitée_ par U:
-- il a besoin _d'une autorisation, d'un compte, d'appartenir à un groupe,_ ... 
-- il créé une invitation (avec un `major / minor`) et inscrit sur l'ardoise ses motivations: qui il est, pourquoi il effectue cette demande et toutes précisions souhaitables pour obtenir une proposition d'un sponsor.
-
-Une invitation peut être _NON sollicitée_ par U:
-- un sponsor fait une proposition à un utilisateur U dont il a eu par exemple un _alias_ ou qui lui a été recommandé, ou qu'il a rencontré dans la vraie vie. Il a déclaré un `major / minor` et inscrit dans `etc` les données qui seront nécessaires à la validation. Il a aussi écrit un mot sur l'ardoise pour U.
-- U en sera informé et pourra, soit la valider en l'état, soit demander des précisions / améliorations.
-
-> Hormis U, qui peut intervenir sur une _invitation_ ? Voir la section **Sponsors** qui explicite ce sujet en fonction de _l'objet_ d'une invitation codé par le couple `major / minor`.
-
-### Propriétés d'une invitation
-Une **invitation** a quelques propriétés immuables dans le temps:
-- `invitId` : une ID générée aléatoirement à sa création.
-- `svc org` : le service concerné, l'organisation concernée.
-- `userId` : l'ID de U.
-- `major minor`: _l'objet de l'invitation_ distingué entre un code de catégorie majeur et un code complémentaire précisant sa nature fine.
-
-**Autres informations dynamiques:**
-- `v` : c'est la date-heure (_epoch_) de sa dernière évolution, que soit par U ou par un des sponsors.
-- `byU` : voir ci-dessus.
-- `tab` : voir ci-dessus.
-- `etc` : c'est un objet écrit exclusivement par les sponsors intervenant et contenant toutes les données nécessaires à la _validation_ de l'invitation.
-
-A la création / mise à jour d'une invitation par un sponsor, il est vérifié que le credential qu'il a fourni lui permet de traiter l'invitation selon son `major minor`.
-
-L'opération de _validation_ vérifie que le `etc` fourni par le sponsor est bien formé.
-
-#### Document `Invitation`
-Il contient les propriétés précédentes et est stocké dans la DB de l'organisation pour le service (`svc org` n'y figurent donc pas explicitement).
-- la clé primaire est `invitId`.
-- `major` et `[major minor]` sont des index immutables.
-- `v` joue aussi le rôle de limite de validité (`maxLife` étant calculé depuis `v`).
-
-#### Opérations de _validation_
-Le traitement de validation lancé par U comporte plusieurs phases:
-- (1) génération de clés requises pour les credentials à créer et celles à intégrer dans les documents créés ou mis à jour.
-- (2) lancement de l'opération _validation_: les arguments comportent les clés _publiques_ ci-dessus.
-  - l'opération créé les documents et credentials dont les paramètres sont dans `etc`, complétés des clés publiques des credentials qui viennent d'être reçues en argument.
-  - l'opération se termine en supprimant le document `Invitation`. 
-- (3) la session de U:
-  - supprime la référence de l'invitation dans le _Master Directory_ (table `ZZINVITS`),
-  - enregistre dans sa _Safe Box_ les credentials éventuellement créés et dont les clés _privées_ viennent d'être générées en phase (1).
-
-### Remarques
-Pour créer un _credential_ il faut disposer d'un couple de clés signature / vérification:
-- celle de vérification est transmise en phase (2) par l'opération d'enregistrement (_validation_ par le service).
-- celle de signature est enregistrée en phase (3) dans la _Safe Box_.*
-- le service NE VOIT JAMAIS PASSER la clé de signature.
-
-## Trace des invitations en _Master Directory_ en `ZZINVITS`
-Un utilisateur U peut être concerné plusieurs couples `service org` et une application donnée peut être utilisatrice de plusieurs services.
-
-Or une invitation n'est enregistrée que dans une seule DB correspondant à son couple `svc org`.
-
-Pour permettre à un utilisateur d'avoir une vue d'ensemble sur ses invitations en cours, une table du _Master Directory_ `ZZINVITS`, énumère les références des invitations ouvertes. Elle comporte les propriétés suivantes:
-- `invitId`: c'est sa clé primaire.
-- `userId`: utilisateur de l'invitation: cette propriété est indexée afin que l'utilisateur U puisse récupérer toutes ses invitations.
-- `v`: version, date-heure de la dernière mise à jour de l'invitation dans la DB. Cette propriété a un double rôle:
-  - indexée avec `userId` pour ne récupérer que les invitations ayant changé depuis la dernière demande,
-  - destruction automatique au delà de N jours après `v`.
-- `lv` : date-heure à laquelle l'utilisateur a consulté pour la dernière fois l'invitation (lui permettant de voir lesquelles ont changé).
-- `data`: sérialisation cryptée des propriétés `svc org major minor` immutables de l'invitation. Une session de U est en mesure d'obtenir auprès du service servant `svc org` le contenu complet de l'invitation.
-
-### Opérations sur `ZZINVITS`
-#### `$mdInvitNew` : création (ajout) d'une nouvelle invitation
-- **soit par U**: il fournit la signature d'un _challenge_ pour justifier de son droit à cette opération.
-- **soir par un sponsor** qui fournit:
-  - la référence `spCredId` de son credential de sponsoring justifiant cette action ainsi que `sign` la signature du challenge par la clé privée de signature que le sponsor était censé posséder. 
-  - L'opération peut accéder à sa DB (de `svc org`) et lui demander de vérifier,
-    - que ce sponsor est bien détenteur de ce credential,
-    - que le `role docId` de ce credential lui ouvre bien le droit à traiter le `major minor` de l'invitation à ajouter,
-    - et de lui retourner la clé de la vérification de ce credential afin de vérifier que `sign` est la signature du challenge.
-
-**Cas particulier d'un sponsoring par un _administrateur_:**
-- le _major_ est `Org.manager` (pas de _minor_).
-- les credential de _role_ `Sponsor.` et _docId_ `Org.manager` ne peuvent attribués que par un _administrateur_ du service.
-- au lieu de fournir `spCredId`, il est fourni:
-  - le `userId` du sponsor censé être _administrateur_,
-  - `sign` est la signature du challenge par la clé de signature du sponsor (administrateur).
-- l'opération demande au service,
-  - de vérifier que `userId` est bien un de ses _administrateur_,
-  - si oui de retourner sa clé publique de vérification.
-
-**Après création toutes les propriétés sont constantes sauf deux:**
-- `v` : change à chaque mise à jour du document `Invitation` correspondant (c'est la copie de son `v`).
-- `lv (lastView)` : change a chaque fois que U a signalé avoir _vu_ l'invitation. Si la `lastView` est déjà postérieure à `v`, la mise à jour n'a pas d'intérêt et n'est pas faite.
-
-#### `$mdInvitUpdV` : mise à jour du document de l'invitation
-- soit par U soit par un sponsor.
-- pas de contrôle en soi, l'opération va récupérer `v` dans la DB de `svc org`.
-
-#### `$mdInvitUpdLV` : mise à jour de `lastView`
-- par U : vérification du challenge signé par U.
-
-#### `$mdInvitGetU` : obtention des invitations de U
-- par U : vérification du challenge signé par U.
-- ne retournent que les seules invitations modifiées après la version passée en argument.
-
-# Sponsors
-Un _sponsor_ est un utilisateur qui a un (des) credential de _sponsoring_:
-- soit le credential de _role_ `Sponsor.` et _docId_ `Org.manager` (qui donne droit aux opérations qualifiées de management général): il est _sponsor universel_. Un _manager_ peut faire des propositions pour tous les couples `major/minor`.
-- soit le credential `Sponsor.` avec un `docId` de la forme `major` ou `major/minor`. Il peut faire des propositions (non sollicitées ou en réponse à une demande) restreintes aux `major/minor`.
-
-### `Major`
-Une invitation a une cible fonctionnelle bien délimitée dont la liste, fermée, dépend de l'application, représentant en quelque sorte une _classe_ d'invitations. Par exemple:
-- `Auteur` : invitation à pouvoir se comporter comme _Auteur_, avoir un document `Auteur` et un credential d'accès (le cas échéant avec des variantes de pouvoir différent).
-- `Codir` : invitation à agir en tant que membre du _Comité directeur_ et de prendre les décisions afférentes.
-- `Forum` : invitation à faire partie / gérer un _forum de discussion_.
-
-La liste des codes **major** est définie et fermée pour chaque _service_.
-
-### Minor
-Une invitation a un code `major` et **peut spécifier un code `minor`** selon son `major`.
-
-Certains `major` n'ont pas de `minor`: `Codir` par exemple, on est membre ou non DU _comité directeur_ et il n'y en a qu'un dans l'organisation.
-
-**Certains _majors_ ont une liste fermée de _minors_ possibles**: par exemple un _Auteur_ peut avoir une (ou des) prérogatives de sélection d'auteurs selon un _thème_: _science, politique, sociologie ..._ Cette liste,
-- peut évoluer au cours du temps: des _thèmes_ nouveaux peuvent apparaître, des thèmes obsolètes disparaître, etc. mais pas à une fréquence frénétique.
-- pour un _major_ donné la liste de ses _minors_ déclarés à un instant donné est assez courte pour permettre d'un désigner un dans une liste à l'écran.
-
-**Enfin certains _majors_ ont une liste ouverte de _minors_ possibles**, par exemple:
-- des centaines de forums sont possibles et un utilisateur peut désigner celui de son choix par un code qu'il a obtenu quelque part.
-- un _minor_ peut aussi être un code _promotion / campagne_, ayant une durée de vie limitée. Les utilisateurs _sponsor_ ont alors un code _major/minor_ comme `Vente/PROMO5J`.
-- soit ces codes ont été publiés quelque part, ou diffusés par un media externe, soit ils se sont transmis de bouche à oreille par un mécanisme de cooptation personnelle.
-
-### Règles
-- un **manager** est _sponsor_ universel, peut traiter toutes les demandes de tous _major_.
-- un **sponsor** n'ayant qu'un _major_ peut traiter toutes les demandes d'invitation spécifiant ce major quelque soit le _minor_ spécifié dans la demande (ou l'absence de _minor_).
-  - un _sponsor_ _Auteur_ peut traiter toutes demandes spécifiant _Auteur, Auteur/science Auteur/politique_.
-- un **sponsor** ciblé `major/minor` ne peut traiter que les invitations spécifiant exactement ce code. Par exemple:
-  - un sponsor _Auteur/science_ ne peut pas traiter les demandes _Auteur_ ni _Auteur/politique_ mais uniquement celles spécifiant _Auteur/science_.
-  - un sponsor _Forum/randojuin26_ ne peut traiter que les invitations spécifiant une volonté de participation au _Forum/randojuin26_.
-
-#### Usage d'un texte de _motivation_ sur l'ardoise
-Quand un utilisateur U fait sollicite une invitation en spécifiant un major ou même un major/minor, le texte de motivation sur l'ardoise va aider un _sponsor_ la traitant à personnaliser son acceptation. Par exemple:
-- _Forum/randojuin26_ : mais le cas échéant il peut y avoir plusieurs forums pertinents, lequel choisir ?
-- pour assumer quelle fonction: _simple participant, organisateur, etc._
-- ceci va influer sur,
-  - le choix du ou des documents à créer : _inscription, etc._
-  - les pouvoirs à conférer dans le ou les credentials accordés: par exemple droit à être sponsor soi-même, à avoir des droits d'animation ou non, etc.
-
-### Retrait des droits de sponsoring
-Un _sponsoring_ correspondant à un credential, la logique applicative peut avoir des opérations invalidant un credential de `Sponsor.` (comme de tout autre rôle).
-
-### Discussion: transmission d'un credential détenu personnellement
-Soit un utilisateur U1 détenant un credential `Auteur/xqsdfg` qui lui permet d'agir _en tant qu'auteur_ sur l'auteur d'identifiant `xqsdfg`.
-
-U1 peut-il _transmettre_ ce droit à un autre utilisateur U2, dont par exemple il connaît un alias sachant que U1 n'a PAS de credential _Sponsor._ ?
-- U1 peut ouvrir une invitation à U2.
-- quel _[major,  minor]_ ? Par exemple `["@Auteur.", "xqsdfg"]`.
-- le `@` en tête d'un _major_ vaut autorisation de _sponsoring_ (limitée) à condition de vérifier que U1 détient bien le credential `Auteur./xqsdfg`.
-- par défaut ce cas simplifié ne requièrent aucune saisie ni de U& (sauf sur l'ardoise) ne de U2.
-- en mode évolué, la logique applicative peut requérir des saisies complémentaires dédiées à paramétrer l'objet etc utilisé en validation, par exemple si U2 doit récupérer un credential _réduit_ par rapport à celui de U1.
-
 # _Topics_ et _Cases_
 
 Un utilisateur peut avoir besoin,
 - soit de signaler à une _autorité ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple _blocage par insuffisance de quotas d'articles_.
-- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante. Par exemple  _disposer d'un compte d'auteur_:
-  - création de _documents_ comme des _comptes_ soumis à contrôle / autorisation préalable d'une _autorité_.
-  - obtention de _credentials_,
-  - upgrade de _credentials_ détenus.
+- soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante. Par exemple  _disposer d'un compte d'auteur_.
+
+Après avoir ouvert _cas_ pour résoudre son besoin, la résolution / satisfaction de celui-ci aboutit à exécuter une _opération terminale_:
+- création de _documents_ comme des _comptes_ soumis à contrôle / autorisation préalable d'une _autorité_.
+- obtention de _credentials_,
+- upgrade de _credentials_ détenus,
+- etc.
 
 Dans le processus de résolution de la situation il intervient,
-- un utilisateur U demandeur / destinataire de l'action.
-- un ou des utilisateurs _sponsors_ anonymes pour U ayant le(s) pouvoir(s) de traiter le cas de U.
+- un _**utilisateur U**_ demandeur / destinataire de l'action.
+- un ou des utilisateurs _**sponsors**_ anonymes pour U ayant le(s) pouvoir(s) de traiter le cas de U.
 
 Les types d'interventions possibles sont identifiés et classés par le service en définissant un `Topic` pour traiter chacun de ces types de problèmes et pour permettre aux _sponsors_ adéquat de se pencher dessus et d'agir.
 
@@ -862,13 +651,17 @@ Après avoir identifié le `Topic` approprié à son besoin, un utilisateur peut
 - pour un groupe de discussion un code _alias_ exact du groupe qu'il souhaite rejoindre et qui lui a été transmis par ailleurs ou a pu rechercher.
 - pour un magasin un code PROMO.
 
-Pour chaque `Topic` sa configuration indique la composition de sa liste de sujets:
+Pour chaque `Topic` sa configuration indique la composition de sa liste de **sujets**:
 - aucun _sujet_.
 - liste de _sujets_ statiquement prédéfinie: ils changent peu et sont peu nombreux.
-- liste de sujets définie par un _singleton_: ils peuvent changer assez souvent mais la liste est assez courte pour pouvoir être transférée en session sur demande (le choix s'opérant par filtrage local).
+- liste de sujets définie par un _singleton de configuration_: ils peuvent changer assez souvent mais la liste est assez courte pour pouvoir être transférée en session sur demande (le choix s'opérant par filtrage local).
 - liste constituée des _alias_ d'une classe de documents, donc **par organisation**: le code est saisi en session et son existence est confirmé / infirmée par le service.
 
-Un utilisateur **sponsors** a obtenu des credentials,
+Pour chaque Topic il est également déclaré quels sont les credentials requis d'un sponsor pour qu'il puisse traiter les cas qui en relèvent:
+- il suffit qu'un sponsor ait un des credentials requis pour pouvoir traiter un cas de ce topic.
+
+
+Un utilisateur **sponsor** a obtenu des credentials,
 - associé chacun à un `Topic` dont il est en charge,
 - avec éventuellement une restriction à ne traiter que les _sujets_ listés.
 
@@ -1045,3 +838,39 @@ Après lecture en session du document _case_, des opérations sont possibles afi
 
 C'est l'opération du service qui met à jour `ZZCASES` par l'opération `TabSet`.
 
+
+
+## Credentials requis pour traiter un case
+Ou à l'inverse, avec une liste de credentials donnée (celle que l'utilisateur détient) quels cases est-il, en premier filtre, possible de traiter.
+
+Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un cas_ d'un couple `topicId subject`, il faut **a minima** que l'utilisateur dispose d'au moins un credential le permettant. 
+
+Si c'est le cas, encore faut-il que des restrictions éventuelles exprimées dans les données de la propriété `more` du credential ne l'empêchent pas.
+
+
+
+## _Chats_ entre utilisateurs d'un même document maître
+Ce dispositif est autorisé ou non par classe de documents.
+
+Cette classe peut être _virtuelle_.
+
+Les credentials d'un même document maître forme une sorte de _groupe_ dont les membres peuvent se connaître en particulier d'après les informations _opaques_ qu'ils ont dans leurs credentials et bien entendu par les autres propriétés dépendantes de la classe.
+- ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
+- chaque credential disposant d'une clé publique de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
+
+Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit par A est dédoublé:
+- une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B.
+- une copie cryptée par A avec sa propre clé publique de cryptage et stockée dans le credential de A.
+
+> Un item peut être _multi-destinataire_: le même item est envoyé N fois (avec des CC), l'expéditeur n'en ayant qu'une copie (et non N).
+
+### Quelques règles:
+- un item peut être marqué _important_ par son destinataire.
+- le nombre d'items de chat par credential est limité.
+- le volume total des items par credential est aussi limité.
+- quand le volume est excessif, les plus anciens disparaissent en essayant de conserver ceux _importants_.
+- **A dispose d'une liste noire**. Si B est en liste noire de A,
+  - il n'a droit qu'à un item chez A (les précédents s'effacent),
+  - cet item est limité en taille (50 signes),
+  - il est marqué _liste noire_ et est prioritaire à l'effacement en cas d'excès de volume.
+- **A peut à l'inverse exprimer une liste blanche**, tous ceux non cités sont en liste noire.
