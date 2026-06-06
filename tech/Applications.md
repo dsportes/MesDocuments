@@ -593,8 +593,8 @@ En conséquence dans une session d'application, un credential en _Safe Box_,
 
 ### Les _managers_
 Certaines classes de document _maître_ sont indiquées _manager_:
-- un utilisateur ayant un credential pour ces documents sont des _managers_.
-- la classe Org est une classe prédéfinie singleton et est de type manager: tout utilisateur ayant un credential sur `Org 1` est un _manager_ (principal).
+- les utilisateurs ayant un credential pour ces documents sont des _managers_.
+- la classe `Org` est une classe prédéfinie singleton _manager_: tout utilisateur ayant un credential sur `Org 1` est un _manager_ (principal).
 - d'autres classes **virtuelles singletons**, par exemple `Redaction` peuvent être déclarées comme _manager_. Un utilisateur ayant un credential `Redaction 1` fait partie du _conseil de rédaction_ et a par exemple le pouvoir de déclarer de nouveaux auteurs (voire de les _fermer_).
 
 > Les credentials _manager_ sont exclusivement attribuables par un administrateur: une organisation a demandé à un administrateur technique du service la supportant d'attribuer ces credentials à des utilisateurs ayant des pouvoirs étendus pour configurer et contrôler l'organisation pour un service donné.
@@ -628,7 +628,7 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 # _Topics_ et _Cases_
 
 Un utilisateur peut avoir besoin,
-- soit de signaler à une _autorité ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple _blocage par insuffisance de quotas d'articles_.
+- soit de signaler à un _utilisateur ayant le pouvoir d'agir_ une situation problématique pour lui dont il souhaite la résolution: par exemple _blocage par insuffisance de quotas d'articles_.
 - soit de solliciter un service pour lequel il n'a pas de _credential_ lui permettant d'invoquer directement l'opération correspondante. Par exemple  _disposer d'un compte d'auteur_.
 
 Après avoir ouvert _cas_ pour résoudre son besoin, la résolution / satisfaction de celui-ci aboutit à exécuter une _opération terminale_:
@@ -641,7 +641,11 @@ Dans le processus de résolution de la situation il intervient,
 - un _**utilisateur U**_ demandeur / destinataire de l'action.
 - un ou des utilisateurs _**sponsors**_ anonymes pour U ayant le(s) pouvoir(s) de traiter le cas de U.
 
+> **Un _sponsor_ peut aussi prendre l'initiative de créer un _cas_** à destination d'un utilisateur dont il a eu connaissance du _userId_ (typiquement en connaissant un de ses _alias_). Il fait _une proposition_ qu'il pense pouvoir intéresser l'utilisateur, libre à celui-ci de l'accepter ou non.
+
 Les types d'interventions possibles sont identifiés et classés par le service en définissant un `Topic` pour traiter chacun de ces types de problèmes et pour permettre aux _sponsors_ adéquat de se pencher dessus et d'agir.
+
+> Chaque demande correspond à _l'ouverture d'un cas_ d'un _Topic_ donné.
 
 **La liste des Topics est consignée dans une configuration _statique_ du service**: cette liste à 2 niveaux propose pour aider à l'affichage un regroupement des topics par catégories.
 
@@ -651,32 +655,36 @@ Après avoir identifié le `Topic` approprié à son besoin, un utilisateur peut
 - pour un groupe de discussion un code _alias_ exact du groupe qu'il souhaite rejoindre et qui lui a été transmis par ailleurs ou a pu rechercher.
 - pour un magasin un code PROMO.
 
-Pour chaque `Topic` sa configuration indique la composition de sa liste de **sujets**:
-- aucun _sujet_.
-- liste de _sujets_ statiquement prédéfinie: ils changent peu et sont peu nombreux.
-- liste de sujets définie par un _singleton de configuration_: ils peuvent changer assez souvent mais la liste est assez courte pour pouvoir être transférée en session sur demande (le choix s'opérant par filtrage local).
-- liste constituée des _alias_ d'une classe de documents, donc **par organisation**: le code est saisi en session et son existence est confirmé / infirmée par le service.
+La configuration d'un `Topic` indique la composition de sa liste de **sujets**:
+- **aucun _sujet_**.
+- **liste statiquement prédéfinie** dans le code de l'application / service: ils changent peu et sont peu nombreux.
+- **liste définie par un _singleton de configuration du service_** applicable à toutes les organisations: ils peuvent changer assez souvent mais la liste est assez courte pour pouvoir être transférée en session sur demande (le choix s'opérant par filtrage local).
+- **liste définie par les valeurs d'une _Property_ de l'organisation**. Comme la précédente mais variant d'une organisation à une autre.
+- **liste constituée des valeurs d'une propriété _alias_ d'une _classe_ de documents**, donc **par organisation**: l'existence d'un un code saisi en session est confirmé / infirmé par appel d'une opération recherchant le document de la classe citée dont la propriété alias (qui doit être indexée) correspond au code.
 
-Pour chaque Topic il est également déclaré quels sont les credentials requis d'un sponsor pour qu'il puisse traiter les cas qui en relèvent:
-- il suffit qu'un sponsor ait un des credentials requis pour pouvoir traiter un cas de ce topic.
+La configuration d'un `Topic` spécifie aussi **quels sont les credentials requis** d'un sponsor pour qu'il puisse traiter les cas qui en relèvent:
+- pour un sponsor il suffit qu'il ait un des credentials requis pour pouvoir traiter un cas de ce topic.
+- les credentials sont listés par une expression de la forme `"c1 c2 c3 ..."` où les `ci` peuvent être:
+- `docCl/1` : les credentials ayant le couple `docCl 1` comme `docCl docId` sont candidats.
+- `docCl/S` : les credentials ayant un couple `docCl docId` où `docId` est égal au `subject` du case sont candidats.
 
-
-Un utilisateur **sponsor** a obtenu des credentials,
-- associé chacun à un `Topic` dont il est en charge,
-- avec éventuellement une restriction à ne traiter que les _sujets_ listés.
+> Quand `docCl` correspond à une classe déclarée _manager_ (virtuelle ou `Org`), seul un _administrateur_ est habilité en tant que _sponsor_.
 
 Un utilisateur **sponsor** peut lister les **cas** ouverts sur les topics pour lesquels il a un credential et ne voir que ceux ayant un _sujet_ qui l'intéresse. Il peut choisir un _cas_ l'ouvrir et le traiter.
 
-> **Un _sponsor_ peut aussi prendre l'initiative de créer un _cas_** à destination d'un utilisateur dont il a eu connaissance du _userId_ (typiquement en connaissant un de ses _alias_). Il fait _une proposition_ qu'il pense pouvoir intéresser l'utilisateur, libre à celui-ci de l'accepter ou non.
+### Proposition d'un sponsor sur un cas
+Si un sponsor dispose d'un au moins des credential requis pour traiter un cas, il va définir les paramètres de sa proposition dans la propriété `etc` du cas qui sera interprétée par le traitement final:
+- c'est donc un sponsor qui fixe comment le cas sera traité effectivement et sous quelles restrictions / possibilités réelles.
+- en fonction des paramètres contenus dans la propriété `more` du credential présenté par le sponsor, ce qui est fixé dans `etc` peut varier, et à la limite ne permet pas au sponsor de satisfaire l'objet de la demande si elle excède ses propres pouvoirs.
 
 ### Traitement final d'un _cas_
 L'objectif de l'ouverture d'un cas n'est en général pas cantonné à avoir des échanges textuels par l'ardoise entre un utilisateur et un ou des _sponsors_, mais a souvent pour but **d'aboutir à un traitement final**:
-- la phase d'échange a permis à un _sponsor_ de définir les paramètres d'une _solution_.
+- la phase d'échange a permis à un _sponsor_ de définir les paramètres d'une _solution_ dans la propriété `etc` du cas.
 - in fine, c'est l'utilisateur qui **valide** (ou non) le déclenchement du traitement final qui va s'exécuter selon les conditions fixées par le _sponsor_: _un ou des comptes seront créés, des credentials aussi,_ etc.
 
 **Un _cas_ vit peu de temps:** quand il est _annulé_ ou _finalisé_ par son utilisateur, il devient passif puis s'auto-détruit quelque jours plus tard.
 
-## Topic
+## Classe `Topic`
 La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en DB pour représenter un topic.
 - un singleton `topics` énumère en JSON les topics déclarés.
 - il peut être mis à jour par un administrateur technique.
@@ -689,13 +697,16 @@ La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en 
 
 - `topic1` : ID du topic.
 - `categ`: code catégorie.
-- `keys`: des couples de clés Décryptage/Cryptage sont enregistrés dans la configuration du service sous un _code_ à donner dans `keys`.
+- `keys`: des couples de clés _Décryptage / Cryptage_ sont enregistrés dans la configuration du service sous un _code_ à donner dans `keys`.
 - `subjects`:
   - absent: le topic n'a pas de sujets.
-  - `"a b c "`. Valeurs séparées par un espace.
-  - `"@sujet35"` : ID du _singleton_ (du service) portant cette liste.
-  - `"$sujet35"` : ID du _Property_ (de l'organisation) portant cette liste.
-  - `"DocCl/alias"` : nom de classe des documents dont `alias` est la propriété définissant un code externe.
+  - `"a b c "`. Valeurs des codes séparées par un espace. Un libellé traduit chacun dans la langue choisie en session.
+  - `"@sujet35"` : ID du _singleton_ (du service) portant la liste des codes.
+  - `"$sujet35"` : ID du _Property_ (de l'organisation) portant la liste des codes.
+  - `"DocCl/alias"` : nom de classe `DocCl` des documents dont `alias` est un propriété dont les valeurs constituent la liste des codes valides.
+- `creds`: credentials requis listés par une expression de la forme `"c1 c2 c3 ..."` où les `ci` peuvent être:
+- `docCl/1` : les credentials ayant le couple `docCl 1` comme `docCl docId` sont candidats.
+- `docCl/S` : les credentials ayant un couple `docCl docId` où `docId` est égal au `subject` du case sont candidats.
 
 En cours de session, les applications demandent aux services qu'elles gèrent la configuration des topics:
 - la propriété `pubc` la clé de cryptage publique correspondant au code dans la configuration du service est transmise (mais pas `privd`). 
@@ -703,27 +714,11 @@ En cours de session, les applications demandent aux services qu'elles gèrent la
   - le singleton définissant la liste de valeurs,
   - la vérification d'existence d'un _alias_.
 
-### Credentials de `docCl/docId` associés à un topic
-Chaque topic est _configuré_ en exprimant quels credentials de `docCl/docId` donné confèrent _a priori_ le droit de traiter les cas relatifs à ce topic.
-
-#### Cas spécifique des credentials _managers_
-Ils ne sont par définition attribuables et éditables que par utilisateur _administrateur_ du service pour une organisation donnée.
-- il y en a peu et les _managers_ représentent le top level des habilitations: l'organisation a explicitement demandé hors de l'application à un _administrateur_ d'attribuer à certains utilisateurs un credential de manager.
-- il peut y avoir plusieurs classes de _managers_, chaque classe correspond à une classe de documents virtuels ou non qui sont des `singletons` (`docId` par convention `1`).
-- ces classes sont listées en configuration de l'application.
-
-#### Cas général
-Chaque topic liste les credentials par une expression de la forme `"c1 c2 c3 ..."` où les `ci` peuvent être:
-- `docCl/1` : les credentials ayant le couple `docCl 1` comme `docCl docId` sont candidats.
-- `docCl/S` : les credentials ayant un couple `docCl docId` où `docId` est égal au `subject` du case sont candidats.
-
 Dans une session pour récupérer tous les _cases_ a priori traitables le process suivant est engagé:
 - récupération de tous les credentials de l'utilisateur pour obtenir l'ensemble de leurs couples `[ docCl/docId, ...` où `docId` peut être `1` ou une autre valeur `SSS...` qui sera comparée avec la valeur du _subject_ de chaque case.
 - la requête de l'opération de collecte récupère tous les cases dont le `docCl/docId` matche avec au moins un des termes de la liste élaborée en session.
 
-Le filtrage plus fin retenant un case ou non selon la valeur du more du credential pour le topic du case s'effectue en session.
-
-### Credential d'un topic
+### Credential d'un topic - ??? TODO à vérifier
 Topic étant une classe _virtuelle_, les credentials associés sont des documents de class `Credential`:
 - `docCl`: `Topic`
 - `docId`: le `topicId` du topic.
@@ -735,7 +730,7 @@ Un _case_ est un document de classe `Case` identifié par `caseId`:
 - `caseId` : ID universel généré aléatoirement à la création.
 - `v` : version du document. Elle détermine aussi la limite de validité du document.
 - `userId`: ID de l'utilisateur détenteur du cas. Depuis une opération du service la clé publique de cryptage `CU` est donc accessible.
-- `topicId` : ID du topic auquel le cas se rapporte.
+- `topicId` : ID du topic auquel le cas se rapporte. Sa clé de cryptage `CT` est publique et sa clé privée de décryptage `DT` n'est disponible que dans une opération.
 - `subject` : code (facultatif) désignant une cible plus précise permettant à un utilisateur _sponsor_ de se concentrer sur un sujet précis. 
 - `status`: 0-annulé 1-actif-U 2-actif-H 3-finalisé.
 - `tabT`: texte de l'ardoise crypté par la clé T/U.
@@ -773,15 +768,15 @@ En conséquence:
   - sinon l'opération _décrypte_ `tabT` en `tab` et le retourne.
 
 ### Status d'un _case_
-- 1 : _actif écrit par U_. Il peut être mise à jour et peut subir un traitement final. C'est U qui l'a écrit en dernier.
-- 2 : _actif écrit par H_. Il peut être mise à jour et peut subir un traitement final. C'est une opération du service sollicitée par un _sponsor_ H qui l'a écrit en dernier.
-- 3 : _finalisé_. Son traitement final a eu lieu, il est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
-- 0 : _annulé_. Son traitement final N'A PAS eu lieu, il a été annulé par U et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
+- 1 : _actif écrit par U_. Il peut être mise à jour et peut subir un traitement final (si `etc` l'autorise). C'est U qui l'a écrit en dernier.
+- 2 : _actif écrit par H_. Il peut être mise à jour et peut subir un traitement final (si `etc` l'autorise). C'est une opération du service sollicitée par un _sponsor_ H qui l'a écrit en dernier.
+- 3 : _finalisé_. Son traitement final a eu lieu, le cas est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
+- 0 : _annulé_. Son traitement final N'A PAS eu lieu, le cas a été annulé par U et est en lecture seule pour information jusqu'à expiration de son délai de fin de vie.
 
 ### La table `ZZCASES` du Master Directory
 Cette table partagée par tous les utilisateurs et services, sert à un utilisateur à être informé,
-- de l'existence des cases actifs entre lui et des _sponsors_, 
-- soit de l'inscription d'un nouveau _case_ créé par un _sponsor_,
+- de l'existence des cases existants entre lui et des _sponsors_, 
+- soit de l'inscription d'un nouveau _case_ proposé par un _sponsor_,
 - soit d'une nouvelle version d'un _case_ qu'il n'avait pas encore lue.
 
 #### Propriétés
@@ -809,26 +804,27 @@ Cette table partagée par tous les utilisateurs et services, sert à un utilisat
 - `mdCasePurge`: suppressions des cases dont `v` est inférieure à `limit`.
   - arguments: `limit`
 
-> Une session ou une opération _légitime_ connaît les propriétés immuables: au delà de la _pré-création_ la fourniture de chk sert à vérifier cette légitimité.
+> Une session ou une opération _légitime_ connaît les propriétés immuables: au delà de la _pré-création_ la fourniture de `chk` sert à vérifier cette légitimité.
 
 ### Cycle de vie d'un _case_ créé par un _sponsor_
 Un _sponsor_ prend l'initiative de créer une _proposition_ en lançant une opération créant un _case_:
 - elle dispose du `userId` de l'utilisateur ciblé, typiquement pour l'avoir obtenu depuis un de ses _alias_ publics. Elle connaît donc aussi la clé publique `CU` de cryptage de U.
-- elle dispose d'un _credential_ de _doCl/docId_ `['Topic', topicId]`. La configuration des topics en cache du service détient la propriété `topicDT` de _décryptage_ privée du topic.
+- elle dispose d'un _credential_ `docCl docPk` qui matche un des credentials `ci` autorisé du topic: de forme `docCl/1` (`docPk` vaut `1`) ou `docCl/S` où `S` est le sujet du cas et égal à `docPk`.
+- la configuration des topics en cache du service détient la propriété `topicDT` de _décryptage_ privée du topic.
   - elle calcule la clé `X` depuis `[topicDT, CU]`.
 - elle créé le _document_ `Case`:
-  - génère `caseId` depuis la date/heure (epoch) courante.
+  - génère `caseId` depuis la date/heure (_epoch_) courante.
   - crypte le texte de l'ardoise tab par `X`.
   - `status` est 2.
-  - `etc` est rempli depuis les arguments de l'opération de création du case (données que U peut lire mais pas écrire).
-- elle créé un row dans `ZZCASES` par invocation d'une opération `TabSet` du Master Directory. 
+  - `etc` est rempli depuis les arguments de l'opération de création du cas (données que U peut lire mais pas écrire).
+- elle créé un row dans `ZZCASES` par invocation d'une opération `mdCaseNew` du Master Directory. 
 
-Quand l'utilisateur U lira à l'ouverture de sa prochaine session (ou sur demande explicite) la table `ZZCASES` du Master Directory pour obtenir tous les cas modifiés / créés depuis sa dernière lecture, sa session obtiendra ce _nouveau_ case en lisant le document depuis `svc org topicId caseId`.
+Quand l'utilisateur U lira à l'ouverture de sa prochaine session (ou sur demande explicite) la table `ZZCASES` du Master Directory pour obtenir tous les cas modifiés / créés depuis sa dernière lecture, sa session obtiendra ce _nouveau_ cas en lisant le document depuis `svc org topicId caseId`.
 - la session calcule `X` depuis `[DU, CT]`: 
   - `CT` figure dans la session qui a chargé la configuration (publique) des topics du service. 
   - `DU` est détenue par la session.
 
-U peut activer l'opération `CaseSet` du Master Directory pour faire noter dans `ZZCASES` avoir lu cette nouvelle version (positionnant `lv` à `v`) et fixer le cas échéant une mise à jour de `aboutU`.
+U peut activer l'opération `mdCaseUser` du Master Directory pour faire noter dans `ZZCASES` avoir lu cette nouvelle version (positionnant `lv` à `v`) et fixer le cas échéant une mise à jour de `aboutU`.
 
 ##### Mise à jour du _case_ par l'utilisateur
 Après lecture en session du document _case_, des opérations sont possibles afin:
@@ -836,27 +832,20 @@ Après lecture en session du document _case_, des opérations sont possibles afi
 - communiquer `aboutU` (éventuellement) pour mise à jour par l'opération `CaseSet`.
   - mise à jour de `v` et `status`: cas _d'annulation_ et de _finalisation_.
 
-C'est l'opération du service qui met à jour `ZZCASES` par l'opération `TabSet`.
+C'est l'opération du service qui met à jour `ZZCASES` par l'opération `mdCaseUser`.
 
-
-
-## Credentials requis pour traiter un case
-Ou à l'inverse, avec une liste de credentials donnée (celle que l'utilisateur détient) quels cases est-il, en premier filtre, possible de traiter.
-
-Pour un couple `svc org`, pour pouvoir _faire une proposition_ ou _traiter un cas_ d'un couple `topicId subject`, il faut **a minima** que l'utilisateur dispose d'au moins un credential le permettant. 
-
-Si c'est le cas, encore faut-il que des restrictions éventuelles exprimées dans les données de la propriété `more` du credential ne l'empêchent pas.
-
-
-
-## _Chats_ entre utilisateurs d'un même document maître
-Ce dispositif est autorisé ou non par classe de documents.
+# _Chats_ entre utilisateurs disposant d'un credential sur un même document maître
+Ce dispositif est autorisé ou non par classe de documents maître.
 
 Cette classe peut être _virtuelle_.
 
-Les credentials d'un même document maître forme une sorte de _groupe_ dont les membres peuvent se connaître en particulier d'après les informations _opaques_ qu'ils ont dans leurs credentials et bien entendu par les autres propriétés dépendantes de la classe.
-- ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
-- chaque credential disposant d'une clé publique de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
+Les utilisateurs détenteurs d'un credential d'un document maître `docCl docPk` forme de facto un _groupe_ dont les membres peuvent se connaître les uns les autres:
+- par les données `opaque` que chacun a dans son credential et qui peut être décryptée par les autres qui disposent de la même clé `docKey`,
+- par les autres propriétés dépendantes de la classe.
+
+> Ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
+
+Chaque credential disposant d'une clé publique de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
 
 Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit par A est dédoublé:
 - une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B.
