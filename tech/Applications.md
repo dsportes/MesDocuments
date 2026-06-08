@@ -695,7 +695,7 @@ La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en 
       ...
     ]
 
-- `topic1` : ID du topic.
+- `id` : ID du topic.
 - `categ`: code catégorie.
 - `keys`: des couples de clés _Décryptage / Cryptage_ sont enregistrés dans la configuration du service sous un _code_ à donner dans `keys`.
 - `subjects`:
