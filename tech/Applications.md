@@ -704,7 +704,7 @@ La classe de documents `Topic` est _virtuelle_, aucun document n'est stocké en 
   - `"@sujet35"` : ID du _singleton_ (du service) portant la liste des codes.
   - `"$sujet35"` : ID du _Property_ (de l'organisation) portant la liste des codes.
   - `"DocCl/alias"` : nom de classe `DocCl` des documents dont `alias` est un propriété dont les valeurs constituent la liste des codes valides.
-- `creds`: credentials requis listés par une expression de la forme `"c1 c2 c3 ..."` où les `ci` peuvent être:
+- `creds`: credentials requis listés par une expression de la forme `A` (_administrateur_) ou  `"c1 c2 c3 ..."` où les `ci` peuvent être:
 - `docCl/1` : les credentials ayant le couple `docCl 1` comme `docCl docId` sont candidats.
 - `docCl/S` : les credentials ayant un couple `docCl docId` où `docId` est égal au `subject` du case sont candidats.
 
@@ -717,13 +717,6 @@ En cours de session, les applications demandent aux services qu'elles gèrent la
 Dans une session pour récupérer tous les _cases_ a priori traitables le process suivant est engagé:
 - récupération de tous les credentials de l'utilisateur pour obtenir l'ensemble de leurs couples `[ docCl/docId, ...` où `docId` peut être `1` ou une autre valeur `SSS...` qui sera comparée avec la valeur du _subject_ de chaque case.
 - la requête de l'opération de collecte récupère tous les cases dont le `docCl/docId` matche avec au moins un des termes de la liste élaborée en session.
-
-### Credential d'un topic - ??? TODO à vérifier
-Topic étant une classe _virtuelle_, les credentials associés sont des documents de class `Credential`:
-- `docCl`: `Topic`
-- `docId`: le `topicId` du topic.
-- `cred`: { ..., more: { subjects: [] } }
-  - `subjects`: si présente cette liste contient un ou plusieurs `subject` restreignant la portée du credential.
 
 ## Les _cases_
 Un _case_ est un document de classe `Case` identifié par `caseId`:
