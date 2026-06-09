@@ -419,3 +419,147 @@ Un _safe_ n'ayant ni credentials ni invitations en cours pourrait avoir une vie 
 ### Garbage Collector des documents
 Solution générique à rechercher.
 - en partie liée, peut-être, avec le décompte de la consommation des ressources ?
+
+# Service, organisation, document, credential
+
+Un _service_ peut avoir plusieurs _déploiements_, chacun étant identifié par un code et associé à une URL.
+- une organisation donnée est hébergée pour un service donné par un _déploiement_.
+
+> En conséquence il y a N organisations hébergées par déploiement d'un service.
+
+Pour un _service déployé_ et pour une _organisation_ donnée les documents sont regroupés par _classes_ :
+- **classes singletons**: elles n'ont qu'un document, de _primary key_ arbitrairement fixée à `1`.
+- **classes multi-instances**: chaque document a une _primary key_ `pk` calculée depuis certaines propriétés invariantes de la classe du document `p1 / p2 / p3`.
+  - `pk`  peut être, soit directement ce _path_, soit son hash.
+  - _exemple_: classe `Auteur` avec un document par auteur indiquant quelle `Section` du comité de rédaction le supervise.
+
+Les _documents_ ont un _path universel_ `svc / org / docCl / docPk` où,
+- `svc` est le code du service,
+- `org` celui de l'organisation,
+- `docCl` est le code de la classe des documents,
+- `docPk` est la _primary key_ identifiante du document.
+
+> Sachant dans quel _déploiement_ une organisation est hébergée pour un service donné, au couple svc / org il correspond une URL localisant ses documents.
+
+**Le contenu d'un document est un objet sérialisé** dont la structure dépend de la classe du document.
+
+Pour un _service déployé_ donné, les données sont donc structurées logiquement ainsi:
+- `org` : organisation propriétaire du document.
+- `docCl` : classe du document.
+- `pk` : clé primaire identifiante.
+- `v` : version, date-heure (_epoch_) de l'opération l'ayant changé pour la dernière fois.
+- `data` : sérialisation du contenu du _document_.
+
+> Les noms de classe commençant par `$` sont réservés au framework.
+
+#### Pour un _service déployé_, l'organisation _abstraite_ `A`
+Par convention elle détient des documents qui ne sont pas spécifiques d'une organisation mais sont communs à toutes. Ce sont des documents de,
+- configuration:
+  - `A/$orgs/1` : le contenu spécifie pour chaque organisation hébergée le code de la DB et de son Storage qui en hébergent les documents et fichiers.
+- status de fonctionnement du _service déployé_:
+  - `A/$Status/1`: indique l'état de fonctionnement _ouvert / fermé_ et éventuellement un message d'information de l'administrateur technique 
+
+Les documents `org/$Status/1` indique l'état de fonctionnement pour l'organisation `org` _ouvert, lecture seulement, fermé_ et éventuellement un message d'information de l'administrateur technique.
+
+### Classes _virtuelles_
+**Elles n'ont pas de _contenu_** et peuvent être des singletons ou non. Elles définissent un espace de noms `docCl/docPk` d'une organisation.
+- elles sont déclarées comme les classes réelles dans le schéma de l'application avec un nom, le flag `virtual` et ou non le flag `singleton`.
+
+Une classe virtuelle **singleton** n'a pour convention qu'une _primary key_ de `1`.
+- `CoDir/1` : un singleton (virtuel) représentant le _comité de direction_.
+- `Redaction/1` : un singleton (virtuel) représentant le _comité de rédaction_.
+
+Une classe virtuelle **multivaluée** est déclarée avec la liste énumérée de ses _primary keys_:
+- `Section` : classe multivaluée, a une liste fermée de _pk_ `roman histoire science`.
+
+Les `pk` sont citées par une liste exhaustive de _codes_, qui de ce fait _peuvent_ le cas échéant avoir une traduction en session d'application. La liste est donnée:
+- **soit directement dans la déclaration de la classe virtuelle**: elle est très stable, courte, modifiable par redéploiement du service par les opérateurs qui l'assure.
+- **soit dans le _data_ du document** avec le choix:
+  - `A/Section/1` : si la liste des codes est la même quelque soit l'organisation.
+  - `org/Section/1` : si la liste des codes dépend de l'organisation.
+
+La propriété _data_ est une sérialisation d'une liste de strings, sa mise à jour est effectuée par des opérations d'administration technique.
+
+> Ces listes sont considérées comme _stables_ et conservées en _cache_ avec un rafraîchissement peu fréquent: leur mise à jour ne prend pas effet immédiatement.
+
+## Credentials attachés à un document
+Un credential est un pouvoir donné à _UN_ utilisateur d'accéder _AU_ document du credential:
+- soit un document _réel_: `Auteur/VictorHugo`.
+- soit un document _virtuel_: `Redaction/1` `Section/histoire` `Codir/1`.
+
+> Pour un document donné, un utilisateur n'a au plus qu'UN credential.
+
+**Le pouvoir exact** d'un _credential_ est exprimé par les propriétés de l'objet `power` du credential dont les valeurs contrôlent le comportement des opérations.
+
+Les données d'un credential identifié `credId` sont regroupées dans un objet `cred` qui peut être:
+- soit _embarqué_ dans son document dont la propriété `creds` contient la liste des objets credentials qui lui sont relatifs.
+- soit _dissocié_ dans un document séparé de classe `Credential`:
+  - sa `pk` est le `credId` du credential.
+  - le couple `docCl / docPk` du document du credential y est indexé.
+  - le contenu du document est l'objet `cred`.
+
+#### Auto-déclaration d'un credential par U
+Dans certains cas un utilisateur U peut dans une même opération:
+- créer un document qui lui appartient par exemple un `Forum/F1`.
+- créer un credential relatif à _son_ `Forum/F1` pour pouvoir y accéder avec le pouvoir maximal et génère une clé symétrique `docKey` propre au `Forum/F1`.
+
+Dans ce cas le credential est enregistré deux fois et est actif immédiatement:
+- une copie du credential est inscrit dans sa _Safe Box_:
+  - avec les clés _privées_ générées (S:signature, D:décryptage) cryptées par la clé K de l'utilisateur.
+  - avec `docKey` crypté par la clé K.
+
+- une autre copie est embarquée dans `Forum/F1` qui vient d'être créé:
+  - avec les clés _publiques_ correspondantes (V:vérification, C:cryptage).
+  - avec une propriété `aboutme` cryptée par `docKey` et donnant des informations _à propos de U_ pour d'autres utilisateurs futurs éventuels ayant un credential sur `Forum/F1`.
+
+#### Déclaration d'un credential de X par un tiers T
+Dès lors qu'un document est déjà existant, par exemple le `Forum/F1`, un autre utilisateur X que son propriétaire P ne peut pas s'auto-attribuer un credential et des pouvoirs de son propre chef. C'est un _tiers_, par exemple le propriétaire P de `Forum/F1`, qui peut enregistrer un nouveau credential pour l'utilisateur X.
+
+#### Préparation d'un credential _en attente_
+Mais P ne peut pas écrire et crypter directement le credential pour X dans la _Safe Box_ de X, il n'en n'a pas la clé.
+- il peut toutefois écrire dans la _Safe box_ de P un _credential_ **en attente**:
+  - `docKey` est crypté par le couple de clés `D de P / C de X` et la clé publique `C de P`.
+  - sans les clés privées `S D` du credential.
+- il écrit également ce _credential en attente_ embarqué dans le `Forum/F1`.
+
+A ce stade le credential de X est inopérant sur le `Forum/F1` faute de disposer des clés requises.
+
+#### Activation d'un credential en attente
+Quand X ouvre une session, possiblement bien après que P ait enregistré le credential _en attente_, X qui dispose de sa clé K sur sa _Safe Box_:
+- trouve le credential en attente,
+- décrypte la clé `dockey` par le couple de clés `D de X / C de P` (_C de P_ figure dans le credential en attente) et l'encrypte par sa clé K.
+- génère les couples de clés `S V` et `D C` du credential.
+- dans sa _Safe Box_ le credential muni de ses clés privées `S D` est _activé_,
+
+Dans le document `Forum/F1` qui est _en attente_,
+- inscrit les clés _publiques_ du credential `V C`,
+- inscrit `aboutme` (informations sur lui-même X) crypté par `docKey`.
+- le credential est _activé_.
+
+#### Synthèse
+Credential _en attente_:
+- _Safe Box_ de X
+  - `svc org credId docCl docPk` => `docCl: Forum, docPk: F1`
+  - `v` : version, date-heure (_epoch_) de l'opération de création
+  - `CdeP` : clé publique de P.
+  - `[docKey name]` crypté par `aes` la clé construite par P depuis `D de P / C de X`. `name` est un nom / code / pseudo _parlant_ de `docPk` (si non `1`).
+
+- embarqué dans `svc / org / Forum / F1`:
+  - `credId power`
+  - `v` : version, date-heure (_epoch_) de l'opération de création.
+
+Credential après _activation_
+- _Safe Box_ de X
+  - `svc org docCl docPk`
+  - `v`: date-heure d'activation.
+  - `docKey name`
+  - clés _privées_ `S D`
+  - `power` recopié du credential embarqué.
+  - `aboutme` : information _à propos_ de X crypté par `docKey`.
+
+- embarqué dans `svc / org / Forum / F1`:
+  - `credId power`
+  - `v`.
+  - clés _publiques_ `V C`
+  - `aboutme` : information _à propos_ de X crypté par `docKey`.
+
