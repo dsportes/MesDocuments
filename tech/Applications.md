@@ -348,7 +348,7 @@ Les `pk` sont citées par une liste exhaustive de _codes_, qui de ce fait _peuve
 - **soit directement dans la déclaration de la classe virtuelle**: elle est très stable, courte, modifiable par redéploiement du service par les opérateurs qui l'assure.
 - **soit par la valeur d'un SINGLETON de configuration**: la liste peut être plus longue et peut être mise à jour sans interrompre le service et le redéployer.
 
-Dans le schema statique qui décrit les classes de documents, si le nom du SINGLETON de configuration contient le string $ORG, le nom effectif du SINGLETON chargé dépend de la valeur de l'argument `org` de l'opération.
+Dans le schema statique qui décrit les classes de documents, si le nom du SINGLETON de configuration se termine par `_`, le code de l'organisation `org` de l'opération est ajouté à la fin pour donner le nom effectif du SINGLETON.
 
 > Une classe _virtuelle_ gère ainsi de facto une _énumération_ de codes susceptible d'évoluer dynamiquement sans redéploiement. En revanche les _traductions_ étant statiquement déclarées dans les applications, il n'y a pas obligatoirement un _libellé_ traduit pour chaque code.
 
@@ -816,7 +816,7 @@ Cette table a une portée plus générique que le suivi des formulaires et a pou
 
 **Propriétés:**
 - Immuables après création:
-  - `id`: (PK) identifiant universel de l’événement / processus (formId pour un Form).
+  - `eventId`: (PK) identifiant universel de l’événement / processus (formId pour un Form).
   - `type`: code du type d'événement / processus.
   - `userId`: utilisateur cible (INDEX).
   - `svc`: service concerné.
