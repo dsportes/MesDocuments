@@ -851,8 +851,8 @@ Il est hébergé dans la DB spécifique de `svc / org`.
 - `userId`: utilisateur cible.
 - `v`: version du document (_epoch_).
 - `status`: de 1 à 4.
-- `etc`: objet de structure spécifique du type. Saisi par l'utilisateur et le tiers.
-- etcB: valeur de etc _avant_: en statut 1 c'est le dernier état en statut 2, en statut 2 c'est le dernier état en statut 1. Permet un _undo_ de remord de U quand il avait modifié etc mais que finalement il accepte la dernière proposition de T (et symétriquement pour T).
+- `etcU`: objet de structure spécifique du type. Saisi par l'utilisateur.
+- `etcB`: objet de structure spécifique du type. Saisi par le tiers.
 - `msgU`: message écrit par U.
 - `msgT`: message écrit par le tiers.
 - `creds`: liste des credentials permettant à un tiers d'agir quand il possède l'un de ceux-là: `[ docCl1/docPk1 ... ]`.
@@ -886,3 +886,8 @@ Un descriptif _statique_ des types de formulaires définit pour chaque type:
   - si la liste ne contient qu'un seul terme `['A']` c'est que seul un administrateur peut traiter les formulaires de ce type.
 
 La liste `creds` est générée depuis le _template_ en remplaçant dans celui-ci `$1 $2 ...` par les valeurs des propriétés $1 $2 ... de l'objet `etc`: la liste de credentials dépend donc de la saisie, par exemple d'une cible désignée à la saisie.
+
+### Traitement final
+Il peut être déclenché soit par U soit par le tiers.
+
+Il faut que `etcU` et `etcT` existent et soit égaux, preuve que U et le tiers ont chacun vu la solution et en sont d'accord.
