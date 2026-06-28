@@ -589,7 +589,7 @@ Les données d'un credential identifié `credId` sont regroupées dans un objet 
 ### Auto-déclaration d'un credential par U
 Dans certains cas un utilisateur U peut dans une même opération:
 - créer un document qui lui appartient par exemple un `Forum/F1`.
-- créer un credential relatif à _son_ document `Forum/F1` pour pouvoir y accéder avec le pouvoir maximal. Il _peut_ génèrer à ce moment une clé symétrique `docKey` propre au document `Forum/F1`.
+- créer un credential relatif à _son_ document `Forum/F1` pour pouvoir y accéder avec le pouvoir maximal. Il _peut_ générer à ce moment une clé symétrique `docKey` propre au document `Forum/F1`.
 
 Dans ce cas le credential est enregistré deux fois et est actif immédiatement:
 - une copie du credential est inscrit dans sa _Safe Box_:
@@ -598,10 +598,10 @@ Dans ce cas le credential est enregistré deux fois et est actif immédiatement:
 
 - une autre copie est embarquée dans le document `Forum/F1` qui vient d'être créé:
   - avec les clés _publiques_ correspondantes (V:vérification, C:cryptage).
-  - avec une propriété `aboutme` cryptée par `docKey` et donnant des informations _à propos de U_ pour d'autres utilisateurs futurs éventuels ayant un credential sur `Forum/F1`.
+  - avec une propriété `aboutme` cryptée par `docKey` et donnant des informations _à propos de U_ pour d'autres utilisateurs futurs éventuels ayant aussi un credential sur `Forum/F1`.
 
 ### Déclaration d'un credential de X par un tiers T
-Dès lors qu'un document est déjà existant, par exemple `Forum/F1`, un autre utilisateur X que son propriétaire P na, en général, pas le droit de s'y auto-attribuer un credential et des pouvoirs de son propre chef. C'est un _tiers_, par exemple le propriétaire P de `Forum/F1`, qui doit enregistrer un nouveau credential pour l'utilisateur X.
+Dès lors qu'un document est déjà existant, par exemple `Forum/F1`, un autre utilisateur X que son propriétaire P n'a, en général, pas le droit de s'y auto-attribuer un credential (ou de changer son _power_) de son propre chef. C'est un _tiers_, par exemple le propriétaire P de `Forum/F1`, qui doit enregistrer un nouveau credential pour l'utilisateur X.
 
 ### Préparation d'un credential _en attente_
 Mais P ne peut pas écrire et crypter directement le credential pour X dans la _Safe Box_ de X, il n'en n'a pas la clé.
@@ -610,7 +610,7 @@ Mais P ne peut pas écrire et crypter directement le credential pour X dans la _
   - sans les clés privées `S D` du credential.
 - il écrit également ce _credential en attente_ embarqué dans le document `Forum/F1`.
 
-A ce stade le credential de X est _inopérant_ sur le `Forum/F1` faute de disposer des clés requises. Mais si X n'a pas une session ouverte à ce moment ça ne pose aucun problème.
+A ce stade le credential de X est _inopérant_ sur le `Forum/F1` faute de disposer des clés requises. Si X n'a pas une session ouverte à ce moment ça ne pose aucun problème.
 
 ### Activation d'un credential _en attente_
 Quand X ouvre une session, possiblement bien après que P ait enregistré le credential _en attente_, X qui dispose de sa clé K sur sa _Safe Box_:
@@ -626,15 +626,15 @@ Dans le document `Forum/F1` qui est _en attente_,
 
 ### Disponibilité de `docKey` et `aboutme`
 La clé AES `docKey` d'un document est:
-- générée à la création du document,
+- générée à la création du document dans la session de son créateur P,
 - insérée dans le credential du créateur crypté par sa clé K,
 - n'est PAS inscrite dans le document lui-même: le document _peut_ être virtuel.
 
 Cette clé peut être transmise à un autre credential **à condition que ce soit une opération initiée par un détenteur de cette clé** (qu'il a lue de son propre credential et décryptée par sa clé K).
 
-En conséquence un _manager_ autorisé à transmettre le credential du document SANS avoir lui-même un credential d'accès à ce document NE PEUT PAS transmettre `docKey`.
+Première conséquence: un _manager_ autorisé à transmettre le credential du document SANS avoir lui-même un credential d'accès à ce document NE PEUT PAS générer ni transmettre `docKey`.
 
-Seconde conséquence: quand un document n'a plus aucun credential vivant qui lui est associé, la `docKey` d'origine est définitivement perdue. Une nouvelle _peut_ être régénérée **à condition que la logique métier autorise** un utilisateur U2 a obtenir un credential sur un document qui n'en n'a plus attaché à lui, bref à autoriser que U2 s'approprie ce document _orphelin_.
+Seconde conséquence: quand un document n'a plus aucun credential vivant qui lui est associé, la `docKey` d'origine est définitivement perdue. Une nouvelle _peut_ être régénérée **à condition que la logique métier autorise** un utilisateur U2 a obtenir un credential sur un document qui n'en n'a plus aucun attaché à lui, bref à autoriser que U2 s'approprie ce document _orphelin_.
 
 `aboutme` est un texte que chaque détenteur d'un credential sur le document inscrit, crypté par `docKey`, peut lire et afficher: ainsi les co-détenteur de credentials sur un même document peuvent lire une information sur qui sont les autres,
 - du moins ce que chacun a bien voulu dire de lui-même,
@@ -658,11 +658,11 @@ Credential après _activation_
   - `v`: date-heure d'activation.
   - `docKey name` cryptés par la clé K.
   - clés _privées_ `S D`.
-  - `power` recopié du credential embarqué.
+  - `power` recopié du credential embarqué. ???
   - `aboutme` : information _à propos_ de X crypté par `docKey`.
 
 - embarqué dans `svc / org / Forum / F1`:
-  - `credId power`
+  - `credId power` (power ???)
   - `v`.
   - clés _publiques_ `V C`.
   - `aboutme` : information _à propos_ de X crypté par `docKey`.
