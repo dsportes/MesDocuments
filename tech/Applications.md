@@ -576,9 +576,14 @@ Un credential est un pouvoir donné à _UN_ utilisateur d'accéder _AU_ document
 
 > Pour un document donné, un utilisateur n'a au plus qu'UN credential.
 
-**Le pouvoir exact** d'un _credential_ est exprimé par les propriétés de l'objet `power` du credential dont les valeurs contrôlent le comportement des opérations.
-- quand elle existe la propriété `power.limit` donne une _epoch en minutes_ limite de validité du credential.
+**Le pouvoir exact** d'un _credential_ est exprimé par les propriétés de l'objet `props` du credential dont les valeurs contrôlent le comportement des opérations.
+- quand elle existe la propriété `props.limit` donne une _epoch en minutes_ limite de validité du credential.
 
+Un credential est stocké en deux exemplaires:
+- **en tant que _document_** (ou objet dans son document) dans la DB du service / organisation.
+- **en tant qu'objet dans la _Safe Box_** de l'utilisateur U propriétaire.
+
+### Objet _embarqué_ vs document _dissocié_
 Les données d'un credential identifié `credId` sont regroupées dans un objet `cred` qui peut être:
 - soit _embarqué_ dans son document dont la propriété `creds` contient la liste des objets credentials qui lui sont relatifs.
 - soit _dissocié_ dans un document séparé de classe `Credential`:
@@ -586,103 +591,97 @@ Les données d'un credential identifié `credId` sont regroupées dans un objet 
   - le couple `docCl / docPk` du document du credential y est indexé.
   - le contenu du document est l'objet `cred`.
 
-### Auto-déclaration d'un credential par U
-Dans certains cas un utilisateur U peut dans une même opération:
-- créer un document qui lui appartient par exemple un `Forum/F1`.
-- créer un credential relatif à _son_ document `Forum/F1` pour pouvoir y accéder avec le pouvoir maximal. Il _peut_ générer à ce moment une clé symétrique `docKey` propre au document `Forum/F1`.
+**Propriétés:**
+- `svc org` : virtuellement.
+- `credId` : identifiant universel du document.
+- `docCl docPk`: identifiant _du_ document dont il gère les pouvoirs.
+- `pubv pubc`: clés publiques de vérification et cryptage du _credential_.
+- `ch`: challenge de validation.
+- `props`: objet dont les valeurs règlent le détail du pouvoir de l'utilisateur U.
 
-Dans ce cas le credential est enregistré deux fois et est actif immédiatement:
-- une copie du credential est inscrit dans sa _Safe Box_:
-  - avec les clés _privées_ générées (S:signature, D:décryptage) cryptées par la clé K de l'utilisateur.
-  - avec `docKey` crypté par la clé K.
+### Un credential peut avoir deux états
+- **en attente**: le credential a été créé par une opération d'un utilisateur _tiers_ T (pas U):
+  - les clés `pubv pubc` sont vierges.
+  - le challenge `ch` a été généré aléatoirement.
+  - le credential est inopérant jusqu'à son passage en état _valide_.
+- **valide**: soit il a été créé par une opération de l'utilisateur U, soit une session de U a _validé_ le credential _en attente_ créé par une opération d'un tiers T.
+  - les clés `pubv pubc` sont remplies.
+  - le challenge `ch` est absent.
+  - le credential est pleinement opérationnel.
 
-- une autre copie est embarquée dans le document `Forum/F1` qui vient d'être créé:
-  - avec les clés _publiques_ correspondantes (V:vérification, C:cryptage).
-  - avec une propriété `aboutme` cryptée par `docKey` et donnant des informations _à propos de U_ pour d'autres utilisateurs futurs éventuels ayant aussi un credential sur `Forum/F1`.
+> Un credential créé par une opération de U est directement _valide_.
 
-### Déclaration d'un credential de X par un tiers T
-Dès lors qu'un document est déjà existant, par exemple `Forum/F1`, un autre utilisateur X que son propriétaire P n'a, en général, pas le droit de s'y auto-attribuer un credential (ou de changer son _power_) de son propre chef. C'est un _tiers_, par exemple le propriétaire P de `Forum/F1`, qui doit enregistrer un nouveau credential pour l'utilisateur X.
+> Un credential créé par un tiers T est créé _en attente_.
 
-### Préparation d'un credential _en attente_
-Mais P ne peut pas écrire et crypter directement le credential pour X dans la _Safe Box_ de X, il n'en n'a pas la clé.
-- il peut toutefois écrire dans la _Safe box_ de P un _credential_ **en attente**:
-  - `docKey` est crypté par le couple de clés `D de P / C de X` et la clé publique `C de P`.
-  - sans les clés privées `S D` du credential.
-- il écrit également ce _credential en attente_ embarqué dans le document `Forum/F1`.
+Dès qu'une session de U est en exécution, celle-ci disposant du credential _en attente_, le _valide_:
+- génération des couples de clés _S/V D/C_,
+- mise à jour du _document_ credential en attente en fournissant les clés _V_ et _C_ générées. L'opération fournit le _challenge_ `ch` à titre d'authentification.
 
-A ce stade le credential de X est _inopérant_ sur le `Forum/F1` faute de disposer des clés requises. Si X n'a pas une session ouverte à ce moment ça ne pose aucun problème.
+> Les propriétés `(svc org) credId docCl docPk` sont toujours immuables, 
+> - les propriétés `pubv pubc ch` le sont dès passage à l'état valide,
+> - la propriété `props` est la seule réellement dynamique sous l'effet des opérations.
 
-### Activation d'un credential _en attente_
-Quand X ouvre une session, possiblement bien après que P ait enregistré le credential _en attente_, X qui dispose de sa clé K sur sa _Safe Box_:
-- trouve le credential en attente,
-- décrypte la clé `dockey` par le couple de clés `D de X / C de P` (_C de P_ figure dans le credential en attente) et l'encrypte par sa clé K.
-- génère les couples de clés `S V` et `D C` du credential.
-- dans sa _Safe Box_ le credential muni de ses clés privées `S D` est _activé_,
+### Objet dans la _Safe Box_
+Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec les propriétés suivantes:
+- `userId`: virtuellement.
+- `svc org`
+- `credId`
+- `docCl docPk`
+- `privs privd`: clés _privées_ de signature / décryptage du credential.
+- `ch`: challenge de validation.
+- `comment`: commentaire libre de l'utilisateur U crypté par sa clé K personnelle.
 
-Dans le document `Forum/F1` qui est _en attente_,
-- inscrit les clés _publiques_ du credential `V C`,
-- inscrit `aboutme` (informations sur lui-même X) crypté par `docKey`.
-- le credential est _activé_.
+Cet exemplaire peut être créé par une opération d'un utilisateur tiers T:
+- `privs privd` sont absents.
+- `ch`: challenge à fournir à la validation.
+- ses données sont cryptées par le couple `privd_T / pubc_U` par l'opération créatrice par un tiers T.
 
-### Disponibilité de `docKey` et `aboutme`
-La clé AES `docKey` d'un document est:
-- générée à la création du document dans la session de son créateur P,
-- insérée dans le credential du créateur crypté par sa clé K,
-- n'est PAS inscrite dans le document lui-même: le document _peut_ être virtuel.
+A la _validation_ par une session de U active,
+- `privs privd` sont générées et mémorisées.
+- `pubv pubc` sont transmises au service pour mise à jour du document credential accompagnée du challenge `ch` pour authentification. `ch` est effacé en cas de succès.
+- ses données sont cryptées par la clé K de l'utilisateur U.
 
-Cette clé peut être transmise à un autre credential **à condition que ce soit une opération initiée par un détenteur de cette clé** (qu'il a lue de son propre credential et décryptée par sa clé K).
+> Les propriétés `(userId) svc org credId docCl docPk` sont toujours immuables,
+> - les propriétés `privs privd ch` le sont dès passage à l'état valide. 
+> - la propriété `comment` est la seule  dynamique mise à jour par l'utilisateur U.
 
-Première conséquence: un _manager_ autorisé à transmettre le credential du document SANS avoir lui-même un credential d'accès à ce document NE PEUT PAS générer ni transmettre `docKey`.
+**Propriété _comment_:**
+- texte libre écrit par l'utilisateur U et crypté par sa clé K.
+- lui permet de gérer l'usage de son credential, voire de le supprimer en ayant conscience de sa portée, l'identifiant `docPk` étant généralement un texte aléatoire ne permettant pas humainement de savoir sur _qui_ (quel document) porte le credential.
 
-Seconde conséquence: quand un document n'a plus aucun credential vivant qui lui est associé, la `docKey` d'origine est définitivement perdue. Une nouvelle _peut_ être régénérée **à condition que la logique métier autorise** un utilisateur U2 a obtenir un credential sur un document qui n'en n'a plus aucun attaché à lui, bref à autoriser que U2 s'approprie ce document _orphelin_.
+### Usage de `props` d'un credential
+`props` ne peut être mis à jour **QUE** par une opération qui a été authentifiée et autorisée U:
+- elle peut être _lue_ par l'utilisateur U,
+- U ne peut pas y intervenir directement et doit passer par une opération, bref U ne maîtrise pas lui-même son propre pouvoir exact.
 
-`aboutme` est un texte que chaque détenteur d'un credential sur le document inscrit, crypté par `docKey`, peut lire et afficher: ainsi les co-détenteur de credentials sur un même document peuvent lire une information sur qui sont les autres,
-- du moins ce que chacun a bien voulu dire de lui-même,
-- information qui n'est accessible QU'aux autres co-détenteur d'un accès au document.
+`props.limit`
+- par convention définit par une _epoch en secondes_ la date-heure limite de validité du credential.
+- une opération peut mettre à jour cette valeurs.
 
-### Synthèse
-Credential _en attente_:
-- _Safe Box_ de X
-  - `svc org credId docCl docPk` => `docCl: Forum, docPk: F1`
-  - `v` : version, date-heure (_epoch_) de l'opération de création
-  - `CdeP` : clé publique de P.
-  - `[docKey name]` crypté par `aes` la clé construite par P depuis `D de P / C de X`. `name` est un nom / code / pseudo _parlant_ de `docPk` (si non `1`).
+`props.xxx`
+- ces propriétés définissent les conditions exactes des opérations opérant sur le document (seuils, flags diverses, dates de valeurs, etc.).
 
-- embarqué dans `svc / org / Forum / F1`:
-  - `credId power`
-  - `v` : version, date-heure (_epoch_) de l'opération de création.
+##### Exemple: `props.dk1`
+- `dk1` donne une _clé_ de cryptage AES à laquelle tous les utilisateurs ayant un credential sur le même document `docCl/docPk` peuvent accéder.
+- sa valeur est,
+  - soit `[valK]` : valeur de `dk1` cryptée par la clé K de U quand l'opération l'ayant définie est sous authentification de U.
+  - soit `[valX, pubc_T]` : valeur de `dk1` cryptée par la clé AES générée depuis privd_T / pubc_U quand l'opération l'ayant définie est sous authentification d'un tiers T (et pas de U), U et seulement U peut décrypter `dk1`.
+- remarques: 
+  - `dk1` _n'existe plus_ dès lors qu'il n'y a plus de credential sur le document `docCl/docPk`.
+  - `dk1` ne peut être transmis _QUE_ par un utilisateur X ayant lui-même un credential sur le document `docCl/docPk` et aynt rçu dk1 d'un autre (ou l'ayant créé si c'est le premier)
 
-Credential après _activation_
-- _Safe Box_ de X
-  - `svc org docCl docPk`
-  - `v`: date-heure d'activation.
-  - `docKey name` cryptés par la clé K.
-  - clés _privées_ `S D`.
-  - `power` recopié du credential embarqué. ???
-  - `aboutme` : information _à propos_ de X crypté par `docKey`.
-
-- embarqué dans `svc / org / Forum / F1`:
-  - `credId power` (power ???)
-  - `v`.
-  - clés _publiques_ `V C`.
-  - `aboutme` : information _à propos_ de X crypté par `docKey`.
+##### Exemple: `props.aboutU`
+- `aboutU` donne une information à propos de U, fixée par une opération authentifiée U (son nom / pseudo, carte de visite, etc.).
+- `aboutU` est crypté par `dk1` qui est accessible dans le credential de chaque autre utilisateur sur le document `docCl/docPk`.
 
 ### Credentials _désynchronisés_
 A la création les copies _Safe Box_ et _document_ sont synchrones. 
 
 Toutefois, la copie _Safe Box_ est écrite avant la copie _document_: si un incident intervient entre ces deux étapes, il existe en _Safe Box_ une copie _fantôme_ et inutilisable.
 
-Depuis une session d'application: 
-- la propriété `name` peut être mise à jour dans la _Safe Box_, la copie _document_ n'en n'a cure.
-- la propriété `aboutme` est mise à jour d'abord dans le _document_ puis une demande de synchronisation du document vers _Safe box_ est exécutée.
+Depuis une opération seule la propriété `props.limit` peut aussi être changée: ceci équivaut à une suppression du credential quand la limite est dans le passé.
 
-Depuis une opération seule la propriété `power` peut être mise à jour et devra, un jour, être synchronisée, avec la _Safe Box_:
-- au moment de la mise à jour il se peut qu'aucune session d'application ne soit en exécution. La synchronisation est par principe différée jusqu'à ce qu'une session s'ouvre et le demande.
-- dans `power` la propriété `limit` peut aussi être changée: ceci équivaut à une suppression du credential quand la limite est dans le passé.
-
-En conséquence dans une session d'application, un credential en _Safe Box_,
-- peut être en retard par rapport à la copie _document_.
-- peut exister alors que la copie _document_ a disparu.
+En conséquence dans une session d'application, un credential en _Safe Box_ peut exister alors que la copie _document_ a disparu.
 
 > L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
 
@@ -711,16 +710,16 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 # _Chats_ entre utilisateurs disposant d'un credential sur un même document
 La classe du document peut être _virtuelle_.
 
-Les utilisateurs détenteurs d'un credential d'un document `docCl docPk` forme de facto un _groupe_ dont les membres peuvent se connaître les uns les autres:
-- par les données `aboutme` que chacun a dans son credential et qui peut être décryptée par les autres qui disposent de la même clé `docKey`,
-- par les autres propriétés de `power` dépendantes de la classe `docCl`.
+Les utilisateurs détenteurs d'un credential d'un document `docCl docPk` forment de facto un _groupe_ dont les membres peuvent se connaître les uns les autres typiquement par des propriétés comme,
+- `props.aboutU` que chacun a dans son credential et qui peut être décryptée par les autres,
+- par les autres propriétés de `props` dépendantes de la classe `docCl`.
 
 > Ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
 
-Chaque credential disposant d'une clé _publique_ de cryptage, il peut s'établir des _chats_ entre deux membres de ce groupe.
+Chaque credential disposant d'une clé _publique_ de cryptage `pubc`, il peut s'établir des _chats_ entre **DEUX** membres de ce groupe.
 
 Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit par A est dédoublé:
-- une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B.
+- une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B (dans `props.chat` par exemple).
 - une copie cryptée par A avec sa propre clé publique de cryptage et stockée dans le credential de A.
 
 > Un item peut être _multi-destinataire_: le même item est _envoyé_ N fois (comme des CC), l'expéditeur n'en ayant qu'une copie (et non N).
@@ -736,7 +735,7 @@ Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit p
   - il est marqué _liste noire_ et est prioritaire à l'effacement en cas d'excès de volume.
 - **A peut à l'inverse exprimer une liste blanche**, tous ceux non cités sont en liste noire.
 
-# Formulaires de demande d'accès à un document (entre autres)
+# Formulaires de _demande / proposition_
 Un utilisateur U peut, selon la logique applicative, créer de son propre chef certains documents et s'en donner à lui-même le credential d'accès. Une opération peut effectuer ce traitement sur l'instant.
 
 Mais dans bien des cas U a besoin de recourir à un _tiers_ ayant le pouvoir correspondant pour réaliser cette tâche:
@@ -754,7 +753,7 @@ Il doit engager un _processus_ non immédiat puisque faisant apparaître 2 inter
 
 **(B) Un tiers ayant les pouvoirs de traiter le formulaire** (qui est en état (1)) l'ouvre et:
 - **soit** accepte les termes proposés par U:
-  - l'opération correspondante de création de document / credential est exécutée. Le credential (ou les ?) est créé _en attente_ et ne sera effectivement activé qu'à l'occasion de la prochaine ouverture de session de U (voire sur l'instant si U est à l'écoute).
+  - l'opération correspondante de création de document / credential est exécutée. Le (ou les)credentials sont créés _en attente_ et ne seront effectivement activés qu'à l'occasion de la prochaine ouverture de session de U (voire sur l'instant si U est à l'écoute).
   - le formulaire passe en état (3) _traité avec succès_ et est archivé pendant quelque temps.
 - **soit** n'accepte pas les termes proposés par U, les corrige et joint un texte libre. Le formulaire passe en état (2).
 
@@ -767,11 +766,12 @@ Il doit engager un _processus_ non immédiat puisque faisant apparaître 2 inter
 - **soit** renonce à sa demande.
   - le formulaire passe en état (4) _annulé_ et est archivé pendant quelque temps.
 
-**(D) Variante du processus:** c'est T qui prend l'initiative de créer un formulaire:
+**(D) Variante du processus:** c'est T qui prend l'initiative de créer un formulaire en faisant une _proposition_:
 - T saisit les paramètres de sa proposition et y joint un texte libre.
 - le formulaire est créé en état (2) d'où U pourra s'en saisir (étape (C) ci-dessus).
 
 Les états successifs d'un formulaire après sa création sont donc les suivants:
+- (0) : état fugitif en mémoire _en création_.
 - (1) : saisi / modifié par U en attente d'acceptation / modification par T.
 - (2) : saisi / modifié par T en attente d'acceptation / modification par U.
 - (3) : processus terminé avec succès, archivé un certain temps.
