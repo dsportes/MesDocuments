@@ -591,13 +591,47 @@ Les données d'un credential identifié `credId` sont regroupées dans un objet 
   - le couple `docCl / docPk` du document du credential y est indexé.
   - le contenu du document est l'objet `cred`.
 
-**Propriétés:**
-- `svc org` : virtuellement.
+**Propriétés du _document_:**
+- (`svc org` virtuellement).
 - `credId` : identifiant universel du document.
 - `docCl docPk`: identifiant _du_ document dont il gère les pouvoirs.
 - `pubv pubc`: clés publiques de vérification et cryptage du _credential_.
-- `ch`: challenge de validation.
 - `props`: objet dont les valeurs règlent le détail du pouvoir de l'utilisateur U.
+- `ttl`: propriété technique, objet à ignorer après ce délai très court.
+
+**Propriétés de son entrée en _Safe Box_:**
+Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec les propriétés suivantes:
+- (`userId` virtuellement).
+- `svc org`
+- `credId`
+- `docCl docPk`
+- `privsK privdK`: clés _privées_ de signature / décryptage du credential cryptées par la clé K en base 64.
+- `nameK`: _identifiant humainement lisible _ donné par U correspondant à `docPk`.
+
+### Création d'un credential
+La procédure, typiquement par utilisation d'un _form_, a obligatoirement eu une phase où une session de l'utilisateur U a pu:
+- générer `privs/pubv` et `privd/pubc`, et un challenge `ch`.
+- saisir d'une manière ou d'une autre `name`,
+- crypter par sa clé K `privsK privdK nameK`,
+- calculer `signCH` la signature de `ch` par la clé de signature de U.
+
+L'opération de création effectue:
+- en phase 2 (ACID) : l'enregistrement du document avec un `ttl` très court.
+- en phase 3 (après commit) :
+  - l'enregistrement par l'opération `sf.CredCreate` dans la Safe Box de U l'entrée correspondante. Le challenge `ch` et sa signature `signCH` sont vérifiés par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
+  - enfin, hors transaction, supprimer le `ttl` du _document_.
+
+L'opération est idem-potente: relancée plusieurs fois elle aboutira au même effet, _au ttl près_:
+- toute **lecture** en vue de sa **création** du _document_ avec un `ttl` non 0 transforme la _création_ en mise à jour,
+- toute **lecture** en vue d'authentification avec un `ttl` non 0 supprime le document et retourne ne pas l'avoir trouvé.
+
+**Phase 3 interrompue**
+- après commit, en phase 3, il se peut qu'une exception survienne.
+- avant écriture sf.CredCreate:
+  - le _document_ sera très vite atteint d'obsolescence par son ttl, et ignoré: de facto le credential n'est pas créé.
+- après écriture sf.CredCreate:
+  - il existera dans la _Safe Box_, au moins temporairement, un credential _fantôme_ inopérant. 
+
 
 ### Un credential peut avoir deux états
 - **en attente**: le credential a été créé par une opération d'un utilisateur _tiers_ T (pas U):
@@ -684,6 +718,50 @@ Depuis une opération seule la propriété `props.limit` peut aussi être chang�
 En conséquence dans une session d'application, un credential en _Safe Box_ peut exister alors que la copie _document_ a disparu.
 
 > L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
+
+### Protocole détaillé de création / validation
+
+#### Création directe par U (userId): credId svc org docCl docPk props commentk
+- génération privs-pubv / privd-pubc
+- (A) sf.CredByU0
+  - args: userId shK commentk cred
+    - credk: `{svc org docCl docPk privs privd}` crypté K base 64
+  - Safe Box de userId, entrée credId: credk commentk flag=1 => pubv pubc props
+- (B) op.CredByU (svc org)
+  - args: credId docCl docPk pubv pubc props
+  - DB :
+    - si déjà existant même credId docCl docPk pubv pubc: rien
+    - sinon new Doc: credId docCl docPk pubv pubc props
+- (C) sf.CredByU0
+  - args: userId shk
+  - Safe Box de userId, entrée credId: efface flag pubv pubc
+
+A la reprise on trouve une entrée avec flag=1 : 
+- c'était une interruption entre (A) et (B)
+- on reprend à B
+
+- génération privs-pubv / privd-pubc / ch
+- (A) op.CredByU0 (svc org)
+  - args: credId docCl docPk pubv pubc props
+  - DB :
+    - si déjà existant même credId ch: rien
+    - sinon new Doc: credId docCl docPk pubv pubc props ch ttl
+- (B) sf.CredByU0
+  - args: userId shK commentk cred
+    - credk: `{svc org docCl docPk privs privd}` crypté K base 64
+  - Safe Box de userId, entrée credId: credk commentk flag=1 => pubv pubc props
+- (B) op.CredByU (svc org)
+  - args: credId docCl docPk pubv pubc props
+  - DB :
+    - si déjà existant même credId docCl docPk pubv pubc: rien
+    - sinon new Doc: credId docCl docPk pubv pubc props
+- (C) sf.CredByU0
+  - args: userId shk
+  - Safe Box de userId, entrée credId: efface flag pubv pubc
+
+A la reprise on trouve une entrée avec flag=1 : 
+- c'était une interruption entre (A) et (B)
+- on reprend à B
 
 ## L'objet `AuthRecord` attaché à toute demande d'opération
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
