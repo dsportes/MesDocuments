@@ -878,18 +878,44 @@ Il peut être déclenché soit par U soit par le tiers.
 Il faut que `etcU` et `etcT` existent et soit égaux, preuve que U et le tiers ont chacun vu la solution et en sont d'accord.
 
 # Annexe : concept _d'Office de confiance_
-Supposons qu'il existe des _groupes_ où chaque groupe est un document dont les membres du groupes détiennent un credential.
+Supposons qu'il existe des _groupes d'intérêt_, chacun étant matérialisé par un _document_ dont les membres du groupe d'intérêt détiennent un credential.
 
-Le groupe peut héberger tout un ensemble de documents _dossiers_ confidentiels cryptés par un jeu de clés AES K1, K2 ...
-- un membre B peut se faire transmettre certaines de ces clés par un membre A qui les détient, la recevoir cryptée par privA/pubB, la décrypter dans sa session, la ré-encrypter par sa clé K et la stocker dans son credential.
-- les membres du groupe sont en mesure de se communiquer entre eux ces clés sans que jamais elles ne transitent en clair ni sur le réseau, ni dans la DB de l'organisation.
+Le groupe peut héberger tout un ensemble de _documents dossiers_ confidentiels cryptés par un jeu de clés AES `K1 K2 ...`
+- un membre B peut se faire transmettre certaines de ces clés par un membre A qui les détient, la recevoir cryptée par `privA/pubB`, la décrypter dans sa session, la ré-encrypter par sa clé K et la stocker dans son credential par une opération ad hoc.
+- les membres du groupe gérés en gros par cooptation sont en mesure de se communiquer entre eux ces clés **sans que jamais elles ne transitent en clair** ni sur le réseau, ni dans la DB de l'organisation.
 
-De nombreux _dossiers_ peuvent ainsi être cryptés par ces clés et ne peuvent être décryptés que par les membres du groupe (du moins ceux ayant reçu les clés correspondantes).
+De nombreux _dossiers_ peuvent ainsi être cryptés par ces clés et ne peuvent être décryptés que par les membres du groupe d'intérêt (du moins ceux ayant reçu les clés correspondantes).
 
-Que se passe-t-il si,
-- tous les membres disparaissent,
-- ou s'il n'existe plus que un ou quelques membres en sommeil profond ?
+**Que se passe-t-il si tous les membres disparaissent (ou qu'il ne reste plus qu'un ou quelques membres inactifs) ?**
 
-> Les dossiers sont définitivement perdus, en réalité stockés cryptés mais dont plus personne n'a les clé de décryptage.
+> Les dossiers sont définitivement perdus, en réalité stockés cryptés mais dont plus personne n'a les clés de décryptage.
 
-Ce peut être le fonctionnement souhaité mais on peut aussi souhaiter disposer d'un _stockage de sécurité_ où placer ces clés et pouvoir les ressortir pour les confier à un utilisateur 
+Ce peut être le fonctionnement souhaité mais on peut aussi souhaiter disposer d'un _stockage de sécurité_ où placer ces clés et pouvoir les ressortir pour les confier à un nouvel utilisateur actif.
+
+Pour cela on peut définir un _document_ **Office de confiance** en charge de conserver les clés `K1 K2 ...` et de ne les communiquer _qu'à bon escient_ et _qui de droit_:
+- sur demande d'un nouvel utilisateur N _licite_ (???) de lui communiquer les clés K1 K2 ... lui permettant ainsi d'avoir un credential sur le groupe en déshérence.
+
+> _à bon escient_,  _qui de droit_, _licite_ ... : des règles formelles à définir, voire des procédures d'habilitation externe à l'application à définir.
+
+> Si les clés sont stockées dans le document **Office de confiance** quel cryptage employer ?
+
+**Option #1**
+- crypter toutes les clés `K1 K2 ...` par une clé `OCK` qui peut être mémorisée dans le credential d'accès **d'un** utilisateur _Office_ au document **Office de confiance**.
+- dans ce cas il faudra que, s'il y a plusieurs ayant un credential au document **Office de confiance**, ils se communiquent les uns les autres cette clé `OCK`.
+- l'impasse éventuelle est reproduite au niveau de l'Office avec les nuances suivantes:
+  - le point de fragilité est centralisé et non plus présent en autant d'exemplaires qu'il y a de groupes.
+  - on peut espérer que le rôle de membre de l'Office soit assez important pour que l'organisation s'assure qu'il existe toujours au moins un utilisateur (ou _une personne morale_) vivant et actif.
+
+**Option #2**
+- la clé `OCK` n'est pas aléatoire mais résulte du hash d'une phrase secrète (ou deux par sécurité) _bien connue des bonnes personnes_. Mais ce n'est pas très différent de la déclaration d'un utilisateur _personne morale_ ayant accès à l'Office.
+
+**Option #3 : le _document_ **Office de confiance** est _virtuel_.**
+- un utilisateur / _personne morale_ toujours vivant et toujours actif détient un credential sur ce document virtuel et y stocke les clés `K1 K2 ...`.
+
+### Synthèse
+Le concept **d'Office de confiance** consiste à définir une autorité, privilégiée, supérieure aux autres détenant les clés secrètes et en conséquence,
+- susceptible de les publier,
+- susceptible de les communiquer à des _personnes non recommandables_.
+
+Le seul moyen pour éviter ce _pouvoir exorbitant_ est de ne fonctionner que par transmission de clés par _cooptation_ avec le risque de perte définitive de dossiers quand le cercle des _cooptés_ est devenu vide ou de facto inopérant par manque de membre réellement actif.
+
