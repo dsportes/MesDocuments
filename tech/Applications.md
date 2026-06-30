@@ -597,7 +597,10 @@ Les données d'un credential identifié `credId` sont regroupées dans un objet 
 - `docCl docPk`: identifiant _du_ document dont il gère les pouvoirs.
 - `pubv pubc`: clés publiques de vérification et cryptage du _credential_.
 - `props`: objet dont les valeurs règlent le détail du pouvoir de l'utilisateur U.
-- `ttl`: propriété technique, objet à ignorer après ce délai très court.
+- `maxLife`: date-heure (_epoch_ en secondes) au delà de laquelle le credential est considéré comme _disparu_:
+  - pendant la phase A de création maxLife est une date-heure de quelques secondes plus tardive que la date-heure de l'opération de création.
+  - à la phase B de création maxLife est mise à la valeur définie par props.limit (ou 0).
+  - une phase de création échouant à se conclure durant ce court délai mettrait le credential en création à l'état _disparu_.
 
 **Propriétés de son entrée en _Safe Box_:**
 Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec les propriétés suivantes:
@@ -609,82 +612,29 @@ Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` ave
 - `nameK`: _identifiant humainement lisible _ donné par U correspondant à `docPk`.
 
 ### Création d'un credential
-La procédure, typiquement par utilisation d'un _form_, a obligatoirement eu une phase où une session de l'utilisateur U a pu:
-- générer `privs/pubv` et `privd/pubc`, et un challenge `ch`.
+La procédure, typiquement par utilisation d'un _form_, a obligatoirement une phase où une session de l'utilisateur U a pu:
+- générer `credId privs/pubv privd/pubc`,
 - saisir d'une manière ou d'une autre `name`,
-- crypter par sa clé K `privsK privdK nameK`,
-- calculer `signCH` la signature de `ch` par la clé de signature de U.
+- crypter par sa clé K `credK : { svc, org, docCl, docPk, privs privd }` et `nameK`,
+- calculer `signCR` la signature de `credId` par la clé de signature de U.
 
 L'opération de création effectue:
-- en phase 2 (ACID) : l'enregistrement du document avec un `ttl` très court.
-- en phase 3 (après commit) :
-  - l'enregistrement par l'opération `sf.CredCreate` dans la Safe Box de U l'entrée correspondante. Le challenge `ch` et sa signature `signCH` sont vérifiés par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
-  - enfin, hors transaction, supprimer le `ttl` du _document_.
+- **Opération (A) phase 2 (ACID)** : l'enregistrement du document `{ credId, docCl, docPk, pubv, pubc, props, ttl }` avec un `ttl` très court.
+- **en phase 3 (après commit)** : lancement immédiat d'une autre opération (B) qui:
+  - enregistre le credential dans la _Safe Box_ de l'utilisateur par l'opération `sf.CredCreate` dans l'entrée correspondante `{ credId, credK, nameK, signCR }`. La signature de `credId` en `signCR` est vérifiée par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
+  - recalcule ou met à 0 le `maxLife` du _document_.
 
-L'opération est idem-potente: relancée plusieurs fois elle aboutira au même effet, _au ttl près_:
-- toute **lecture** en vue de sa **création** du _document_ avec un `ttl` non 0 transforme la _création_ en mise à jour,
-- toute **lecture** en vue d'authentification avec un `ttl` non 0 supprime le document et retourne ne pas l'avoir trouvé.
+### Autres opérations de la _Safe Box_
+Le `name` (texte humainement compréhensible figurant docPk), crypté par la clé K de l'utilisateur peut être mis à jour.
 
-**Phase 3 interrompue**
-- après commit, en phase 3, il se peut qu'une exception survienne.
-- avant écriture sf.CredCreate:
-  - le _document_ sera très vite atteint d'obsolescence par son ttl, et ignoré: de facto le credential n'est pas créé.
-- après écriture sf.CredCreate:
-  - il existera dans la _Safe Box_, au moins temporairement, un credential _fantôme_ inopérant. 
+L'utilisateur peut aussi détruire un de ses credentials.
 
-
-### Un credential peut avoir deux états
-- **en attente**: le credential a été créé par une opération d'un utilisateur _tiers_ T (pas U):
-  - les clés `pubv pubc` sont vierges.
-  - le challenge `ch` a été généré aléatoirement.
-  - le credential est inopérant jusqu'à son passage en état _valide_.
-- **valide**: soit il a été créé par une opération de l'utilisateur U, soit une session de U a _validé_ le credential _en attente_ créé par une opération d'un tiers T.
-  - les clés `pubv pubc` sont remplies.
-  - le challenge `ch` est absent.
-  - le credential est pleinement opérationnel.
-
-> Un credential créé par une opération de U est directement _valide_.
-
-> Un credential créé par un tiers T est créé _en attente_.
-
-Dès qu'une session de U est en exécution, celle-ci disposant du credential _en attente_, le _valide_:
-- génération des couples de clés _S/V D/C_,
-- mise à jour du _document_ credential en attente en fournissant les clés _V_ et _C_ générées. L'opération fournit le _challenge_ `ch` à titre d'authentification.
-
-> Les propriétés `(svc org) credId docCl docPk` sont toujours immuables, 
-> - les propriétés `pubv pubc ch` le sont dès passage à l'état valide,
-> - la propriété `props` est la seule réellement dynamique sous l'effet des opérations.
-
-### Objet dans la _Safe Box_
-Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec les propriétés suivantes:
-- `userId`: virtuellement.
-- `svc org`
-- `credId`
-- `docCl docPk`
-- `privs privd`: clés _privées_ de signature / décryptage du credential.
-- `ch`: challenge de validation.
-- `comment`: commentaire libre de l'utilisateur U crypté par sa clé K personnelle.
-
-Cet exemplaire peut être créé par une opération d'un utilisateur tiers T:
-- `privs privd` sont absents.
-- `ch`: challenge à fournir à la validation.
-- ses données sont cryptées par le couple `privd_T / pubc_U` par l'opération créatrice par un tiers T.
-
-A la _validation_ par une session de U active,
-- `privs privd` sont générées et mémorisées.
-- `pubv pubc` sont transmises au service pour mise à jour du document credential accompagnée du challenge `ch` pour authentification. `ch` est effacé en cas de succès.
-- ses données sont cryptées par la clé K de l'utilisateur U.
-
-> Les propriétés `(userId) svc org credId docCl docPk` sont toujours immuables,
-> - les propriétés `privs privd ch` le sont dès passage à l'état valide. 
-> - la propriété `comment` est la seule  dynamique mise à jour par l'utilisateur U.
-
-**Propriété _comment_:**
-- texte libre écrit par l'utilisateur U et crypté par sa clé K.
-- lui permet de gérer l'usage de son credential, voire de le supprimer en ayant conscience de sa portée, l'identifiant `docPk` étant généralement un texte aléatoire ne permettant pas humainement de savoir sur _qui_ (quel document) porte le credential.
+> Toutes les propriétés d'un credential sont immuables SAUF, 
+> - en _Safe Box_ la propriété `name` le sont dès passage à l'état valide,
+> - dans le _document_ la propriété `props` qui peut être mise à jour par des opérations.
 
 ### Usage de `props` d'un credential
-`props` ne peut être mis à jour **QUE** par une opération qui a été authentifiée et autorisée U:
+`props` ne peut être mis à jour **QUE** par une opération qui a été authentifiée et autorisée à le faire:
 - elle peut être _lue_ par l'utilisateur U,
 - U ne peut pas y intervenir directement et doit passer par une opération, bref U ne maîtrise pas lui-même son propre pouvoir exact.
 
@@ -693,75 +643,32 @@ A la _validation_ par une session de U active,
 - une opération peut mettre à jour cette valeurs.
 
 `props.xxx`
-- ces propriétés définissent les conditions exactes des opérations opérant sur le document (seuils, flags diverses, dates de valeurs, etc.).
+- ces propriétés sont les paramètres utilisés par les opérations opérant sur le document (seuils, flags diverses, dates de valeurs, etc.).
 
 ##### Exemple: `props.dk1`
 - `dk1` donne une _clé_ de cryptage AES à laquelle tous les utilisateurs ayant un credential sur le même document `docCl/docPk` peuvent accéder.
-- sa valeur est,
-  - soit `[valK]` : valeur de `dk1` cryptée par la clé K de U quand l'opération l'ayant définie est sous authentification de U.
-  - soit `[valX, pubc_T]` : valeur de `dk1` cryptée par la clé AES générée depuis privd_T / pubc_U quand l'opération l'ayant définie est sous authentification d'un tiers T (et pas de U), U et seulement U peut décrypter `dk1`.
+- sa valeur est cryptée par la clé AES générée depuis `privd_T / pubc_U` pour une opération sous authentification d'un tiers T: U et seulement U peut décrypter `dk1`.
 - remarques: 
   - `dk1` _n'existe plus_ dès lors qu'il n'y a plus de credential sur le document `docCl/docPk`.
-  - `dk1` ne peut être transmis _QUE_ par un utilisateur X ayant lui-même un credential sur le document `docCl/docPk` et aynt rçu dk1 d'un autre (ou l'ayant créé si c'est le premier)
+  - `dk1` ne peut être transmis _QUE_ par un utilisateur X ayant lui-même un credential sur le document `docCl/docPk` et ayant reçu dk1 d'un autre (ou l'ayant créé si c'est le premier)
 
 ##### Exemple: `props.aboutU`
 - `aboutU` donne une information à propos de U, fixée par une opération authentifiée U (son nom / pseudo, carte de visite, etc.).
 - `aboutU` est crypté par `dk1` qui est accessible dans le credential de chaque autre utilisateur sur le document `docCl/docPk`.
 
-### Credentials _désynchronisés_
-A la création les copies _Safe Box_ et _document_ sont synchrones. 
+##### Clés et valeurs confidentielles réservées à U
+Une propriété `secretX` peut contenir n'importe quelle valeur qui a été cryptée par la clé AES générée depuis `privd_T / pubc_U` pour une opération sous authentification d'un tiers T (ou U lui-même).
 
-Toutefois, la copie _Safe Box_ est écrite avant la copie _document_: si un incident intervient entre ces deux étapes, il existe en _Safe Box_ une copie _fantôme_ et inutilisable.
+Ainsi les sessions de U bénéficient pour chaque _document_ sous contrôle d'un credential, de propriétés qui ne sont déchiffrables QUE par lui-même et restent _opaques_ aux opérations.
 
-Depuis une opération seule la propriété `props.limit` peut aussi être changée: ceci équivaut à une suppression du credential quand la limite est dans le passé.
+### Credentials _obsolètes_
+A la création les copies _Safe Box_ et _document_ sont _normalement_ synchrones mais, la copie _Safe Box_ est écrite **après** la copie _document_: si un incident intervient entre ces deux étapes, le document s'auto-détruit très vite (sa `maxLife` est très proche de la date-heure de création) et en conséquence il reste en _Safe Box_ une copie _de facto déjà obsolète_ (et inutilisable).
 
-En conséquence dans une session d'application, un credential en _Safe Box_ peut exister alors que la copie _document_ a disparu.
+Après création des opérations peuvent changer la propriété `props.limit`: ceci équivaut à une **suppression** du credential (_document_)quand la limite est dans le passé.
+
+En conséquence dans une session d'application, un credential en _Safe Box_ peut exister alors que la copie _document_ a (définitivement) disparu.
 
 > L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
-
-### Protocole détaillé de création / validation
-
-#### Création directe par U (userId): credId svc org docCl docPk props commentk
-- génération privs-pubv / privd-pubc
-- (A) sf.CredByU0
-  - args: userId shK commentk cred
-    - credk: `{svc org docCl docPk privs privd}` crypté K base 64
-  - Safe Box de userId, entrée credId: credk commentk flag=1 => pubv pubc props
-- (B) op.CredByU (svc org)
-  - args: credId docCl docPk pubv pubc props
-  - DB :
-    - si déjà existant même credId docCl docPk pubv pubc: rien
-    - sinon new Doc: credId docCl docPk pubv pubc props
-- (C) sf.CredByU0
-  - args: userId shk
-  - Safe Box de userId, entrée credId: efface flag pubv pubc
-
-A la reprise on trouve une entrée avec flag=1 : 
-- c'était une interruption entre (A) et (B)
-- on reprend à B
-
-- génération privs-pubv / privd-pubc / ch
-- (A) op.CredByU0 (svc org)
-  - args: credId docCl docPk pubv pubc props
-  - DB :
-    - si déjà existant même credId ch: rien
-    - sinon new Doc: credId docCl docPk pubv pubc props ch ttl
-- (B) sf.CredByU0
-  - args: userId shK commentk cred
-    - credk: `{svc org docCl docPk privs privd}` crypté K base 64
-  - Safe Box de userId, entrée credId: credk commentk flag=1 => pubv pubc props
-- (B) op.CredByU (svc org)
-  - args: credId docCl docPk pubv pubc props
-  - DB :
-    - si déjà existant même credId docCl docPk pubv pubc: rien
-    - sinon new Doc: credId docCl docPk pubv pubc props
-- (C) sf.CredByU0
-  - args: userId shk
-  - Safe Box de userId, entrée credId: efface flag pubv pubc
-
-A la reprise on trouve une entrée avec flag=1 : 
-- c'était une interruption entre (A) et (B)
-- on reprend à B
 
 ## L'objet `AuthRecord` attaché à toute demande d'opération
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
@@ -969,3 +876,20 @@ La liste `creds` est générée depuis le _template_ en remplaçant dans celui-c
 Il peut être déclenché soit par U soit par le tiers.
 
 Il faut que `etcU` et `etcT` existent et soit égaux, preuve que U et le tiers ont chacun vu la solution et en sont d'accord.
+
+# Annexe : concept _d'Office de confiance_
+Supposons qu'il existe des _groupes_ où chaque groupe est un document dont les membres du groupes détiennent un credential.
+
+Le groupe peut héberger tout un ensemble de documents _dossiers_ confidentiels cryptés par un jeu de clés AES K1, K2 ...
+- un membre B peut se faire transmettre certaines de ces clés par un membre A qui les détient, la recevoir cryptée par privA/pubB, la décrypter dans sa session, la ré-encrypter par sa clé K et la stocker dans son credential.
+- les membres du groupe sont en mesure de se communiquer entre eux ces clés sans que jamais elles ne transitent en clair ni sur le réseau, ni dans la DB de l'organisation.
+
+De nombreux _dossiers_ peuvent ainsi être cryptés par ces clés et ne peuvent être décryptés que par les membres du groupe (du moins ceux ayant reçu les clés correspondantes).
+
+Que se passe-t-il si,
+- tous les membres disparaissent,
+- ou s'il n'existe plus que un ou quelques membres en sommeil profond ?
+
+> Les dossiers sont définitivement perdus, en réalité stockés cryptés mais dont plus personne n'a les clé de décryptage.
+
+Ce peut être le fonctionnement souhaité mais on peut aussi souhaiter disposer d'un _stockage de sécurité_ où placer ces clés et pouvoir les ressortir pour les confier à un utilisateur 
