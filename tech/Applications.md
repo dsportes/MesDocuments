@@ -616,12 +616,12 @@ La procédure, typiquement par utilisation d'un _form_, a obligatoirement une ph
 - générer `credId privs/pubv privd/pubc`,
 - saisir d'une manière ou d'une autre `name`,
 - crypter par sa clé K `credK : { svc, org, docCl, docPk, privs privd }` et `nameK`,
-- calculer `signCR` la signature de `credId` par la clé de signature de U.
+- calculer `signId` la signature de `credId` par la clé de signature de U.
 
 L'opération de création effectue:
 - **Opération (A) phase 2 (ACID)** : l'enregistrement du document `{ credId, docCl, docPk, pubv, pubc, props, ttl }` avec un `ttl` très court.
 - **en phase 3 (après commit)** : lancement immédiat d'une autre opération (B) qui:
-  - enregistre le credential dans la _Safe Box_ de l'utilisateur par l'opération `sf.CredCreate` dans l'entrée correspondante `{ credId, credK, nameK, signCR }`. La signature de `credId` en `signCR` est vérifiée par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
+  - enregistre le credential dans la _Safe Box_ de l'utilisateur par l'opération `sf.CredCreate` dans l'entrée correspondante `{ credId, credK, nameK, signId }`. La signature de `credId` en `signId` est vérifiée par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
   - recalcule ou met à 0 le `maxLife` du _document_.
 
 ### Autres opérations de la _Safe Box_
