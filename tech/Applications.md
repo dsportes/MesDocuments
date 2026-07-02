@@ -589,27 +589,30 @@ Les données d'un credential identifié `credId` sont regroupées dans un objet 
 - soit _dissocié_ dans un document séparé de classe `Credential`:
   - sa `pk` est le `credId` du credential.
   - le couple `docCl / docPk` du document du credential y est indexé.
-  - le contenu du document est l'objet `cred`.
+  - le contenu du document est l'objet `cred`: `{ credId, pubv, pubc, props, maxLife }`.
 
 **Propriétés du _document_:**
 - (`svc org` virtuellement).
 - `credId` : identifiant universel du document.
 - `docCl docPk`: identifiant _du_ document dont il gère les pouvoirs.
-- `pubv pubc`: clés publiques de vérification et cryptage du _credential_.
-- `props`: objet dont les valeurs règlent le détail du pouvoir de l'utilisateur U.
-- `maxLife`: date-heure (_epoch_ en secondes) au delà de laquelle le credential est considéré comme _disparu_:
-  - pendant la phase A de création maxLife est une date-heure de quelques secondes plus tardive que la date-heure de l'opération de création.
-  - à la phase B de création maxLife est mise à la valeur définie par props.limit (ou 0).
-  - une phase de création échouant à se conclure durant ce court délai mettrait le credential en création à l'état _disparu_.
+- `cred`: `{ credId, pubv, pubc, props, maxLife }`.
+
+`pubv pubc`: clés publiques de vérification et cryptage du _credential_.
+
+`props`: objet dont les valeurs règlent le détail du pouvoir de l'utilisateur U.
+
+`maxLife`: date-heure (_epoch_ en secondes) au delà de laquelle le credential est considéré comme _disparu_:
+- pendant la phase A de création maxLife est une date-heure de quelques secondes plus tardive que la date-heure de l'opération de création.
+- à la phase B de création maxLife est mise à la valeur définie par props.limit (ou 0).
+- une phase de création échouant à se conclure durant ce court délai mettrait le credential en création à l'état _disparu_.
 
 **Propriétés de son entrée en _Safe Box_:**
-Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec les propriétés suivantes:
-- (`userId` virtuellement).
-- `svc org`
-- `credId`
-- `docCl docPk`
-- `privsK privdK`: clés _privées_ de signature / décryptage du credential cryptées par la clé K en base 64.
-- `nameK`: _identifiant humainement lisible _ donné par U correspondant à `docPk`.
+Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec la valeur `[nameK, credK]`:
+- `credK`: base 64 de la sérialisation cryptée par la clé K de:
+  - `svc org`
+  - `docCl docPk`
+  - `privs privd`: clés _privées_ de signature / décryptage du credential.
+- `nameK`: _identifiant humainement lisible _ donné par U correspondant à `docPk` (crypté par K en base 64).
 
 ### Création d'un credential
 La procédure, typiquement par utilisation d'un _form_, a obligatoirement une phase où une session de l'utilisateur U a pu:
@@ -619,7 +622,7 @@ La procédure, typiquement par utilisation d'un _form_, a obligatoirement une ph
 - calculer `signId` la signature de `credId` par la clé de signature de U.
 
 L'opération de création effectue:
-- **Opération (A) phase 2 (ACID)** : l'enregistrement du document `{ credId, docCl, docPk, pubv, pubc, props, ttl }` avec un `ttl` très court.
+- **Opération (A) phase 2 (ACID)** : l'enregistrement du document `{ credId, docCl, docPk, pubv, pubc, props, maxLife }` avec un `maxLife` très court.
 - **en phase 3 (après commit)** : lancement immédiat d'une autre opération (B) qui:
   - enregistre le credential dans la _Safe Box_ de l'utilisateur par l'opération `sf.CredCreate` dans l'entrée correspondante `{ credId, credK, nameK, signId }`. La signature de `credId` en `signId` est vérifiée par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
   - recalcule ou met à 0 le `maxLife` du _document_.
@@ -838,6 +841,7 @@ Il est hébergé dans la DB spécifique de `svc / org`.
 - `status`: de 1 à 4.
 - `etcU`: objet de structure spécifique du type. Saisi par l'utilisateur.
 - `etcB`: objet de structure spécifique du type. Saisi par le tiers.
+- `opts`: objet de structure spécifique du type destiné à stocker toutes données qui seront requises lors de la validation et qui ne peuvent être générées / calculées que au cours d'une session de U (ou de T).
 - `msgU`: message écrit par U.
 - `msgT`: message écrit par le tiers.
 - `creds`: liste des credentials permettant à un tiers d'agir quand il possède l'un de ceux-là: `[ docCl1/docPk1 ... ]`.
