@@ -607,12 +607,13 @@ Les données d'un credential identifié `credId` sont regroupées dans un objet 
 - une phase de création échouant à se conclure durant ce court délai mettrait le credential en création à l'état _disparu_.
 
 **Propriétés de son entrée en _Safe Box_:**
-Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec la valeur `[nameK, credK]`:
+Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec la valeur `[nameK, credK, toCheck]`:
 - `credK`: base 64 de la sérialisation cryptée par la clé K de:
   - `svc org`
   - `docCl docPk`
   - `privs privd`: clés _privées_ de signature / décryptage du credential.
 - `nameK`: _identifiant humainement lisible _ donné par U correspondant à `docPk` (crypté par K en base 64).
+- `toCheck`: si _true_ indique que l'existence du credential est incertaine et à vérifier.
 
 ### Création d'un credential
 La procédure, typiquement par utilisation d'un _form_, a obligatoirement une phase où une session de l'utilisateur U a pu:
@@ -622,19 +623,45 @@ La procédure, typiquement par utilisation d'un _form_, a obligatoirement une ph
 - calculer `signId` la signature de `credId` par la clé de signature de U.
 
 L'opération de création effectue:
-- **Opération (A) phase 2 (ACID)** : l'enregistrement du document `{ credId, docCl, docPk, pubv, pubc, props, maxLife }` avec un `maxLife` très court.
-- **en phase 3 (après commit)** : lancement immédiat d'une autre opération (B) qui:
-  - enregistre le credential dans la _Safe Box_ de l'utilisateur par l'opération `sf.CredCreate` dans l'entrée correspondante `{ credId, credK, nameK, signId }`. La signature de `credId` en `signId` est vérifiée par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
-  - recalcule ou met à 0 le `maxLife` du _document_.
+- **Opération (A) phase 2 (ACID)**: 
+  - enregistrement du credential dans la _Safe Box_ de l'utilisateur par l'opération `sf.CredCreate` dans l'entrée correspondante `{ credId, credK, nameK, signId }`. 
+    - la signature de `credId` en `signId` est vérifiée par l'opération afin d'éviter des créations par saturation (du moins pouvoir les ignorer).
+    - `toCheck` est mis à _true_, l'existence du credential étant indéterminée (à vérifier).
+  - enregistrement du document `{ credId, docCl, docPk, pubv, pubc, props, maxLife }`.
+- **en phase 3 (après commit)**: 
+  - envoi de la requête `sf.CredChecked` avec les arguments `{ credId, signId }` qui enlève le booléen `toCheck`.
+
+#### Gestion de l'incertitude d'existence du credential
+L'opération de création d'un credential peut, selon le moment où se produit un incident, laisser le credential en état _incertain / toCheck_:
+- (A) l'enregistrement dans la _Safe Box_ réussit mais la transaction tombe en exception juste après AVANT commit de l'enregistrement du _document_.
+- (B) l'enregistrement dans la _Safe Box_ réussit, l'enregistrement du _document_ est validée par un _commit_ mais l'opération a un incident avant d'avoir pu émettre `sf.CredChecked`,
+
+> A tout instant il peut donc exister en _Safe Box_ des credentials indécis marqué `toCheck`: peut-être valide, peut-être non.
+
+Lorsqu'une session de l'utilisateur se lance ou rafraîchit sa _Safe Box_ en mémoire, elle peut lire des credentials `toCheck`. Pour chacun elle lit le document correspondant,
+- s'il existe elle invoque `sf.CredChecked`, l'indécision est levée,
+- s'il n'existe pas elle invoque `sf.AutoRevokeCreds`.
+
+En conséquence l'indécision peut perdurer un temps significatif mais,
+- elle n'est indécision que pour une session de l'utilisateur, pas pour les opérations qui interprètent le _vrai_ état du credential,
+- tant que l'utilisateur n'a pas de session active, cette indécision n'a pas de conséquence pour lui (puisqu'il est inactif),
+- dès que sa session est activée, l'indécision est levée.
 
 ### Autres opérations de la _Safe Box_
 Le `name` (texte humainement compréhensible figurant docPk), crypté par la clé K de l'utilisateur peut être mis à jour.
 
-L'utilisateur peut aussi détruire un de ses credentials.
+**L'utilisateur peut révoquer n'importe lequel de ses credentials,** en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
 
 > Toutes les propriétés d'un credential sont immuables SAUF, 
 > - en _Safe Box_ la propriété `name` le sont dès passage à l'état valide,
 > - dans le _document_ la propriété `props` qui peut être mise à jour par des opérations.
+
+### Credentials _obsolètes_ en _Safe Box_
+Après création des opérations peuvent changer la propriété `props.limit`: ceci équivaut à une **suppression** du credential (_document_) quand la limite est dans le passé.
+
+En conséquence dans une session d'application, un credential en _Safe Box_ peut exister alors que la copie _document_ a (définitivement) disparu.
+- une exception sera levée en cas de tentative d'usage d'un credential obsolète,
+- l'utilisateur peut disposer d'une copie synchronisée de ses credentials et recevoir ainsi des notifications en cas d'évolution de _props_ donc aussi de la disparition du credential.
 
 ### Usage de `props` d'un credential
 `props` ne peut être mis à jour **QUE** par une opération qui a été authentifiée et autorisée à le faire:
@@ -663,15 +690,6 @@ L'utilisateur peut aussi détruire un de ses credentials.
 Une propriété `secretX` peut contenir n'importe quelle valeur qui a été cryptée par la clé AES générée depuis `privd_T / pubc_U` pour une opération sous authentification d'un tiers T (ou U lui-même).
 
 Ainsi les sessions de U bénéficient pour chaque _document_ sous contrôle d'un credential, de propriétés qui ne sont déchiffrables QUE par lui-même et restent _opaques_ aux opérations.
-
-### Credentials _obsolètes_
-A la création les copies _Safe Box_ et _document_ sont _normalement_ synchrones mais, la copie _Safe Box_ est écrite **après** la copie _document_: si un incident intervient entre ces deux étapes, le document s'auto-détruit très vite (sa `maxLife` est très proche de la date-heure de création) et en conséquence il reste en _Safe Box_ une copie _de facto déjà obsolète_ (et inutilisable).
-
-Après création des opérations peuvent changer la propriété `props.limit`: ceci équivaut à une **suppression** du credential (_document_)quand la limite est dans le passé.
-
-En conséquence dans une session d'application, un credential en _Safe Box_ peut exister alors que la copie _document_ a (définitivement) disparu.
-
-> L'utilisateur peut révoquer n'importe lequel de ses credentials, en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
 
 ## L'objet `AuthRecord` attaché à toute demande d'opération
 Toute opération requérant la présence d'au moins un credential est sollicitée en passant en arguments un objet de classe `AuthRecord`, construit par l'application et ayant les propriétés suivantes:
