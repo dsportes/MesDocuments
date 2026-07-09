@@ -345,8 +345,8 @@ Une classe virtuelle **multivaluée** est déclarée avec la liste énumérée d
 - `Section` : classe multivaluée, a une liste fermée de _pk_ `roman histoire science`.
 
 Les `pk` sont citées par une liste exhaustive de _codes_, qui de ce fait _peuvent_ le cas échéant avoir une traduction en session d'application. La liste est donnée:
-- **soit directement dans la déclaration de la classe virtuelle**: elle est très stable, courte, modifiable par redéploiement du service par les opérateurs qui l'assure.
-- **soit par la valeur d'un SINGLETON de configuration**: la liste peut être plus longue et peut être mise à jour sans interrompre le service et le redéployer.
+- **soit directement dans la déclaration de la classe virtuelle**: elle est très stable, courte, modifiable par redéploiement du service par les opérateurs qui l'assure. La propriété `enum` du descriptif est une liste de valeurs.
+- **soit par la valeur d'un SINGLETON de configuration**: la liste peut être plus longue et peut être mise à jour sans interrompre le service et le redéployer. La propriété `extenum` du descriptif donne le nom du _singleton_.
 
 Dans le schema statique qui décrit les classes de documents, si le nom du SINGLETON de configuration se termine par `_`, le code de l'organisation `org` de l'opération est ajouté à la fin pour donner le nom effectif du SINGLETON.
 
