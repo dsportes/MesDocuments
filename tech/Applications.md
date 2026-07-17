@@ -717,7 +717,7 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 La classe du document peut être _virtuelle_.
 
 Les utilisateurs détenteurs d'un credential d'un document `docCl docPk` forment de facto un _groupe_ dont les membres peuvent se connaître les uns les autres typiquement par des propriétés comme,
-- `props.aboutU` que chacun a dans son credential et qui peut être décryptée par les autres,
+- `props.trig` que chacun a dans son credential et qui peut être décryptée par les autres,
 - par les autres propriétés de `props` dépendantes de la classe `docCl`.
 
 > Ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
