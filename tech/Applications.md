@@ -9,7 +9,7 @@ Le fonctionnement d'une **application réactive** fait intervenir plusieurs él�
 
 ### Les "applications"
 Les utilisateurs peuvent exécuter une **application** sur un de leurs _appareils / terminaux_ munis d'un moyen de communication avec un humain (écran, clavier, souris ...). Selon la variante technique choisie, un utilisateur lance une application portant un nom (comme `monAppli`):
-- soit dans un browser _en ouvrant la page Web_ de l'application: l'URL désigne où le logiciel de l'application est stocké.
+- soit dans un browser _en ouvrant la page Web_ de l'application: l'URL définit où le logiciel de l'application est stocké.
 - soit _en l'installant_ sur un de ses appareils depuis un _magasin d'applications_ puis en la lançant.
 
 > Sur un terminal donné, l'application `monAppli` est ou n'est pas en exécution, il n'est pas possible d'en lancer plusieurs simultanément.
@@ -17,8 +17,9 @@ Les utilisateurs peuvent exécuter une **application** sur un de leurs _appareil
 ### Les "services" de traitement des données
 Un **service**:
 - porte un nom qui qualifie synthétiquement son _objet / fonctionnalité_.
-- il supporte plusieurs **opérations**: il correspond à un logiciel qui peut être déployé par un ou plusieurs _opérateurs_.
-- les opérations sont demandées par une application en citant l'URL qu'un opérateur a utilisée pour déployer le service. Une opération,
+- il supporte plusieurs **opérations**: il correspond à un logiciel qui peut être déployé sur un ou plusieurs **sites** gérés par un ou des _opérateurs_.
+  - un _site_ est identifié par un code auquel correspondre une URL.
+- les opérations sont demandées par une application en citant l'URL du site est déployé le service. Une opération,
   - reçoit en entrée des paramètres, 
   - effectue le traitement demandé, 
   - retourne un résultat qui en général va influer sur l'affichage de l'application l'ayant sollicitée.
@@ -38,7 +39,7 @@ Si logiquement ceci est perçu comme tel vu de l'extérieur, le scénario _techn
 > UNE **application** donnée, par exemple `monAppli`, peut faire appel à plusieurs **services**, par exemple `assocs` et `rando`. Une application qui ne fait appel à aucun service a un comportement de _calculette_ et n'utilise aucune donnée externe.
 
 ### La "base de donnée d'un service", sa partition par "organisation"
-En première approche un **service** déployé (`rando` par exemple) a **SA** base de données (`DB-A` par exemple): deux services différents ne partagent pas une même base.
+En première approche un **service** déployé (`rando` par exemple) a **SA** base de données (`DB-A` par exemple). Des services différents peuvent se partager la base du site.
 
 La base de données est **partitionnée** par **organisation**:
 - Les données relatives à une organisation `amis94` sont totalement disjointes de celles de l'organisation `balad59` mais la structure des données est unique.
@@ -46,7 +47,10 @@ La base de données est **partitionnée** par **organisation**:
 
 > Ce dispositif _multi-tenant_ rend possible d'ajouter une nouvelle organisation sans interruption des services (même ceux en cours d'exécution).
 
-Toutefois, ce mécanisme peut conduire à avoir une base de données trop volumineuse quand un grand nombre d'organisations sont supportées. Pour éviter ce problème, un **service** peut accéder à plusieurs bases de données, chaque organisation étant _hébergée_ dans une de ces bases (et une seule).
+Toutefois, ce mécanisme peut conduire à avoir une base de données trop volumineuse quand un grand nombre d'organisations sont supportées. Pour éviter ce problème, un **service** peut disposer de bases annexes, **chacune dédiée à une seule organisation**.
+- ceci est déclaré dans la configuration logicielle de déploiement.
+
+> Ajouter une nouvelle organisation ne demande pas de redéployer le site, SAUF s'il a été décidé de lui attribuer une base propriétaire (ce qui nécessite de déployer aussi cette base).
 
 > Vu de l'extérieur c'est _comme si_ il n'y avait qu'une base unique et même c'est _comme si_ celle-ci était dédiée à l'organisation spécifiée en paramètre de chaque opération du service.
 
@@ -61,19 +65,19 @@ Un _storage_ a une structure qui s'apparente à un _file-system_.
 
 Le _storage_ est également partitionné par _organisation_.
 
-Comme pour une base de données, au cas où le volume l'exigerait, plusieurs _storage_ peuvent exister, chacun avec sa propre technologie le cas échéant.
+Comme pour une base de données, au cas où le volume l'exigerait, des _storage_ abnnexe propriété chacun d'une seule organisation peuvent exister, chacun avec sa propre technologie le cas échéant.
 
-> Un _storage_ n'est pas non plus partagé par plusieurs _services_.
+> Un _storage_ peut aussi être partagé par plusieurs _services_.
 
 > Un storage permet de mémoriser des volumes considérables de données,
->- peu ou pas mises à jour après stockage,
+>- ne subissant que peu ou pas de mises à jour après stockage initial,
 >- dont le contenu est en général _opaque_ pour les services (mais ce n'est pas obligatoire),
 >- adapté à l'archivage de données de _legacy_.
 
 ### Les "Utilisateurs" et leurs _pouvoirs / credentials_ 
 Les **utilisateurs** sont identifiés par un identifiant aléatoire et anonyme, sans référence avec des identifiants personnels dans la _vraie_ vie.
 
-Depuis un appareil quelconque un utilisateur peut lancer une application dès lors qu'il en connaît l'URL. Celle-ci peut invoquer des **services** et leurs opérations MAIS toute opération exige en général que l'utilisateur exhibe un ou des _pouvoirs_ appropriés pour l'opération demandée et ses paramètres.
+Depuis un appareil quelconque un utilisateur peut lancer une application dès lors qu'il en connaît l'URL. Celle-ci peut invoquer des **services** et leurs opérations MAIS une opération exige en général que l'utilisateur exhibe un ou des _pouvoirs_ appropriés pour l'opération demandée et ses paramètres.
 
 Par exemple une opération d'accès aux données d'un `adhérent` identifié `abcd` va exiger que l'application communique à l'opération un _jeton_ qui prouve que l'utilisateur dispose du pouvoir d'accéder aux données de cet adhérent. Le _pouvoir_ requis peut être différent selon que l'opération effectue une lecture ou une mise à jour de l'adhérent.
 
@@ -88,23 +92,23 @@ Ce mécanisme détaillé par ailleurs permet,
 ### _Safe Box_ d'un utilisateur
 Chaque _pouvoir_ est un texte long, comportant des données d'apparence aléatoire, bref impossibles à mémoriser (et à inventer par _force brute_). 
 
-L'utilisateur pourrait certes disposer d'un fichier personnel où il les rangerait mais la sécurité et l'accès depuis plusieurs terminaux à ce fichier exposerait ces données de sécurité _critiques_ aux pertes et aux vols.
+L'utilisateur pourrait certes disposer d'un fichier personnel où il les rangerait mais la sécurité et l'accès depuis plusieurs terminaux à ce fichier exposerait ses données de sécurité _critiques_ aux pertes et aux vols.
 
 Chaque utilisateur dispose à cet effet d'une _Safe Box_ personnelle où ses pouvoirs sont rangés, cryptés et sécurisés. 
 
 La _Safe Box_ d'un utilisateur a pour identifiant celui de l'utilisateur (ou à  l'inverse un utilisateur est identifié par le numéro de sa Safe Box). Il comporte plusieurs _rubriques_:
 - son **entête** qui détient les éléments cryptographiques techniques nécessaires à son fonctionnement.
 - la **liste de ses pouvoirs**.
-- une **liste de terminaux certifiés de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
-- une **liste de préférences** de comportement et d'affichage de son choix afin de retrouver en lançant une nouvelle session, l'organisation de l'écran qu'il souhaite, les options de son choix, sa langue de travail, etc.
-- une **liste des profils de sessions favorites**, un profil ouvrant une session avec une liste de pouvoirs réduite à ceux requis pour couvrir un but spécifique. 
+- sa **liste de terminaux certifiés de confiance**, c'est à dire des terminaux d'où il pourra s'identifier par un code PIN plus simple que son identification _forte_ et sur lesquels chaque application pourra laisser des _documents en mémoire cache_ locale cryptée permettant un usage en _mode avion_.
+- sa **liste de préférences** de comportement et d'affichage de son choix afin de retrouver en lançant une nouvelle session, l'organisation de l'écran qu'il souhaite, les options de son choix, sa langue de travail, etc.
+- la **liste de ses profils de sessions favorites**, un profil ouvrant une session avec une liste de pouvoirs réduite à ceux requis pour couvrir un but spécifique. 
 
-#### Dépôts des Safe Box: _standard_ ou _opérateur spécifique_
+#### Dépôts des Safe Box: _standard_ ou _site spécifique_
 Un **dépôt _standard_** est géré: tout utilisateur peut en disposer pour y déposer sa Safe Box.
 
-Mais les utilisateurs peuvent préférer confier leurs données de sécurité à un _opérateur_ en qui ils ont confiance (voire être eux-mêmes ou pour un groupe d'entre eux leur propre opérateur). 
+Mais les utilisateurs peuvent préférer confier leurs données de sécurité à un _site_ en qui ils ont confiance (voire être eux-mêmes ou pour un groupe d'entre eux leur propre gestionnaire de ce site). 
 
-Chaque utilisateur (ou groupes d'utilisateurs) peut déployer son propre dépôt de _Safe Box_ par exemple dans une base de données MySQL d'un site Web de son choix (et sous son entière responsabilité d'administration). Un exemple d'un script PHP est fourni: n'importe qui peut lire le texte et s'assurer de sa non nocivité. Mais l'opérateur choisi peut avoir le sien
+Chaque utilisateur (ou groupes d'utilisateurs) peut déployer son propre dépôt de _Safe Box_ par exemple dans une base de données MySQL d'un site Web de son choix (et sous son entière responsabilité d'administration). Un exemple d'un script PHP est fourni: n'importe qui peut lire le texte et s'assurer de sa non nocivité. Mais chaque site spécifique peut avoir le sien
 
 Des moyens sont données pour basculer du dépôt _standard_ vers un _dépôt spécifique_ (et réciproquement), ainsi que pour effectuer des _backup_: l'image d'une _Safe Box_ peut être exportée cryptée par une clé détenue par le seul utilisateur.
 
@@ -156,7 +160,7 @@ Le changement de version est en général automatique mais peut être opéré ma
 
 # Services dans le _cloud_
 
-Les applications en exécution sur leur appareil envoient des requêtes à des **services _cloud_**, chacune consistant à invoquer une opération de consultation et/ou de mise à jour des données de l'application dans la base de données ou le storage de fichiers du service.
+Les applications en exécution sur leur appareil envoient des requêtes aux **services _cloud_**, chacune consistant à invoquer une opération de consultation et/ou de mise à jour des données de l'application dans la base de données ou le storage de fichiers du service.
 
 Un _service_ est techniquement déployé selon des variantes techniques non perceptibles de l'extérieur:
 - **Serveurs permanents**: plusieurs processus sont en exécution en permanence afin de traiter les requêtes qui leur parviennent sur l'URL du pool de processus et ont été routées vers l'un ou l'autre.
@@ -174,11 +178,11 @@ Un _service_ correspond à un logiciel qui a été développé par un **éditeur
 - le service `randos` : proposition de randonnées, inscription, échanges, etc.
 - le service `boutiques` : gestion du catalogue d'une boutique, de son stock, etc.
 
-Un ou des opérateurs de _déploiement_ peuvent installer / _déployer_ ce logiciel sur le _cloud_ et le rendre accessible pour les sollicitations des applications. Un même service logiciel peut avoir par exemple deux _déploiements_ **Rouge** et **Bleu**, 
-- **Rouge** peut proposer `randos` et `discussions`,
-- **Bleu** peut proposer `circuitscourts` et `randos`.
+Un ou des opérateurs de _déploiement_ peuvent installer / _déployer_ ce logiciel sur le _cloud_ et le rendre accessible pour les sollicitations des applications. Un même service logiciel peut être déployé sur deux sites **Rouge** et **Bleu**, 
+- **Rouge** peut proposer les services `randos` et `discussions`,
+- **Bleu** peut proposer les services `circuitscourts` et `randos`.
 
-Les déploiements du logiciel `randos` par **Rouge** et **Bleu** ont chacun leur URL d'accès et peuvent différer en _prix_ et _qualité_ d'usage: temps de réponse, disponibilité, restrictions de volume...
+Les déploiements du logiciel `randos` sur les sites **Rouge** et **Bleu** ont chacun leur URL d'accès et peuvent différer en _prix_ et _qualité_ d'usage: temps de réponse, disponibilité, restrictions de volume...
 
 ## Organisations: services _multi-tenant_
 Un service comme `randos`, peut à la manière de Discord, héberger les applications d'associations de randonneurs distinctes: chaque organisation / _tenant_ dispose de _son_ espace de données propre complètement étanche à celui des autres.
@@ -189,29 +193,26 @@ Les données d'un service d'un opérateur sont stockées dans deux _mémoires pe
 - **UNE base de données** logiquement **strictement partitionnée par organisation**, sans aucun lien ou référence à des données / documents d'une organisation par une autre.
 - **UN _storage_ de fichiers**, comme un directory de fichiers classiques, avec une **racine** par organisation.
 
-> Une organisation peut _migrer_ d'un déploiement à un autre: ce transfert technique des données est génériquement possible, contractuellement c'est une autre affaire.
+> Une organisation peut _migrer_ d'un site à un autre: ce transfert technique des données est génériquement possible, contractuellement c'est une autre affaire.
 
 **Synthèse**
-- un _service_ peut avoir plusieurs _déploiements_, chacun identifié par un code lui-même associé à une URL.
-- une organisation donnée est hébergée pour un service donné par un _déploiement_.
+- un _service_ peut $être déployé sur plusieurs sites, chacun identifié par un code lui-même associé à une URL.
+- une organisation donnée est hébergée pour un service donné sur un des sites.
 
-> En conséquence il y a N organisations hébergées par déploiement d'un service.
+> En conséquence il y a N organisations hébergées par site de déploiement d'un service.
 
 ## Applications / services
 
-> Un service **Master Directory** a dans sa base de données une petite table `ZZSVCOPS` ayant une ligne par _service_ qui donne la liste des déploiements proposant ce service avec l'URL d'accès correspondante.
+> Un service **Master Directory** a quelques tables dans sa base de données: `ZZVALUES ZZUSERS ZZEVENTS` (voir plus avant).
 
-Une **application déployée** dispose dans sa configuration de l'URL d'accès à **Master Directory** ce qui lui permet d'obtenir pour le service `randos` par exemple les URLS pour les déploiements **Rouge** ou **Bleu**.
-
+### Confiance
 Un utilisateur _terminal_ a les moyens techniques de vérifier que l'application déployée qu'il entend utiliser,
 - correspond bien au logiciel _officiel_ (et non pirate) mis en ligne en _source_ par son _éditeur_: sa version a pu être certifiée par une autorité de sécurité indépendante.
-- accède bien aux _opérateurs officiels_ prévus et non à des sites pirates.
+- accède bien aux _sites officiels_ prévus et non à des sites pirates.
 
 > Il est possible d'accorder sa confiance à une application déployée d'un éditeur la rendant accessible en _open source_ parce qu'il est possible à une entité de certification externe à l'éditeur de vérifier la conformité de ses déploiements.
 
 ## Une application terminale peut accéder à plus d'une organisation
-> La table `ZZORGS` du _Master Directory_ dispose d'une ligne par _organisation_ donnant _pour chaque service_ le code du déploiement choisi par l'organisation.
-
 Dans le cas de l'application `randos`, un utilisateur peut être membre de plus d'une association de randonneurs: une pour ses randonnées près de chez lui, une autre pour les randonnées de montagne et une troisième pour les treks lointains. Depuis la même application il peut basculer d'une organisation à une autre (le cas échéant avoir des vues les globalisant).
 
 Un gestionnaire de boutiques peut par exemple gérer trois boutiques différentes (trois organisations) avec des rôles différents pour chacune.
@@ -283,18 +284,22 @@ Quand un ou des documents évoluent par exécution d'une opération, celle-ci re
 
 > Chaque application terminale est en conséquence susceptible de s'abonner éventuellement auprès de plusieurs services, y compris si toutes les organisations de son domaine d'intérêt sont gérées par des opérateurs différents.
 
-### SINGLETONS de configuration
-Un SINGLETON de configuration d'un _déploiement_ est une table à deux colonnes `key / value`:
+### `SINGLETONS` de configuration d'un site
+Chaque site dispose d'une table `SINGLETONS` à deux colonnes `key / value`:
 - `key`: code définissant l'item de configuration.
 - `value`: un texte JSON.
 
-Certains SINGLETONS sont,
-- chargés à l'initialisation: les requêtes parvenant à cette phase sont le cas échéant _temporisées_ jusqu'à la fin du chargement.
-- rafraîchis quand ils sont trop vieux mais en tâche de fond: les requêtes n'attendent pas et travaillent avec une ancienne version le cas échéant.
+Les `SINGLETONS` donnent typiquement des listes d'énumérations qui,
+- ne sont pas assez stables pour être inscrites en dur dans le logiciel,
+- peuvent avoir des valeurs différentes selon les sites, voire les organisations qui les référencent.
+- `key` est le code de l'énumération.
+- `value` est un JSON de la forme d'une liste de strings: `["val1", "val2" ...]`
 
-Ils peuvent donc être _mis en service_ sans interruption du service, mais avec un certain délai de prise en compte. Même un grand débit de requêtes ne souffrent pas de ce délai.
-
-Les autres sont chargés sur demande d'une opération et conservés en _cache_, n'étant rechargés que quand leur version est trop ancienne.
+Chaque item de `SINGLETONS` est obtenu de la base du site sur demande:
+- sa valeur est conservée dans une mémoire cache.
+- la valeur est rafraîchie quand elle est trop ancienne.
+- ils peuvent donc être _mis en service_ sans interruption du service, mais avec un certain délai de prise en compte tout en supportant une forte sollicitation d'accès.
+- les applications disposent d'une opération d'accès à ces singletons / énumérations.
 
 ### Documents d'une organisation
 Pour un _service déployé_ et pour une _organisation_ donnée les documents sont regroupés par _classes_ :
@@ -303,11 +308,15 @@ Pour un _service déployé_ et pour une _organisation_ donnée les documents son
   - `pk`  peut être, soit directement ce _path_, soit son hash.
   - _exemple_: classe `Auteur` avec un document par auteur indiquant quelle `Section` du comité de rédaction le supervise.
 
-Les _documents_ ont un _path universel_ `svc / org / docCl / docPk` où,
-- `svc` est le code du service,
+Les _documents_ ont un _path universel_ `org / svc$docCl / docPk` où,
 - `org` celui de l'organisation,
-- `docCl` est le code de la classe des documents,
+- `svc$docCl` : c'est le nom _qualifié_ du document où le code du service `svc` précède `docCl` le code de la classe des documents,
 - `docPk` est la _primary key_ identifiante du document.
+
+#### Organisations _réelles_ versus  _fictive_ `ADMIN`
+Des documents attachés à un _site_, NON dépendants d'une organisation, ont pour organisation fictive `ADMIN` et pas de code org avec pour path `ADMIN$docCl / docPk`.
+- par exemple `ADMIN$Status / 1` donne l'état de disponibilité **du déploiement** _ouvert / fermé_ avec éventuellement un message d'information de l'administrateur technique, DU _site_, sans distinction d'organisation.
+- un document standard `org1/RANDOS$Status/1` donne l'état de disponibilité **du déploiement pour l'organisation `org1`** _ouvert, lecture seulement, fermé_ et éventuellement un message d'information de l'administrateur technique.,
 
 > Sachant dans quel _déploiement_ une organisation est hébergée pour un service donné, au couple svc / org il correspond une URL localisant ses documents.
 
@@ -326,23 +335,15 @@ Toutefois il est possible d'obtenir un document de version moins récente, bref 
 - ceci évite des accès inutiles en utilisant intensivement le _cache_,
 - mais ceci interdit de mettre à jour le document ainsi lu.
 
-Par exemple la classe Status qui renseigne sur la disponibilité du service pour une organisation permet dans les opérations même à très haut débit de _vérifier_ le status à condition d'accepter un léger différé dans la fraîcheur de cette information (ce qui est le cas).
+#### Classes _virtuelles / réelles, _multi-documents / singleton_
+Une classe _virtuelle_ n'a pas de document, ses / son instance ne sont connues que par leur `pk`:
+- une classe virtuelle **singleton** n'a pour convention qu'un seul document de _primary key_ `1`.
+  - `CoDir/1` : un singleton représentant le _comité de direction_.
+  - `Redaction/1` : un singleton représentant le _comité de rédaction_.
+- on peut avoir des _pouvoirs_ associés à des documents virtuels, par exemple un _pouvoir_ de _Comité de Direction_ (attaché au document virtuel `CoDir/1`) sans pour autant qu'il existe un _vrai_ document `CoDir/1` ayant des données.
 
-#### Pour un _service déployé_, l'organisation _abstraite_ `A`
-Par convention elle détient des documents qui ne sont pas spécifiques d'une organisation mais sont communs à toutes. Par exemple:
-- `A/$Status/1`: indique l'état de disponibilité **du déploiement** _ouvert / fermé_ avec éventuellement un message d'information de l'administrateur technique.
-- `org/$Status/1` indique l'état de disponibilité **pour l'organisation `org`** _ouvert, lecture seulement, fermé_ et éventuellement un message d'information de l'administrateur technique.
-
-### Classes _virtuelles_
-**Elles n'ont pas de _contenu_** et peuvent être des singletons ou non. Elles définissent un espace de noms `docCl/docPk` d'une organisation.
-- elles sont déclarées comme les classes réelles dans le schéma de l'application avec un nom, le flag `virtual` et ou non le flag `singleton`.
-
-Une classe virtuelle **singleton** n'a pour convention qu'une _primary key_ de `1`.
-- `CoDir/1` : un singleton (virtuel) représentant le _comité de direction_.
-- `Redaction/1` : un singleton (virtuel) représentant le _comité de rédaction_.
-
-Une classe virtuelle **multivaluée** est déclarée avec la liste énumérée de ses _primary keys_:
-- `Section` : classe multivaluée, a une liste fermée de _pk_ `roman histoire science`.
+Une classe virtuelle **multi-documents** est déclarée avec la liste énumérée de ses _primary keys_:
+- `Section` : classe multi-document, a une liste fermée de _pk_ `roman histoire science`.
 
 Les `pk` sont citées par une liste exhaustive de _codes_, qui de ce fait _peuvent_ le cas échéant avoir une traduction en session d'application. La liste est donnée:
 - **soit directement dans la déclaration de la classe virtuelle**: elle est très stable, courte, modifiable par redéploiement du service par les opérateurs qui l'assure. La propriété `enum` du descriptif est une liste de valeurs.
@@ -368,69 +369,63 @@ Le Storage permet de disposer d'un volume pratiquement 10 fois plus important à
 # Services, déploiements, organisations, opérations, credentials
 ### Service
 Définit une liste d'opérations qui peuvent être invoquées avec leurs signatures.
-- code `SVC` : majuscule + 2 à 7 majuscules / chiffres : `AS2`
+- code `svc` : majuscule + 2 à 7 majuscules / chiffres : `AS2` `RANDOS`
 
-### Déploiement par un Opérateur
-Un opérateur fournit des prestations de calcul / stockage de données pour plusieurs services.
-- code du déploiement `$OP`: $ + 2 à 7 majuscules / chiffres : `$RED1`
-- **chaque service supporté a son URL**.
-- l'URL d'un `service déployé` peut changer.
+### Site déployé par un opérateur
+- code d'un site `red`: 3 à 8 lettres minuscules (a-z) ou chiffres (commençant par une lettre) : `red`
+- l'URL d'un site peut changer.
 
 ### Organisation
-Une organisation dispose de ses propres données regroupées par **service**.
+Une organisation dispose de ses propres données.
 - son code `org`: minuscule + 2 à 15 minuscules / chiffres: `test demo amis94`
-- pour chaque **service** elle a choisi UN **opérateur**. 
-- l'opérateur d'un `organisation service` peut changer.
+- pour chaque **service** les données sont sur un site. 
+- le site d'une organisation pour un service donné peut changer.
 
-Un `service déployé`(une URL) dispose d'un `SINGLETONS` de clé primaire `orgs` donnant _pour chaque organisation_ le couple des codes de la base de données et du storage hébergeant ses données.
-
-    { "demo": ["sqlite_A", "storage_a"], "amis94": [...] }
+> Les données d'une organisation **NE CONTIENNENT PAS** le code de l'organisation: on peut ainsi exporter les données d'une organisation et les ré-importer dans une autre.
 
 ### Opérations standard
-L'identifiant complet d'une opération est le couple _service opération_.
+L'identifiant complet d'une opération est le couple _service$opération_.
 - le code d'une opération est un nom de classe.
-- elle est invoquée par l'URL du `service déployé` avec son **code d'opération** `opName` (relatif à son service).
+- elle est invoquée par l'URL du site où le service est déployé avec en argument son service et son **code d'opération** `opName` relatif à son service.
 
-Un **code organisation** `org` figure en argument de l'opération qui est dédiée à une seule organisation.
-
-### Opérations d'administration d'un service déployé
-Son URL est celle de son `service déployé` avec:
-- son **code d'opération** (relatif à son service) se termine par `$` ce qui permet d'ouvrir la base de données par défaut du service (et non celle associée à l'organisation),
-- le code du déploiement `$OP`.
+Un **code organisation** `org` figure en argument de l'opération qui est dédiée à une seule organisation. Exception: quand il s'agit d'une opération `ADMIN` qui ne porte pas sur une organisation mais sur le site lui-même.
 
 ## Le directory central _MASTER DIRECTORY_
-Il est hébergé dans la base de données d'un déploiement dont l'URL est donnée dans la configuration statique de chaque application.
+Il est hébergé dans la base de données du site hébergeant le service `MASTERDIR`: son URL est donnée dans la configuration statique de chaque application.
 
 Comme pour le store _générique_ des _Safe Box_, il n'y a qu'un seul _MASTER DIRECTORY_ de production.
 
 > Il peut y avoir autant de MASTER DIRECTORY de test que souhaité par les développeurs pouvant ainsi disposer chacun d'environnements totalement privatifs.
 
-### Tables: `ZZSVCOPS ZZORGS ZZUSERS ZZEVENTS`
+### Tables: `ZZVALUES ZZUSERS ZZEVENTS`
 
-#### Table `ZZSVCOPS`
-- `key` : clé primaire, le code d'un service.
-- `v` : _epoch_ en secondes de mise à jour.
-- `value`: un texte JSON donnant pour chaque opérateur son URL:
+#### `ZZVALUES`: table de configuration des services et des organisations.
+Sa structure est `key v value`: elle donne pour chaque `key`, sa `value` (un JSON) changée la dernière fois à la date-heure `v`. 
 
-    {
-    "RANDO" : { 
-      "$RED": { "url": "https://..."}, 
-      "$BLUE": { "url": "https:// ..."}
-    },
-    "ASSOCS": {}
-    }
-
-#### Table `ZZORGS`
-- `key` : clé primaire, le code d'une organisation.
-- `v` : _epoch_ en secondes de mise à jour.
-- `value`: un texte JSON donnant pour chaque service le code de l'opérateur qui l'assure:
+`key = '1'` - chaque entrée correspond au **code d'un site** et donne son **URL**.
 
     {
-      "amis94": { "RANDO": "$BLUE", "ASSOCS": "$RED" },
-      "balad59": { "RANDO": "$BLUE", "ASSOCS": "$RED" },
+        "blue":"http://localhost:8091/",
+        "yellow":"http://localhost:8091/", 
+        "red":"http://localhost:8091"
     }
 
-#### Table `ZZUSERS` 
+`key = '2'` - chaque entrée correspond au **code d'un service** et lui donne un **libellé**.
+
+    {
+      "RANDOS": "Randonnées",
+      "BOUTIQUE": "Sport et santé",
+      "DEMO": "Démonstration"
+    }
+
+`key = 'XXX'` - chaque entrée correspond au **code d'une organisation** et donne pour **chacun des services** auquel elle peut accéder le **code du site** qui en héberge ses sonnées (et assure son traitement).
+
+    amis94 => { "RANDOS": "blue", "BOUTIQUE":"red" }
+    orgidf => { "RANDOS": "yellow" }
+
+Une **application déployée** dispose dans sa configuration de l'URL d'accès au **Master Directory** ce qui lui permet d'obtenir pour une organisation `amis94` l'URL où est déployé son le service `RANDOS` qui détient ses données (sur le site `blue`).
+
+##### Table `ZZUSERS` 
 Une ligne est déclarée pour chaque utilisateur à l'occasion de la création de sa Safe Box:
 - `userId`: clé primaire.
 - `hshk`: hash du Strong Hash de sa clé K, servant à vérifier sur certaines opérations que le demandeur est bien propriétaire de la Safe Box d'ID userId.
@@ -439,7 +434,7 @@ Une ligne est déclarée pour chaque utilisateur à l'occasion de la création d
 - `C` : clé publique de cryptage.
 - `V` : clé publique de vérification de signature.
 - `llq`: dernier trimestre d'accès à la Safe Box.
-- `store`: code de l'opérateur gérant la Safe Box si ce n'est pas l'opérateur générique.
+- `store`: code du site gérant la Safe Box s'il est spécifique.
 
     {
       "qzFuser1...": { "alias": ["Leon27...", ""], "store": ""},
@@ -449,18 +444,23 @@ Une ligne est déclarée pour chaque utilisateur à l'occasion de la création d
 Les objectifs de cette table sont les suivants:
 - fournir le `userId` et le `store` d'un utilisateur depuis un des deux alias qu'il a déclaré.
   - lors du login de l'utilisateur pour lui permettre _d'ouvrir_ sa Safe Box (après avoir fourni sa phrase secrète d'ouverture).
-  - pour un utilisateur _sponsor_ d'obtenir le userId d'un utilisateur dont il connaît un alias.
+  - pour un utilisateur _tiers_ d'obtenir le `userId` d'un utilisateur dont il connaît un alias.
 - fournir aux services les clés publiques de cryptage et de vérification de signature d'un utilisateur.
 - accessoirement, déterminer les utilisateurs inactifs depuis un certain temps et lancer des _garbage collectors_.
 
 #### Table `ZZEVENTS`
 Elle est détaillée plus avant dans ce document.
 
-#### Table `ZZSAFE`
-Pour les utilisateurs dont la _Safe Box_ est hébergée dans le store _générique_ des Safe Box.
-- `userId`: ID du propriétaire de la Safe Box.
+## Stockage des _Safe Box_
+Le stockage générique a une URL déclarée dans la configuration des applications.
+
+Quand un utilisateur a sa _Safe Box_ enregistrée dans un site spécifique, il lui faut citer le code de ce site à la création de son compte / _Safe Box_: ce code étant enregistré dans le _Master Directory_, l'utilisateur n'a pas à le redonner à chaque identification.
+
+### Table `ZZSAFE` du store _générique_ des Safe Box
+Cette table a la structure suivante:
+- `userId`: ID du propriétaire de la Safe Box (clé primaire).
 - `llq` : numéro du dernier trimestre d'accès.
-- `data` : contenu crypté de la Safe Box. Sections: `auth devices, creds profiles prefs`
+- `data` : contenu sérialisé et crypté de _l'objet_ Safe Box. Sections: `auth devices, creds profiles prefs`
 
     {
       "qzFuser1...": { auth:{}, devices:{}, creds:{}, profiles:{}, prefs:{} },
@@ -475,28 +475,55 @@ Pour les utilisateurs dont la _Safe Box_ est hébergée dans le store _génériq
 - L'utilisateur d'alias `Leon27` ouvre l'application **MesRandos** qui se trouve hébergée sous _github.io_ à l'URL `https://jollyapps.github.io/mesrandos`
 - Il saisit son alias `Leon27` :
   - l'application consulte le _Master Directory_ dont l'URL figure dans sa configuration: la réponse est tirée de `ZZUSERS` qui indique que l'alias `Leon27` est bien enregistré et correspond au userId `qsduUs1` dont la _Safe Box_ est hébergée par le _store_ `standard`.
-- L'utilisateur saisit sa phrase secrète: le service _Safe Box standard_ vérifie que cette phrase secrète est bien celle enregistrée pour ce userId et le contenu de la Safe Box est copié dans la session de l'application.
+- L'utilisateur saisit sa phrase secrète: le service _Safe Box standard_ vérifie que cette phrase secrète est bien celle enregistrée pour ce `userId` et le contenu de la Safe Box est copié dans la session de l'application.
 - Dès lors `Leon27` peut utiliser l'application qui dispose de ses droits d'accès dans sa _Safe Box_.
 
 ##### Lancement d'une opération
-L'application _MesRandos_ a besoin de solliciter une opération `op1` du service `RANDO` sachant que l'utilisateur a désigné son organisation `amis94` dans laquelle il a un droit d'accès `Animateur/wxfr`.
+L'application _MesRandos_ a besoin de solliciter une opération `op1` du service `RANDOS` sachant que l'utilisateur a désigné son organisation `amis94` dans laquelle il a un droit d'accès `Animateur/wxfr`.
 - l'application demande au _Master Directory_ l'URL du service déployé correspondant:
-  - Dans `ZZORGS` il obtient que l'organisation `amis94` a son service `RANDO` hébergé dans le déploiement `$BLUE`.
-  - Dans `ZZSVCOPS` il obtient que le service `RANDO` est assuré par le déploiement `$BLUE` à l'URL `rndx.blue.org`.
+  - Depuis `ZZVALUES`, clé `amis94`, il obtient que le service `RANDOS` hébergé par le site `blue`.
+  - Dans `ZZVALUES`, clé `1`, il obtient l'URL site `blue` `rndx.blue.org`.
 - l'application envoie donc sa requête à cette URL.
-- une table locale au service dans base de données _maître_ indique que l'organisation `amis94` est gérée par la base de données `DB-A`.
+- sauf exception, les données sont dans la base par défaut du site `DB-A`. Toutefois la configuration du site a pu indiquer explicitement une base annexe dédiée pour cette organisation.
 - l'opération accède aux données / traitement demandé:
-  - elle a vérifié que la session disposait bien du droit d'accès correspondant identifié `RANDO/amis94/Animateur/wxfr`.
+  - elle a vérifié que la session disposait bien du droit d'accès correspondant identifié `RANDOS/amis94/Animateur/wxfr`.
   - la session a signé un jeton par sa clé de signature et le service a vérifié par la clé de vérification détenue dans DB-A que ce jeton était bien signé.
+
+## Administrateurs
+Un _administrateur_ est un utilisateur standard dont l'ID a été enregistré dans la configuration de déploiement d'un site:
+
+    (1) const MASTERDIRADMINUSERS = new Set(['VpOZWh0Zeh20...'])
+    (2) const ADMINUSERS = new Set(['...k5C1BNi'])
+
+La déclaration (1) authentifie les administrateurs du _Master Directory_: ils peuvent par des formulaires spécifiques gérer / configurer la table `ZZVALUES` du Master Directory, c'est à dire déclarer / modifier la configuration de l'ensemble du système, 
+- les sites et leurs URL,
+- les services et leurs libellés,
+- les organisations et le site traitant chacun des services auxquelles elles ont accès.
+
+La déclaration (2) authentifie les administrateur **DU SITE** qui peuvent:
+- fixer le status d'accès global au site,
+- fixer le status d'accès propre à chaque organisation,
+- attribuer quelques _pouvoirs_ de _management général_ à des utilisateurs leur permettant d'agir par exemple _en tant que Membre du Commité Directeur_ ... mais ils sont aussi en mesure de supprimer ces pouvoirs.
+  - un administrateur peut lister sur un site les _pouvoirs_ attribués aux documents spécialement qualifiés _manager_ (attribuables seulement par un administrateur).
+
+Bref _un administrateur d'un site_ est un responsable du déploiement d'un site et a le pouvoir de nomination de quelques utilisateurs clés à des pouvoirs clés sous contrôle conjoint des responsables du site et des organisations qui y sont hébergées.
+
+> Un administrateur peut ainsi confier la gestion d'une organisation à une autre équipe dans des situations critiques sous contrôle humain d'autorités supérieures.
+
+Lors du contrôle d'authentification à l'entrée d'une opération requérant un droit d'administrateur, le `userId` du requérant est,
+- certifié par vérification de la signature du _challenge_ par usage de la clé publique de vérification de cet utilisateur obtenu de la table `ZZUSERS`,
+- par présence du `userId` dans,
+  - la liste `ADMINUSERS` du déploiement du site.
+  - la liste `MASTERDIRADMINUSERS` pour l'Administrateur du MASTER DIRECTORY.
 
 ## Status
 
-### Status d'un `service opérateur`
-Un Administrateur d'un opérateur peut fermer / ouvrir séparément chacun des services déployés.
+### Status d'un `site`
+Un administrateur d'un site peut fermer / ouvrir séparément chacun des services déployés sur le site.
 
-`A` désigne une _pseudo_ organisation dont les données ont une signification pour toutes les organisations.
+`ADMIN` désigne une _pseudo_ organisation dont les données ont une signification pour toutes les organisations.
 
-Dans la base de données déclarée _de référence_ pour son URL, le document `A/Status/1` donne en JSON:
+Dans la base de données déclarée _de référence_ pour son URL, le document `ADMIN$Status/1` donne en JSON:
 
     { "at":1771588453502,"st":1,"txt":"hello world!" }
 
@@ -504,70 +531,30 @@ Dans la base de données déclarée _de référence_ pour son URL, le document `
 - `st` : état du service. 9: DOWN, 1: UP
 - `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
 
-### Status d'une organisation pour un `service déployé`
-Un Administrateur d'un opérateur peut fermer / ouvrir séparément chaque **organisation** qu'il héberge pour chaque service déployé.
+### Status _d'une organisation_ sur un site
+Un administrateur d'un site peut fermer / ouvrir séparément chaque **organisation** qu'il héberge pour **chaque service**.
 
-Le status d'une organisation est enregistré dans un document `org/Status/1`:
+Le status d'une organisation est enregistré dans un document `amis94/RANDOS$Status/1`:
 
 - `at` : date-heure (_epoch_) de dernière mise à jour du status.
 - `st` : état du service. 9: DOWN, 1: UP, 2: READ-ONLY
 - `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
 
-## Opérations d'Administration Technique
-Tout utilisateur peut être reconnu _Administrateur Technique_ au déploiement d'un service par un opérateur: son ID est ajouté aux listes statiques de configuration:
-- `MASTERDIRADMINUSERS` : pour le MASTER DIRECTORY,
-- `ADMINUSERS` : pour les autres services déployés.
+## Page d'administration
+Les données de status y sont lisibles librement (aussi accessible depuis le _Setting_ "Status des Services").
 
-Lors du contrôle d'authentification à l'entrée d'une opération requérant un droit d'Administrateur, le `userId` du requérant est,
-- certifié par vérification de la signature du _challenge_ par usage de la clé publique de vérification de cet utilisateur obtenu de la table `ZZUSERS`,
-- par présence du `userId` dans,
-  - la liste `ADMINUSERS` du déploiement d'UN service SVC / $OP.
-  - la liste `MASTERDIRADMINUSERS` pour l'Administrateur du MASTER DIRECTORY.
+La mise à jour des status du site ne sont accessibles qu'à un administrateur du site.
+- il peut être mis à _UP ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
+- les opérations sont bloquées quand le status est DOWN, SAUF celles qui modifient ce status et peut en conséquence le remettre UP et adapter l'information.
 
-### Liste des déploiement dont l'utilisateur est _administrateur_
-Pour pouvoir afficher la page _Administration Technique_, un utilisateur doit auto-déclarer dans sa _Safe Box_ la liste des couples `SVC $OP` (services déployés) pour lesquels il a ce pouvoir:
-- quand il en ajoute un, le fait qu'il le soit réellement est vérifié.
-- si son `userId` est ensuite retiré de la configuration du _service déployé_, il doit remettre à jour cette liste.
-- s'il ne s'inscrit pas de lui-même, de facto il ne peut pas atteindre la page d'administration.
-
-> La révocation d'un Administrateur se fait en enlevant son ID de la liste `ADMINUSERS / MASTERDIRADMINUSERS` correspondante et en redéployant le logiciel.
-
-## Depuis les _Outils Techniques >> Hot_
-Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur du _MASTER DIRECTORY_.
-
-#### Déclaration de l'URL d'un service SVC de déploiement $OP
-Cette opération créé / met à jour l'URL correspondante pour $OP dans la ligne SVC de la table `ZZSVCOPS`.
-
-Ceci vaut _déclaration d'existence_ au couple `SVC / $OP`.
-
-> Le service correspondant n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTER DIRECTORY_).
-
-#### Activation / révocation d'une organisation `org` pour un `SVC / $OP`
-Pour un service donné, une organisation est hébergée par un seul opérateur: c'est en conséquence une tâche d'Administration générale que d'assigner l'organisation pour chaque service à l'opérateur l'hébergeant. 
-
-Le row `org` de la table `ZZORGS` est créé / mis à jour.
-
-> L'accès à l'organisation correspondante n'est pas pour autant _ouvert au trafic ou non_ ce qui est une décision de l'Administrateur du service / opérateur (et non de celui du _MASTER DIRECTORY_).
-
-## Depuis les _Outils Techniques >> Status des Services_
-Après authentification ce dialogue propose plusieurs actions qui requièrent d'être reconnu comme Administrateur _DU service_ `SVC` pour le déploiement `$OP` cité.
-
-#### Le status de SVC / $OP 
-Il peut être mis à _UP ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
+La mise à jour des status des organisations hébergées sur un site n'est accessible qu'à un administrateur du site.
+- il peut être mis à _UP LECTURE-SEULE ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
 - les opérations sont bloquées quand le status est DOWN, SAUF celle qui modifie ce status et peut en conséquence le remettre UP et adapter l'information.
 
-#### Le status d'une organisation org hébergée par SVC / $OP
-Il peut être mis à _UP LECTURE-SEULE ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
-- les opérations sont bloquées quand le status est DOWN, SAUF celle qui modifie ce status et peut en conséquence le remettre UP et adapter l'information.
-
-#### La configuration d'une organisation org hébergée par SVC / $OP
-Elle consiste à attacher l'organisation à,
-- UNE des bases de données gérées par SVC / $OP,
-- UN des _storage_ gérées par SVC / $OP,
-
-> Cette configuration est déclarative seulement et ne correspond pas à un _transfert technique_ de base ou de storage, opérations lourdes gérées en ligne de commande par un administrateur système de l'opérateur.
-
-> Au début d'une opération, un jeton émis par la session est vérifié, la signature du challenge par la clé de signature extraite de la _Safe Box_ est vérifiée par la clé de vérification détenue la DB du service. Mais le credential peut être marqué hors limite: la session n'en n'a pas été informée. 
+La mise à jour du _Master Directory_ n'est accessible qu'à un administrateur du _Master Directory_.
+- déclaration d'un site, changement de son URL.
+- changements des libellés des services.
+- déclaration d'accès d'une organisation à un service sur un site.
 
 # Credentials attachés à un document
 Un credential est un pouvoir donné à _UN_ utilisateur d'accéder _AU_ document du credential:
