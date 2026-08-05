@@ -518,12 +518,12 @@ Lors du contrôle d'authentification à l'entrée d'une opération requérant un
 
 ## Status
 
-### Status d'un `site`
+### Status d'un service sur un site
 Un administrateur d'un site peut fermer / ouvrir séparément chacun des services déployés sur le site.
 
 `ADMIN` désigne une _pseudo_ organisation dont les données ont une signification pour toutes les organisations.
 
-Dans la base de données déclarée _de référence_ pour son URL, le document `ADMIN$Status/1` donne en JSON:
+Dans la base de données déclarée _de référence_ pour son URL, le document `ADMIN$Status/RANDOS` donne en JSON le status du service `RANDOS` sur le site:
 
     { "at":1771588453502,"st":1,"txt":"hello world!" }
 
@@ -531,10 +531,10 @@ Dans la base de données déclarée _de référence_ pour son URL, le document `
 - `st` : état du service. 9: DOWN, 1: UP
 - `txt` : texte non crypté destiné à l'affichage informatif dans les applications.
 
-### Status _d'une organisation_ sur un site
+### Status _d'une organisation_ pour un service sur un site
 Un administrateur d'un site peut fermer / ouvrir séparément chaque **organisation** qu'il héberge pour **chaque service**.
 
-Le status d'une organisation est enregistré dans un document `amis94/RANDOS$Status/1`:
+Le status d'une organisation est enregistré dans un document `amis94/RANDOS$Status/RANDOS`:
 
 - `at` : date-heure (_epoch_) de dernière mise à jour du status.
 - `st` : état du service. 9: DOWN, 1: UP, 2: READ-ONLY
@@ -543,17 +543,17 @@ Le status d'une organisation est enregistré dans un document `amis94/RANDOS$Sta
 ## Page d'administration
 Les données de status y sont lisibles librement (aussi accessible depuis le _Setting_ "Status des Services").
 
-La mise à jour des status du site ne sont accessibles qu'à un administrateur du site.
+La mise à jour du status d'un site n'est accessible qu'à un administrateur du site.
 - il peut être mis à _UP ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
 - les opérations sont bloquées quand le status est DOWN, SAUF celles qui modifient ce status et peut en conséquence le remettre UP et adapter l'information.
 
-La mise à jour des status des organisations hébergées sur un site n'est accessible qu'à un administrateur du site.
+La mise à jour du status d'une organisations hébergée sur un site n'est accessible qu'à un administrateur du site.
 - il peut être mis à _UP LECTURE-SEULE ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
 - les opérations sont bloquées quand le status est DOWN, SAUF celle qui modifie ce status et peut en conséquence le remettre UP et adapter l'information.
 
 La mise à jour du _Master Directory_ n'est accessible qu'à un administrateur du _Master Directory_.
 - déclaration d'un site, changement de son URL.
-- changements des libellés des services.
+- changement des libellés des services.
 - déclaration d'accès d'une organisation à un service sur un site.
 
 # Credentials attachés à un document
