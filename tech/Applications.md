@@ -292,66 +292,77 @@ Chaque site dispose d'une table `SINGLETONS` à deux colonnes `key / value`:
 Les `SINGLETONS` donnent typiquement des listes d'énumérations qui,
 - ne sont pas assez stables pour être inscrites en dur dans le logiciel,
 - peuvent avoir des valeurs différentes selon les sites, voire les organisations qui les référencent.
-- `key` est le code de l'énumération.
+- `key` est le code de l'énumération. Lorsque key est de la forme `enum1_org1`, la valeur de l'énumération `enum1` est spécifique de l'organisation `org1`, ce qui est un procédé permettant de customiser une énumération extérieurement au code.
 - `value` est un JSON de la forme d'une liste de strings: `["val1", "val2" ...]`
 
 Chaque item de `SINGLETONS` est obtenu de la base du site sur demande:
 - sa valeur est conservée dans une mémoire cache.
 - la valeur est rafraîchie quand elle est trop ancienne.
-- ils peuvent donc être _mis en service_ sans interruption du service, mais avec un certain délai de prise en compte tout en supportant une forte sollicitation d'accès.
-- les applications disposent d'une opération d'accès à ces singletons / énumérations.
+- un item peut donc être _mis en service_ sans interruption du service, mais avec un certain délai de prise en compte, tout en supportant une forte sollicitation d'accès.
+- les applications disposent d'une opération d'accès à ces singletons / énumérations. La mise à jour requiert d'être _administrateur_ du site.
 
-### Documents d'une organisation
-Pour un _service déployé_ et pour une _organisation_ donnée les documents sont regroupés par _classes_ :
-- certaines n'ont structurellement qu'un seul qu'un document dont la _primary key_ est arbitrairement fixée à `1`.
-- la plupart ont N documents, chacun ayant une _primary key_ `pk` calculée depuis certaines propriétés invariantes de la classe du document `p1 / p2 / p3`.
-  - `pk`  peut être, soit directement ce _path_, soit son hash.
+### Documents d'une organisation sur un _site_
+Les documents sont regroupés par _classes_ qui définissent leur structure / signification.
+- certaines n'ont structurellement qu'un seul document (pour un _service_ et une _organisation_ donnés): sa _primary key_ est arbitrairement fixée à `1`.
+- la plupart des classes ont N documents (pour un _service_ et une _organisation_ donnés): chacun a une _primary key_ `pk` calculée depuis certaines propriétés invariantes (string) de la classe du document `p1 / p2 / p3`. Ces propriétés constituantes ne doivent pas comporter de `/`, ce qui est le cas de celles générées aléatoirement ou dont la syntaxe est fonctionnellement contrôlée.
+  - `pk` peut être, 
+    - soit directement ce _path_: dans ce cas il apparaît _en clair_ dans la base de données.
+    - soit le hash de ce path, ce qui le rend _opaque_ dans la base de données.
   - _exemple_: classe `Auteur` avec un document par auteur indiquant quelle `Section` du comité de rédaction le supervise.
 
-Les _documents_ ont un _path universel_ `org / svc$docCl / docPk` où,
-- `org` celui de l'organisation,
-- `svc$docCl` : c'est le nom _qualifié_ du document où le code du service `svc` précède `docCl` le code de la classe des documents,
+Pour un site donné, les _documents_ ont un _path logique_ `svc$docCl / org  / docPk` où,
+- `svc$docCl` est le nom _qualifié_ du document, code du service `svc` précédant `docCl` le code de la classe des documents,
+- `org` est le code de l'organisation,
 - `docPk` est la _primary key_ identifiante du document.
 
-#### Organisations _réelles_ versus  _fictive_ `ADMIN`
-Des documents attachés à un _site_, NON dépendants d'une organisation, ont pour organisation fictive `ADMIN` et pas de code org avec pour path `ADMIN$docCl / docPk`.
-- par exemple `ADMIN$Status / 1` donne l'état de disponibilité **du déploiement** _ouvert / fermé_ avec éventuellement un message d'information de l'administrateur technique, DU _site_, sans distinction d'organisation.
-- un document standard `org1/RANDOS$Status/1` donne l'état de disponibilité **du déploiement pour l'organisation `org1`** _ouvert, lecture seulement, fermé_ et éventuellement un message d'information de l'administrateur technique.,
+### Organisations _réelles_ versus  _fictive_ `ADMIN`
+Des documents attachés à un _site_, NON dépendants d'une organisation ont un nom de classe `ADMIN$docCl`, n'ont pas de code `org`, soit un _path logique_ `ADMIN$docCl / docPk`.
+- par exemple `ADMIN$Status / svc` donne l'état de disponibilité **du déploiement du service `svc`** _ouvert / fermé_ avec éventuellement un message d'information de l'administrateur technique, DU _site_, sans distinction d'organisation.
+- un document standard `RANDOS$Status / org1 / svc` donne l'état de disponibilité **du déploiement du service `svc` pour l'organisation `org1`** _ouvert, lecture seulement, fermé_ et éventuellement un message d'information de l'administrateur technique.,
 
-> Sachant dans quel _déploiement_ une organisation est hébergée pour un service donné, au couple svc / org il correspond une URL localisant ses documents.
+> La configuration générale donne pour une organisation `org` le site (donc son URL) pour chacun des services `svc` pour lesquels elle est servie: sur ce site, tout document dont la classe `svc$docCl` et la `pk` (la liste de ses propriétés identifiantes) sont connus est accessible directement par son _path logique_
 
 **Le contenu d'un document est un objet sérialisé** dont la structure dépend de la classe du document.
 
-Pour un _service déployé_ donné, les données sont donc structurées logiquement ainsi:
+Sur un _site_, pour un _service_ `svc` donné, les données sont donc structurées logiquement ainsi:
 - `org` : organisation propriétaire du document.
-- `docCl` : classe du document.
+- `svc$docCl` : classe _qualifiée_ du document.
 - `pk` : clé primaire identifiante.
 - `v` : version, date-heure (_epoch_) de l'opération l'ayant changé pour la dernière fois.
 - `data` : sérialisation du contenu du _document_.
 
-> La lecture d'un document dans une opération ramène la version la plus récente. Quand celle-ci a été obtenue d'un cache, le mécanisme ACID de l'opération garantit qu'il n'y a pas une autre version plus récente.
+> La lecture d'un document dans une opération ramène la version la plus récente. Quand celle-ci a été obtenue d'une mémoire cache, le mécanisme ACID de l'opération garantit qu'il n'y a pas une autre version plus récente.
 
-Toutefois il est possible d'obtenir un document de version moins récente, bref de ne pas s'assurer qu'il n'en n'existe pas un plus récent:
-- ceci évite des accès inutiles en utilisant intensivement le _cache_,
-- mais ceci interdit de mettre à jour le document ainsi lu.
+Il est cependant possible d'obtenir un document potentiellement déjà en cache **SANS** s'assurer qu'il n'en n'existe pas une version plus récente en spécifiant une limite de _fraîcheur_ minimale:
+- ceci évite d'accéder à la DB en utilisant la version en _cache_,
+- MAIS interdit de mettre à jour le document ainsi lu.
 
-#### Classes _virtuelles / réelles, _multi-documents / singleton_
-Une classe _virtuelle_ n'a pas de document, ses / son instance ne sont connues que par leur `pk`:
+#### Classes _virtuelles_
+Une classe _virtuelle_ n'a pas _physiquement_ d'instances de document, comme si le contenu de chaque instance était réduite à sa seule `pk`:
 - une classe virtuelle **singleton** n'a pour convention qu'un seul document de _primary key_ `1`.
-  - `CoDir/1` : un singleton représentant le _comité de direction_.
-  - `Redaction/1` : un singleton représentant le _comité de rédaction_.
-- on peut avoir des _pouvoirs_ associés à des documents virtuels, par exemple un _pouvoir_ de _Comité de Direction_ (attaché au document virtuel `CoDir/1`) sans pour autant qu'il existe un _vrai_ document `CoDir/1` ayant des données.
+  - `AS2$CoDir/1` : singleton représentant le _comité de direction_.
+  - `AS2$Redaction/1` : singleton représentant le _comité de rédaction_.
+- on peut avoir des _pouvoirs_ associés à des documents virtuels, par exemple un _pouvoir_ de _Comité de Direction_ (attaché au document virtuel `AS2$CoDir/1`), donc sans pour autant qu'il existe un _vrai_ document `AS2$CoDir/1` ayant des données.
 
-Une classe virtuelle **multi-documents** est déclarée avec la liste énumérée de ses _primary keys_:
-- `Section` : classe multi-document, a une liste fermée de _pk_ `roman histoire science`.
+Une classe virtuelle NON singleton doit être déclarée avec la liste énumérée de ses _primary keys_, par exemple:
+- `AS2$Section` est une classe multi-document ayant pour liste fermée de _pk_ `roman histoire science`.
 
 Les `pk` sont citées par une liste exhaustive de _codes_, qui de ce fait _peuvent_ le cas échéant avoir une traduction en session d'application. La liste est donnée:
-- **soit directement dans la déclaration de la classe virtuelle**: elle est très stable, courte, modifiable par redéploiement du service par les opérateurs qui l'assure. La propriété `enum` du descriptif est une liste de valeurs.
-- **soit par la valeur d'un SINGLETON de configuration**: la liste peut être plus longue et peut être mise à jour sans interrompre le service et le redéployer. La propriété `extenum` du descriptif donne le nom du _singleton_.
+- **soit directement dans la déclaration de la classe virtuelle**: elle est très stable et courte. On ne peut la modifier qu'en redéployant le logiciel du service sur les sites qui en assure le service. La propriété `enum` de son _descriptif_ est une liste de valeurs.
+- **soit par la valeur d'un SINGLETON de configuration**: la liste peut être plus longue et peut être mise à jour sans interrompre le service ni redéployer son logiciel. La propriété `extenum` du descriptif donne le nom du _singleton_. Un administrateur du site peut mettre à jour cette liste.
 
-Dans le schema statique qui décrit les classes de documents, si le nom du SINGLETON de configuration se termine par `_`, le code de l'organisation `org` de l'opération est ajouté à la fin pour donner le nom effectif du SINGLETON.
+Dans le schema statique qui décrit les classes de documents, si le nom du SINGLETON de configuration se termine par `_`, le code de l'organisation `org` de l'opération qui en sollicite le contenu est ajouté à la fin pour donner le nom effectif du SINGLETON.
 
-> Une classe _virtuelle_ gère ainsi de facto une _énumération_ de codes susceptible d'évoluer dynamiquement sans redéploiement. En revanche les _traductions_ étant statiquement déclarées dans les applications, il n'y a pas obligatoirement un _libellé_ traduit pour chaque code.
+> Une classe _virtuelle_ gère ainsi de facto une _énumération_ de codes susceptible d'évoluer dynamiquement sans redéploiement. Les _traductions_ éventuelles étant statiquement déclarées dans les applications, il n'y a pas obligatoirement un _libellé_ traduit pour chaque code.
+
+### Classe _logicielle_ des documents
+De manière basique il est déclarée une classe logicielle de nom `AS2$Auteur` pour implémenter en mémoire d'un traitement un document de cette classe.
+
+Mais pour certaines classes, par exemple `AS2$Credential`, on souhaite dans le logiciel **distinguer des sous-classes** selon le nom d'une propriété immuable du document:
+- par exemple la propriété `masterDocCl` donne la classe du document maître du credential,  `docPk` étant sa _primary key_.
+- l'instanciation en mémoire va donner lieu à des instanciations de classes distinctes `AS2$Credential_Codir` et `AS2$Credential_Auteur` **en fonction de la valeur de la propriété** `masterDocCl` trouvée dans le document (lu ou en création).
+- des traitements différentiés selon la sous-classe peuvent être développés.
+- dans le descriptif d'une classe, la propriété `subClassBy` indique quel est la propriété dont la valeur donne le nom de la sous-classe à instancier.
 
 ## Le _Storage_ de fichiers 
 Il stocke des _fichiers_ identifiés par leur _path_: la présence de caractères `/` dans un path définit une sorte d'arborescence. Le _contenu_ de chaque fichier est une suite d'octets opaque.
@@ -372,7 +383,8 @@ Définit une liste d'opérations qui peuvent être invoquées avec leurs signatu
 - code `svc` : majuscule + 2 à 7 majuscules / chiffres : `AS2` `RANDOS`
 
 ### Site déployé par un opérateur
-- code d'un site `red`: 3 à 8 lettres minuscules (a-z) ou chiffres (commençant par une lettre) : `red`
+- code d'un site `red`: 3 à 8 lettres minuscules (a-z) ou chiffres (commençant par une lettre) : `red`. 
+  - Lorsque le code du site se termine pas st il désigne un **site dédié au storage de Safe Box**: son URL répond aux requêtes d'appel des opérations de l'API _Safe Box_.
 - l'URL d'un site peut changer.
 
 ### Organisation
@@ -384,14 +396,27 @@ Une organisation dispose de ses propres données.
 > Les données d'une organisation **NE CONTIENNENT PAS** le code de l'organisation: on peut ainsi exporter les données d'une organisation et les ré-importer dans une autre.
 
 ### Opérations standard
-L'identifiant complet d'une opération est le couple _service$opération_.
-- le code d'une opération est un nom de classe.
-- elle est invoquée par l'URL du site où le service est déployé avec en argument son service et son **code d'opération** `opName` relatif à son service.
+L'identifiant complet d'une opération est le couple `svc$operation`.
+- ce code est un nom de classe.
+- elle est invoquée par l'URL du site où le service est déployé avec en argument son service `svc` et son **code d'opération** `opName` relatif à son service.
 
-Un **code organisation** `org` figure en argument de l'opération qui est dédiée à une seule organisation. Exception: quand il s'agit d'une opération `ADMIN` qui ne porte pas sur une organisation mais sur le site lui-même.
+Un **code organisation** `org` figure en argument de toute opération dédiée à une seule organisation:
+- le couple `svc` figurant dans le nom de l'opération et le code de l'organisation `org` passé en argument permet d'obtenir le _site_ (et son URL) qui va exécuter la requête.
+
+Cependant par convention une opération de nom `ADMIN$opname` ne porte pas sur une organisation spécifique, org n'est pas passé en argument:
+- le `site` qui doit l'exécuter est donné en argument.
+- c'est ainsi que les opérations d'administration d'un site sont sollicitées.
+
+### Opérations s'adressant au _Master Directory_
+L'URL est déclarée en configuration des applications (ou des services). Le code de l'opération souhaitée opName est passé en argument de la requête avec les autres paramètres.
+
+### Opérations s'adressant à _storage de Safe Box_
+Si le _safe store_ est celui standard, son URL est déclarée en configuration des applications (ou des services). Sinon le code du _safe store_ est celui d'un site de nom xxxst dont la configuration générale donne l'URL d'accès.
+
+Le code de l'opération souhaitée `opName` est passé en argument de la requête avec les autres paramètres, dont le userId identifiant l'utilisateur détenteur de sa _Safe Box_.
 
 ## Le directory central _MASTER DIRECTORY_
-Il est hébergé dans la base de données du site hébergeant le service `MASTERDIR`: son URL est donnée dans la configuration statique de chaque application.
+Il est hébergé dans la base de données du site hébergeant le service `MASTERDIR`: son URL est donnée dans la configuration statique de chaque application et des services.
 
 Comme pour le store _générique_ des _Safe Box_, il n'y a qu'un seul _MASTER DIRECTORY_ de production.
 
@@ -415,38 +440,38 @@ Sa structure est `key v value`: elle donne pour chaque `key`, sa `value` (un JSO
     {
       "RANDOS": "Randonnées",
       "BOUTIQUE": "Sport et santé",
-      "DEMO": "Démonstration"
+      "AS2": "Auteurs et relecteurs"
     }
 
-`key = 'XXX'` - chaque entrée correspond au **code d'une organisation** et donne pour **chacun des services** auquel elle peut accéder le **code du site** qui en héberge ses sonnées (et assure son traitement).
+`key = 'XXX'` - chaque entrée correspond au **code d'une organisation** et donne pour **chacun des services** auquel elle peut accéder le **code du site** qui en héberge ses données (et assure son traitement).
 
-    amis94 => { "RANDOS": "blue", "BOUTIQUE":"red" }
+    amis94 => { "RANDOS": "blue", "AS2":"red" }
     orgidf => { "RANDOS": "yellow" }
 
-Une **application déployée** dispose dans sa configuration de l'URL d'accès au **Master Directory** ce qui lui permet d'obtenir pour une organisation `amis94` l'URL où est déployé son le service `RANDOS` qui détient ses données (sur le site `blue`).
+Le logiciel déployé d'une **application** dispose dans sa configuration de l'URL d'accès au **Master Directory** ce qui lui permet d'obtenir pour une organisation `amis94` l'URL où est déployé son le service `RANDOS` qui détient ses données (sur le site `blue`).
 
 ##### Table `ZZUSERS` 
-Une ligne est déclarée pour chaque utilisateur à l'occasion de la création de sa Safe Box:
+Une ligne est déclarée pour chaque utilisateur à l'occasion de la création de sa _Safe Box_:
 - `userId`: clé primaire.
-- `hshk`: hash du Strong Hash de sa clé K, servant à vérifier sur certaines opérations que le demandeur est bien propriétaire de la Safe Box d'ID userId.
+- `hshk`: hash du Strong Hash de sa clé K, servant à vérifier sur certaines opérations que le demandeur est bien propriétaire de la _Safe Box_ d'ID `userId`.
 - `hsha1`: hash du Strong Hash de l'alias 1 de l'utilisateur.
 - `hsha2`: hash du Strong Hash de l'alias 2 de l'utilisateur.
 - `C` : clé publique de cryptage.
 - `V` : clé publique de vérification de signature.
-- `llq`: dernier trimestre d'accès à la Safe Box.
-- `store`: code du site gérant la Safe Box s'il est spécifique.
+- `llq`: dernier trimestre d'accès à la _Safe Box_.
+- `store`: code du site hébergeant la _Safe Box_ s'il est NON standard.
 
     {
       "qzFuser1...": { "alias": ["Leon27...", ""], "store": ""},
-      "9Kvuser2...": { "alias": ["Paulo...", "BigMoi"], "store": "$RED"},
+      "9Kvuser2...": { "alias": ["Paulo...", "BigMoi"], "store": "redst"},
     }
 
 Les objectifs de cette table sont les suivants:
 - fournir le `userId` et le `store` d'un utilisateur depuis un des deux alias qu'il a déclaré.
-  - lors du login de l'utilisateur pour lui permettre _d'ouvrir_ sa Safe Box (après avoir fourni sa phrase secrète d'ouverture).
+  - lors du login de l'utilisateur pour lui permettre _d'ouvrir_ sa _Safe Box_ (après avoir fourni sa phrase secrète d'ouverture).
   - pour un utilisateur _tiers_ d'obtenir le `userId` d'un utilisateur dont il connaît un alias.
-- fournir aux services les clés publiques de cryptage et de vérification de signature d'un utilisateur.
-- accessoirement, déterminer les utilisateurs inactifs depuis un certain temps et lancer des _garbage collectors_.
+- fournir aux services les clés publiques de cryptage et de vérification de signature d'un utilisateur connu par son `userId`.
+- accessoirement, déterminer les utilisateurs inactifs depuis un certain temps et lancer des _garbage collectors_ en fonction de la valeur du dernier trimestre d'accès.
 
 #### Table `ZZEVENTS`
 Elle est détaillée plus avant dans ce document.
@@ -456,15 +481,17 @@ Le stockage générique a une URL déclarée dans la configuration des applicati
 
 Quand un utilisateur a sa _Safe Box_ enregistrée dans un site spécifique, il lui faut citer le code de ce site à la création de son compte / _Safe Box_: ce code étant enregistré dans le _Master Directory_, l'utilisateur n'a pas à le redonner à chaque identification.
 
-### Table `ZZSAFE` du store _générique_ des Safe Box
+### Table `ZZSAFE` des store des Safe Box
 Cette table a la structure suivante:
 - `userId`: ID du propriétaire de la Safe Box (clé primaire).
 - `llq` : numéro du dernier trimestre d'accès.
-- `data` : contenu sérialisé et crypté de _l'objet_ Safe Box. Sections: `auth devices, creds profiles prefs`
+- `data` : contenu sérialisé et crypté d'un _objet JavaScript_. Sections: `auth devices, creds profiles prefs`
 
     {
       "qzFuser1...": { auth:{}, devices:{}, creds:{}, profiles:{}, prefs:{} },
     }
+
+Cet objet est standardisé de manière à ce qu'un utilisateur puisse exporter sa _Safe Box_ du store actuel et puisse l'importer dans un autre store: les utilisateurs sont ainsi NON dépendant du fournisseur hébergeant leur _Safe Box_.
 
 ## Schéma général : exemple
 
@@ -481,10 +508,10 @@ Cette table a la structure suivante:
 ##### Lancement d'une opération
 L'application _MesRandos_ a besoin de solliciter une opération `op1` du service `RANDOS` sachant que l'utilisateur a désigné son organisation `amis94` dans laquelle il a un droit d'accès `Animateur/wxfr`.
 - l'application demande au _Master Directory_ l'URL du service déployé correspondant:
-  - Depuis `ZZVALUES`, clé `amis94`, il obtient que le service `RANDOS` hébergé par le site `blue`.
-  - Dans `ZZVALUES`, clé `1`, il obtient l'URL site `blue` `rndx.blue.org`.
+  - Depuis `ZZVALUES`, clé `amis94`, il obtient que le service `RANDOS` est hébergé par le site `blue`.
+  - Dans `ZZVALUES`, clé `1`, il obtient l'URL du site `blue` `rndx.blue.org`.
 - l'application envoie donc sa requête à cette URL.
-- sauf exception, les données sont dans la base par défaut du site `DB-A`. Toutefois la configuration du site a pu indiquer explicitement une base annexe dédiée pour cette organisation.
+- sauf exception, les données sont dans la base par défaut du site. Toutefois la configuration du site a pu indiquer explicitement une base annexe `DB-B` dédiée pour cette organisation.
 - l'opération accède aux données / traitement demandé:
   - elle a vérifié que la session disposait bien du droit d'accès correspondant identifié `RANDOS/amis94/Animateur/wxfr`.
   - la session a signé un jeton par sa clé de signature et le service a vérifié par la clé de vérification détenue dans DB-A que ce jeton était bien signé.
@@ -495,18 +522,18 @@ Un _administrateur_ est un utilisateur standard dont l'ID a été enregistré da
     (1) const MASTERDIRADMINUSERS = new Set(['VpOZWh0Zeh20...'])
     (2) const ADMINUSERS = new Set(['...k5C1BNi'])
 
-La déclaration (1) authentifie les administrateurs du _Master Directory_: ils peuvent par des formulaires spécifiques gérer / configurer la table `ZZVALUES` du Master Directory, c'est à dire déclarer / modifier la configuration de l'ensemble du système, 
+La déclaration (1) authentifie les administrateurs du _Master Directory_: ils peuvent, par des formulaires spécifiques, gérer / configurer la table `ZZVALUES` du _Master Directory,_ c'est à dire déclarer / modifier la configuration de l'ensemble du système, 
 - les sites et leurs URL,
 - les services et leurs libellés,
 - les organisations et le site traitant chacun des services auxquelles elles ont accès.
 
 La déclaration (2) authentifie les administrateur **DU SITE** qui peuvent:
-- fixer le status d'accès global au site,
-- fixer le status d'accès propre à chaque organisation,
+- fixer le status d'accès à chaque service du site,
+- fixer le status d'accès propre à chaque organisation pour chaque service,
 - attribuer quelques _pouvoirs_ de _management général_ à des utilisateurs leur permettant d'agir par exemple _en tant que Membre du Commité Directeur_ ... mais ils sont aussi en mesure de supprimer ces pouvoirs.
   - un administrateur peut lister sur un site les _pouvoirs_ attribués aux documents spécialement qualifiés _manager_ (attribuables seulement par un administrateur).
 
-Bref _un administrateur d'un site_ est un responsable du déploiement d'un site et a le pouvoir de nomination de quelques utilisateurs clés à des pouvoirs clés sous contrôle conjoint des responsables du site et des organisations qui y sont hébergées.
+_Un administrateur d'un site_ est un responsable du déploiement d'un site et a le pouvoir de nomination de quelques utilisateurs clés à des pouvoirs clés sous contrôle conjoint des responsables du site et des organisations qui y sont hébergées.
 
 > Un administrateur peut ainsi confier la gestion d'une organisation à une autre équipe dans des situations critiques sous contrôle humain d'autorités supérieures.
 
@@ -521,9 +548,7 @@ Lors du contrôle d'authentification à l'entrée d'une opération requérant un
 ### Status d'un service sur un site
 Un administrateur d'un site peut fermer / ouvrir séparément chacun des services déployés sur le site.
 
-`ADMIN` désigne une _pseudo_ organisation dont les données ont une signification pour toutes les organisations.
-
-Dans la base de données déclarée _de référence_ pour son URL, le document `ADMIN$Status/RANDOS` donne en JSON le status du service `RANDOS` sur le site:
+Dans la base de données du site le document `ADMIN$Status/RANDOS` donne en JSON le status du service `RANDOS` sur le site:
 
     { "at":1771588453502,"st":1,"txt":"hello world!" }
 
@@ -543,11 +568,11 @@ Le status d'une organisation est enregistré dans un document `amis94/RANDOS$Sta
 ## Page d'administration
 Les données de status y sont lisibles librement (aussi accessible depuis le _Setting_ "Status des Services").
 
-La mise à jour du status d'un site n'est accessible qu'à un administrateur du site.
+La mise à jour du status d'un service d'un site n'est accessible qu'à un administrateur du site.
 - il peut être mis à _UP ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
 - les opérations sont bloquées quand le status est DOWN, SAUF celles qui modifient ce status et peut en conséquence le remettre UP et adapter l'information.
 
-La mise à jour du status d'une organisations hébergée sur un site n'est accessible qu'à un administrateur du site.
+La mise à jour du status d'un service vis à vis d'une organisation hébergée sur un site n'est accessible qu'à un administrateur du site.
 - il peut être mis à _UP LECTURE-SEULE ou DOWN_ et être accompagné d'un court texte informatif donné par l'Administrateur.
 - les opérations sont bloquées quand le status est DOWN, SAUF celle qui modifie ce status et peut en conséquence le remettre UP et adapter l'information.
 
@@ -557,31 +582,34 @@ La mise à jour du _Master Directory_ n'est accessible qu'à un administrateur d
 - déclaration d'accès d'une organisation à un service sur un site.
 
 # Credentials attachés à un document
-Un credential est un pouvoir donné à _UN_ utilisateur d'accéder _AU_ document du credential:
-- soit un document _réel_: `Auteur/VictorHugo`.
-- soit un document _virtuel_: `Redaction/1` `Section/histoire` `Codir/1`.
+Un _credential_ est un pouvoir donné à _UN_ utilisateur d'accéder _AU_ document _maître_ du credential qui peut être:
+- soit un document _réel_: `AS2$Auteur/VictorHugo`.
+- soit un document _virtuel_: `AS2$Redaction/1` `AS2$Section/histoire` `AS2$Codir/1`.
 
-> Pour un document donné, un utilisateur n'a au plus qu'UN credential.
+> Un _credential_ attaché à un document maître virtuel donne droit à accéder à son contenu ... vide ! C'est donc simplement un _pur pouvoir_ permettant d'exécuter des opérations.
 
-**Le pouvoir exact** d'un _credential_ est exprimé par les propriétés de l'objet `props` du credential dont les valeurs contrôlent le comportement des opérations.
+> Pour un document donné, un utilisateur ne détient au plus qu'UN credential.
+
+**Le pouvoir exact** d'un _credential_ est exprimé par les propriétés de son objet `props` dont les valeurs contrôlent le comportement des opérations.
 - quand elle existe la propriété `props.limit` donne une _epoch en minutes_ limite de validité du credential.
 
 Un credential est stocké en deux exemplaires:
-- **en tant que _document_** (ou objet dans son document) dans la DB du service / organisation.
+- **en tant que _document_** (ou objet embarqué dans son document maître) dans la DB du service / organisation.
 - **en tant qu'objet dans la _Safe Box_** de l'utilisateur U propriétaire.
 
-### Objet _embarqué_ vs document _dissocié_
+### Credential _embarqué_ versus document _dissocié_
 Les données d'un credential identifié `credId` sont regroupées dans un objet `cred` qui peut être:
-- soit _embarqué_ dans son document dont la propriété `creds` contient la liste des objets credentials qui lui sont relatifs.
-- soit _dissocié_ dans un document séparé de classe `Credential`:
+- soit _embarqué_ **dans son document maître** dont la propriété `creds` contient la liste des objets credentials existants qui lui sont relatifs.
+- soit _dissocié_ dans un document séparé de classe `svc$Credential`:
   - sa `pk` est le `credId` du credential.
-  - le couple `docCl / docPk` du document du credential y est indexé.
+  - le couple `docCl / docPk` des propriétés du credential identifiant son document maître y est indexé.
   - le contenu du document est l'objet `cred`: `{ credId, pubv, pubc, props, maxLife }`.
 
 **Propriétés du _document_:**
 - (`svc org` virtuellement).
 - `credId` : identifiant universel du document.
-- `docCl docPk`: identifiant _du_ document dont il gère les pouvoirs.
+- `docCl docPk`: identifiant _du_ document maître dont il gère les pouvoirs.
+  - `docCl` est le nom NON qualifié par le code du service de la classe du document maître.
 - `cred`: `{ credId, pubv, pubc, props, maxLife }`.
 
 `pubv pubc`: clés publiques de vérification et cryptage du _credential_.
@@ -589,12 +617,12 @@ Les données d'un credential identifié `credId` sont regroupées dans un objet 
 `props`: objet dont les valeurs règlent le détail du pouvoir de l'utilisateur U.
 
 `maxLife`: date-heure (_epoch_ en secondes) au delà de laquelle le credential est considéré comme _disparu_:
-- pendant la phase A de création maxLife est une date-heure de quelques secondes plus tardive que la date-heure de l'opération de création.
-- à la phase B de création maxLife est mise à la valeur définie par props.limit (ou 0).
-- une phase de création échouant à se conclure durant ce court délai mettrait le credential en création à l'état _disparu_.
+- pendant la phase A de création `maxLife` est une date-heure de quelques secondes plus tardive que la date-heure de l'opération de création.
+- à la phase B de création `maxLife` est mise à la valeur définie par `props.limit` (ou 0).
+- une phase de création échouant à se conclure durant ce court délai mettrait de facto le credential en création à l'état _disparu_.
 
 **Propriétés de son entrée en _Safe Box_:**
-Dans la section _credentials_ d'une Safe Box il y a une entrée par `credId` avec la valeur `[nameK, credK, toCheck]`:
+Dans la section _credentials_ d'une _Safe Box_ il y a une entrée par `credId` avec la valeur `[nameK, credK, toCheck]`:
 - `credK`: base 64 de la sérialisation cryptée par la clé K de:
   - `svc org`
   - `docCl docPk`
@@ -616,18 +644,18 @@ L'opération de création effectue:
     - `toCheck` est mis à _true_, l'existence du credential étant indéterminée (à vérifier).
   - enregistrement du document `{ credId, docCl, docPk, pubv, pubc, props, maxLife }`.
 - **en phase 3 (après commit)**: 
-  - envoi de la requête `sf.CredChecked` avec les arguments `{ credId, signId }` qui enlève le booléen `toCheck`.
+  - envoi au _Safe Store_ de la requête `FixOneCred` avec les arguments `{ credId, signId }` qui enlève le booléen `toCheck`.
 
 #### Gestion de l'incertitude d'existence du credential
 L'opération de création d'un credential peut, selon le moment où se produit un incident, laisser le credential en état _incertain / toCheck_:
 - (A) l'enregistrement dans la _Safe Box_ réussit mais la transaction tombe en exception juste après AVANT commit de l'enregistrement du _document_.
-- (B) l'enregistrement dans la _Safe Box_ réussit, l'enregistrement du _document_ est validée par un _commit_ mais l'opération a un incident avant d'avoir pu émettre `sf.CredChecked`,
+- (B) l'enregistrement dans la _Safe Box_ réussit, l'enregistrement du _document_ est validée par un _commit_ mais l'opération a un incident avant d'avoir pu émettre `FixOneCred`,
 
-> A tout instant il peut donc exister en _Safe Box_ des credentials indécis marqué `toCheck`: peut-être valide, peut-être non.
+> Il peut donc exister en _Safe Box_ des credentials indécis marqué `toCheck`: peut-être valide, peut-être non.
 
 Lorsqu'une session de l'utilisateur se lance ou rafraîchit sa _Safe Box_ en mémoire, elle peut lire des credentials `toCheck`. Pour chacun elle lit le document correspondant,
-- s'il existe elle invoque `sf.CredChecked`, l'indécision est levée,
-- s'il n'existe pas elle invoque `sf.AutoRevokeCreds`.
+- s'il existe elle invoque `FixOneCred`, l'indécision est levée,
+- s'il n'existe pas elle invoque `AutoRevokeCreds`.
 
 En conséquence l'indécision peut perdurer un temps significatif mais,
 - elle n'est indécision que pour une session de l'utilisateur, pas pour les opérations qui interprètent le _vrai_ état du credential,
@@ -635,16 +663,16 @@ En conséquence l'indécision peut perdurer un temps significatif mais,
 - dès que sa session est activée, l'indécision est levée.
 
 ### Autres opérations de la _Safe Box_
-Le `name` (texte humainement compréhensible figurant docPk), crypté par la clé K de l'utilisateur peut être mis à jour.
+Le `name` (texte humainement compréhensible figurant docPk), crypté par la clé `K` de l'utilisateur peut être mis à jour.
 
-**L'utilisateur peut révoquer n'importe lequel de ses credentials,** en étant conscients des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
+**L'utilisateur peut révoquer n'importe lequel de ses credentials,** en étant conscient des risques que cela entraîne en termes de pouvoirs de lecture et d'action.
 
 > Toutes les propriétés d'un credential sont immuables SAUF, 
 > - en _Safe Box_ la propriété `name` le sont dès passage à l'état valide,
 > - dans le _document_ la propriété `props` qui peut être mise à jour par des opérations.
 
 ### Credentials _obsolètes_ en _Safe Box_
-Après création des opérations peuvent changer la propriété `props.limit`: ceci équivaut à une **suppression** du credential (_document_) quand la limite est dans le passé.
+Après création d'un credential des opérations peuvent changer la propriété `props.limit`: ceci équivaut à une **suppression** du credential (_document_) quand la limite est dans le passé.
 
 En conséquence dans une session d'application, un credential en _Safe Box_ peut exister alors que la copie _document_ a (définitivement) disparu.
 - une exception sera levée en cas de tentative d'usage d'un credential obsolète,
@@ -653,7 +681,7 @@ En conséquence dans une session d'application, un credential en _Safe Box_ peut
 ### Usage de `props` d'un credential
 `props` ne peut être mis à jour **QUE** par une opération qui a été authentifiée et autorisée à le faire:
 - elle peut être _lue_ par l'utilisateur U,
-- U ne peut pas y intervenir directement et doit passer par une opération, bref U ne maîtrise pas lui-même son propre pouvoir exact.
+- sauf sur certaines propriétés explicitement déclarées modifiables librement par U, U ne peut pas y intervenir directement et doit passer par une opération, bref U ne maîtrise pas lui-même son propre pouvoir exact.
 
 `props.limit`
 - par convention définit par une _epoch en secondes_ la date-heure limite de validité du credential.
@@ -667,7 +695,7 @@ En conséquence dans une session d'application, un credential en _Safe Box_ peut
 - sa valeur est cryptée par la clé AES générée depuis `privd_T / pubc_U` pour une opération sous authentification d'un tiers T: U et seulement U peut décrypter `dk1`.
 - remarques: 
   - `dk1` _n'existe plus_ dès lors qu'il n'y a plus de credential sur le document `docCl/docPk`.
-  - `dk1` ne peut être transmis _QUE_ par un utilisateur X ayant lui-même un credential sur le document `docCl/docPk` et ayant reçu dk1 d'un autre (ou l'ayant créé si c'est le premier)
+  - `dk1` ne peut être transmis _QUE_ par un utilisateur X ayant lui-même un credential sur le document `docCl/docPk` et ayant reçu `dk1` d'un autre (ou l'ayant créé si c'est le premier)
 
 ##### Exemple: `props.aboutU`
 - `aboutU` donne une information à propos de U, fixée par une opération authentifiée U (son nom / pseudo, carte de visite, etc.).
@@ -694,7 +722,7 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
   - soit d'accéder à l'objet `cred` pointée par `credId` dans la map `creds` du document identifié par `docCl docPk`
   - soit, si la classe de documents n'embarque pas les credentials, d'accéder au document _credential_ correspondant et d'en lire l'objet `cred`,
   - depuis cet objet la clé de vérification permet de vérifier que le _challenge_ a été correctement signé.
-  - l'objet `cred` est conservé dans le `AuthRecord` par l'opération et pourra être consulté à volonté par le traitement de l'opération pour décider ce qu'il peut / doit faire en fonction des paramètres inscrits dans `cred`.
+  - l'objet `cred` est conservé dans le `AuthRecord` par l'opération, ainsi que le document (_dissocié_ ou maître pour un _embarqué_) et pourra être consulté à volonté par le traitement de l'opération pour décider ce qu'il peut / doit faire en fonction des paramètres inscrits dans `cred`.
 
 > La liste des credentials en échec de vérification est également générée afin de documenter l'exception de rejet de l'opération associée.
 
@@ -703,9 +731,7 @@ Au démarrage d'une opération, le `AuthRecord` joint est scanné:
 # _Chats_ entre utilisateurs disposant d'un credential sur un même document
 La classe du document peut être _virtuelle_.
 
-Les utilisateurs détenteurs d'un credential d'un document `docCl docPk` forment de facto un _groupe_ dont les membres peuvent se connaître les uns les autres typiquement par des propriétés comme,
-- `props.trig` que chacun a dans son credential et qui peut être décryptée par les autres,
-- par les autres propriétés de `props` dépendantes de la classe `docCl`.
+Les utilisateurs détenteurs d'un credential d'un document `docCl docPk` forment de facto un _groupe_ dont les membres peuvent se connaître les uns les autres typiquement par des propriétés dépendantes de la classe `docCl`.
 
 > Ces utilisateurs ont donc une vision _explicite_ des autres: _nom, carte de visite avec photo, autres propriétés libres, etc_
 
@@ -715,15 +741,15 @@ Soit deux credentials A et B ayant un chat entre eux. Tout item de chat écrit p
 - une copie cryptée par A avec la clé de cryptage de B et stockée dans le credential B (dans `props.chat` par exemple).
 - une copie cryptée par A avec sa propre clé publique de cryptage et stockée dans le credential de A.
 
-> Un item peut être _multi-destinataire_: le même item est _envoyé_ N fois (comme des CC), l'expéditeur n'en ayant qu'une copie (et non N).
+> Un même item peut être _envoyé_ N fois (comme des CC), l'expéditeur n'en ayant qu'une copie (et non N).
 
 ### Quelques règles:
-- un item peut être marqué _important_ par son destinataire.
+- un item peut être marqué _important_ par son **destinataire**.
 - le nombre d'items de chat par credential est limité.
 - le volume total des items par credential est aussi limité.
 - quand le volume est excessif, les plus anciens disparaissent en essayant de conserver ceux _importants_.
 - **A dispose d'une liste noire**. Si B est en liste noire de A,
-  - il n'a droit qu'à un item chez A (les précédents s'effacent),
+  - il n'a droit **qu'à un seul item chez A**, les précédents s'effacent,
   - cet item est limité en taille (50 signes),
   - il est marqué _liste noire_ et est prioritaire à l'effacement en cas d'excès de volume.
 - **A peut à l'inverse exprimer une liste blanche**, tous ceux non cités sont en liste noire.
@@ -786,7 +812,7 @@ Il existe plusieurs **types** de formulaire, autant que de besoins métier à co
 
 ### Classe de _document_ `Form`
 La création d'un formulaire de type `type` donne lieu à:
-- la **création d'un document** de classe `Form_type` héritant de la classe générique `Form` stocké dans la DB du service pour cette organisation.
+- la **création d'un document** de classe `svc$Form_type` héritant de la classe générique `Form` stocké dans la DB du service pour cette organisation.
 - la **création d'une nouvelle entrée `Events`** dans le _Master Directory_.
 
 ##### Discussion
@@ -802,14 +828,14 @@ Il faut que l'utilisateur U puisse avoir une vue de _tous_ les formulaires qui l
   - par principe même un formulaire a une durée de vie limitée.
 - inscription dans une table dédiée du _Master Directory_.
   - c'est techniquement plus simple.
-  - ça fait gérer une table supplémentaire, tous services et organisations confondues, ce qui est un élément de fragilité / performances (mais pour des opérations peu critiques et pas en débit stressant).
+  - ça fait gérer une table spécifique `ZZEVENTS`, tous services et organisations confondues, ce qui est un élément de fragilité / performances (mais pour des opérations peu critiques et pas en débit stressant).
 
 ### Table `ZZEVENTS` du _Master Directory_
 Cette table a une portée plus générique que le suivi des formulaires et a pour objet d'enregistrer des événements / processus génériques pour un utilisateur U tous services et organisations confondus.
 
 **Propriétés:**
 - Immuables après création:
-  - `eventId`: (PK) identifiant universel de l’événement / processus (formId pour un Form).
+  - `eventId`: (PK) identifiant universel de l’événement / processus (`formId` pour un Form).
   - `type`: code du type d'événement / processus.
   - `userId`: utilisateur cible (INDEX).
   - `svc`: service concerné.
@@ -819,7 +845,7 @@ Cette table a une portée plus générique que le suivi des formulaires et a pou
   - `v`: version, date-heure (_epoch_) du _document_. 
   - `ttl`: time-to-live calculé depuis `v` et `type`. (INDEX pour purges périodiques).
   - `status`: son statut courant.
-  - `detail`: objet sérialisé de structure dépendant de _type_.
+  - `detail`: liste de strings dont la signification dépend de _type_.
 - Lisibles et modifiables par U seulement:
   - `comment`: commentaire de U crypté par sa clé K.
   - `lv`: last view, date-heure du dernier état _vu_ par U. La comparaison avec `v` permet de détecter ce qui a _changé_ depuis le dernier scan par U.
@@ -839,6 +865,7 @@ Opérations supportées:
 
 ### Propriétés du document `Form`
 Il est hébergé dans la DB spécifique de `svc / org`.
+- `_svc` `_org` (en mémoire) comme pour tout document.
 - `formId`: ID universel aléatoire.
 - `type`: type du formulaire.
 - `userId`: utilisateur cible.
@@ -870,7 +897,7 @@ Une opération de lecture peut décrypter `msgT` en utilisant le couple, de la c
 
 ### Descriptif d'un `type`
 Un descriptif _statique_ des types de formulaires définit pour chaque type:
-- `categ`: un code de classement (ou une liste de codes ?) permettant à l'affichage de regrouper les formulaires dans une présentation à 2 niveaux.
+- `categ`: un code de classement permettant à l'affichage de regrouper les formulaires dans une présentation à 2 niveaux.
 - `key`: un code renvoyant dans la configuration de déploiement à un couple de clés `D C` de décryptage / cryptage.
 - `creds`: un _template_ des credentials requis pour un tiers: `[ docCli/xi ... ]`
   - les `docCli` sont des classes de documents dont un credential est requis.
@@ -891,7 +918,7 @@ Supposons qu'il existe des _groupes d'intérêt_, chacun étant matérialisé pa
 
 Le groupe peut héberger tout un ensemble de _documents dossiers_ confidentiels cryptés par un jeu de clés AES `K1 K2 ...`
 - un membre B peut se faire transmettre certaines de ces clés par un membre A qui les détient, la recevoir cryptée par `privA/pubB`, la décrypter dans sa session, la ré-encrypter par sa clé K et la stocker dans son credential par une opération ad hoc.
-- les membres du groupe gérés en gros par cooptation sont en mesure de se communiquer entre eux ces clés **sans que jamais elles ne transitent en clair** ni sur le réseau, ni dans la DB de l'organisation.
+- les membres du groupe gérés en gros par cooptation sont en mesure de se communiquer entre eux ces clés **sans que jamais elles ne transitent ni ne soit stockées en clair** ni sur le réseau, ni dans la DB de l'organisation.
 
 De nombreux _dossiers_ peuvent ainsi être cryptés par ces clés et ne peuvent être décryptés que par les membres du groupe d'intérêt (du moins ceux ayant reçu les clés correspondantes).
 
@@ -910,7 +937,7 @@ Pour cela on peut définir un _document_ **Office de confiance** en charge de co
 
 **Option #1**
 - crypter toutes les clés `K1 K2 ...` par une clé `OCK` qui peut être mémorisée dans le credential d'accès **d'un** utilisateur _Office_ au document **Office de confiance**.
-- dans ce cas il faudra que, s'il y a plusieurs ayant un credential au document **Office de confiance**, ils se communiquent les uns les autres cette clé `OCK`.
+- dans ce cas il faudra que, s'il y a plusieurs utilisateurs ayant un credential sur le document **Office de confiance**, ils se communiquent les uns les autres cette clé `OCK`.
 - l'impasse éventuelle est reproduite au niveau de l'Office avec les nuances suivantes:
   - le point de fragilité est centralisé et non plus présent en autant d'exemplaires qu'il y a de groupes.
   - on peut espérer que le rôle de membre de l'Office soit assez important pour que l'organisation s'assure qu'il existe toujours au moins un utilisateur (ou _une personne morale_) vivant et actif.
@@ -922,9 +949,8 @@ Pour cela on peut définir un _document_ **Office de confiance** en charge de co
 - un utilisateur / _personne morale_ toujours vivant et toujours actif détient un credential sur ce document virtuel et y stocke les clés `K1 K2 ...`.
 
 ### Synthèse
-Le concept **d'Office de confiance** consiste à définir une autorité, privilégiée, supérieure aux autres détenant les clés secrètes et en conséquence,
+Le concept **d'Office de confiance** consiste à définir une autorité, privilégiée, supérieure aux autres détenant des clés secrètes et en conséquence,
 - susceptible de les publier,
 - susceptible de les communiquer à des _personnes non recommandables_.
 
 Le seul moyen pour éviter ce _pouvoir exorbitant_ est de ne fonctionner que par transmission de clés par _cooptation_ avec le risque de perte définitive de dossiers quand le cercle des _cooptés_ est devenu vide ou de facto inopérant par manque de membre réellement actif.
-
