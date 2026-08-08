@@ -319,28 +319,24 @@ Une session d'une application intégrant plus d'un service et supportant de gér
 Toutes les souscriptions d'une même session pour un couple `svc org` donné figurent dans le même document:
 - `subJSON` : le token de la session.
 - `sessionId` : son shaS, `pk` du document.
+- `maxLife` : la date (_epoch_ en minutes) de limite de validité.
 - `title` : (facultatif) titre des notifications textuelles.
 - `url` : (facultatif) URL d'ouverture de l'application sur clic d'une notification textuelle.
 - `defs` : une map `{ def1: msg1, def2: msg2 ... }` donnant pour chaque définition de souscription élémentaire son _message_ textuel à afficher dans la notification ou '' s'il n'y en a pas.
 
-Une session _s'abonne_ à des _synchronisations / notifications_ en soumettant une opération `SetSubscription` ayant en paramètre:
+Des documents annexes d'indexation `svc$SubsItem` sont gérés pour chaque élément de `defs` d'un row `{ sessionId, def, maxLife }` afin de pouvoir retrouver les sessions abonnées à une définition `def` donnée.
+
+Une session _s'abonne_ à des _synchronisations / notifications_ en soumettant une opération `setSubscription` ayant en paramètre:
 - le service et l'organisation cible (comme pour toute opération),
 - `sessionId / subJSON` : session souscriptrice.
 - les arguments `title url defs`.
-- le booléen `longLife`: si _true_ la souscription reste valable quelques jours en l'absence de session active, sinon quelques heures. 
+- le booléen `longLife`: si _true_ la souscription reste valable quelques jours en l'absence de session active, sinon quelques heures.
+
+L'opération se comporte aussi en mise à jour et suppression: elle fixe _la configuration_ d'abonnement d'une session pour un service et une organisation.
 
 En fin de session, l'utilisateur décide s'il souhaite ou non continuer à recevoir des notifications textuelles: 
 - soit une nouvelle souscription remplace celle courante avec un `longLife` à _true_.
 - soit la souscription est supprimée.
-
-#### Mise à jour de la base de données
-Un document `Subs` mémorise la souscription globale et `sessionId` est la clé primaire.
-
-Des documents annexes `SubsItem` sont gérés pour chaque élément de `defs` d'un row `{ (org), sessionId, def }`.
-
-L'opération `UpdateSubscription` gère les souscriptions en cours de session (ajout / suppression, changement de message de souscriptions élémentaires).
-- après lecture de la version déjà enregistrée et comparaison avec la nouvelle version, les souscriptions élémentaires déjà présentes sont inchangées, les nouvelles ajoutées et les autres supprimées.
-- un index sur `def` permet de récupérer depuis les `SubsItem` toutes les sessions ayant la définition et de les notifier.
 
 ## Notification des sessions en fin d'opération
 Une opération peut mettre à jour des documents, par exemple des `Article` et après _commit_ va émettre des notifications à toutes les sessions abonnées.

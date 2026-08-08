@@ -5,16 +5,27 @@ title: Use-cases revues, circuitscourts, asocial
 
 # Use Case _revues_
 Des _auteurs_ écrivent des _articles_ qui sont relus par des _groupes_ de relecture et les auteurs peuvent communiquer entre eux par chat.
-- un _auteur_ a un code identifiant immuable et une carte de visite (photo et texte).
-- un _groupe_ a un code identifiant immuable et une carte de visite. A groupe a des meetings de relecture, chacun donnant lieu à un compte-rendu.
+- un _auteur_ a un code identifiant immuable et une carte de visite (photo et texte). Les auteurs ont une _section_ qui permet au comité de rédaction de les filtrer.
+  - des pouvoirs de _co-auteur_ peuvent être déclarés pour accepter que plus d'un utilisateur agissent en tant qu'auteur.
+
+- un _groupe_ a un code identifiant immuable et une carte de visite. 
+  - il est dédié à un seul _sujet/sous-sujet_ (qui peut changer), ses utilisateurs pouvant effectuer des relecture d'article de ce ce sujet.
+  - un groupe a des meetings de relecture, chacun donnant lieu à un compte-rendu et des commentaires.
+
 - un _article_ a un identifiant aléatoire immuable, 
-  - un _sujet_ comme "écologie": le sujet peut être adapté. 
+  - un _sujet / sous-sujet_ comme "écologie / politique": le sujet peut être adapté. 
   - une _liste d'auteurs_ qui peut évoluer au cours du temps.
   - un texte, voire des fichiers attachés.
+  - il peut être relu par les utilisateurs des groupes ayant défini leur intérêt sur le _sujet/sous-sujet_ due l'article.
+  
 - les auteurs peuvent participer à des _chats_. Un chat a:
   - un code identifiant immuable.
   - une liste de _participants_, chacun étant un auteur qui peut s'inscrire et se désinscrire d'un chat (ou de plusieurs).
   - un texte qui donne les derniers échanges dans l'ordre ante-chronologique jusqu'à un volume maximal donné.
+
+Le _Comité de direction_ a pouvoir pour déclarer des groupes de relecteurs et en accréditer des utilisateurs.
+
+Le _Comité de rédaction_ a pouvoir pour déclarer des auteurs et les regrouper en sections: il peut aussi nommer des co-auteurs d'un auteur.
 
 Plusieurs angles de vue caractérisent l'usage de l'application.
 
@@ -29,15 +40,15 @@ Un auteur reçoit des _notifications_ textuelles:
 - même quand l'application n'est pas lancée lorsqu'un de ses chats évolue.
 - quand l'application est lancée lorsqu'un de ses articles évolue.
 
-### Vue du gestionnaire
-Un gestionnaire peut voir:
-- _synchronisé_: la liste des groupes,
-- la liste des auteurs, possiblement avec un filtre.
-- la liste des sujets gérés, possiblement avec un filtre.
-- pour un quelques sujets choisis, la liste synchronisé des articles qui s'y rapportent.
+### Vue du Comité de rédaction
+Il peut voir:
+- la liste _report_ des auteurs, possiblement avec un filtre.
+- la liste _report_ des sujets gérés, possiblement avec un filtre.
+- pour une liste restreinte de sujets privilégiés, la liste _synchronisée_ des articles qui s'y rapportent.
 
-### Vue d'un groupe
-(A détailler)
+### Vue du Comité de direction
+Il peut voir:
+- _synchronisé_: la liste des groupes.
 
 ### Document `Article` synchronisable
 - Propriétés:
@@ -58,13 +69,13 @@ Un gestionnaire peut voir:
   - volume: volume, entier
   - sujet: sujet
 
-Les synchronisations possibles des documents `Article` sont `Article.pk Article.auteurs Article.sujet`
-- `Article.pk:1234` : synchronisation de l'article par sa clé primaire '1234'.
-- `Article.auteurs:Hugo` : liste synchronisée des articles dont 'Hugo' est un des rédacteurs.
-- `Article.sujet:écologie/solaire` : liste synchronisée des articles ayant pour sujet [écologie, solaire]
+Les synchronisations possibles des documents `Article` sont `Article/id Article/auteurs/autid Article/sujet/codesujet`
+- `Article/sh(1234)` : synchronisation de l'article par sa clé primaire '1234'.
+- `Article/auteurs/sh(Hugo)` : liste synchronisée des articles dont 'Hugo' est un des rédacteurs.
+- `Article/sujet/sh(écologie/solaire)` : liste synchronisée des articles ayant pour sujet [écologie, solaire]
 
 _Remarques_: 
-- la liste `Article` de tous les articles serait synchronisable parce qu'il existe des index de synchronisation autres que pk, mais n'est pas utilisée en raison de son volume. 
+- la liste `Article` de tous les articles serait synchronisable mais n'est pas utilisée en raison de son volume. 
 - la liste `Groupe` est une liste synchronisable utilisable.
 
 # Use Case _asocial_
