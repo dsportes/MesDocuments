@@ -183,8 +183,8 @@ A la fin de cette phase, la mémoire de la session dispose:
   - `orgs`: liste des organisations, 
   - `roles`: liste des rôles, 
   - `pref`: dernière préférence choisie.
-- de la map des préférences,
-- d'un résumé de tous credentials.
+- de la map des **préférences**,
+- d'un résumé de tous les **credentials**.
 
 ### Phase (B) : sélection des options
 Il est proposé à l'utilisateur de changer à son gré les trois sélections `orgs roles pref` proposées par défaut, puis de valider son choix.
@@ -199,21 +199,106 @@ Depuis cette page en mode _sync_ et _incognito_ l'utilisateur peut ouvrir sa _Sa
 ### Mode _sync_
 L'objectif est de charger le maximum de données requises en mode _avion_ dans la _Cache_ (et en _DocStore_).
 
-#### Calcul des périmètres
+#### Calcul des périmètres, souscription
 Une classe de l'application effectue ce calcul, pour chaque _DocStore_ `svc org` depuis:
-- les résumés des credentials stockés dans le _DocStore_,
+- les résumés des credentials stockés dans le _DocStore_ à l'initialisation,
 - les options `orgs` et `roles`.
 
-De cette liste, on obtient la liste des _defs_ des souscriptions requises et pour chacune les paramètres éventuels de la notification à produire (titre, texte ...).
+De cette liste, on obtient la liste des _defs_ des souscriptions _requises_ et _optionnelles_ et pour chacune les paramètres éventuels de la notification à produire (titre, texte ...).
 
-Cette liste est conservée en _DocStore_. 
+Cette liste est conservée en _DocStore_.
 
-Pour chaque `def`:
-- les documents / collection sont lus de _Cache_,
-- un item de souscription est généré en fonction en particulier ds versions des documents / collection obtenu de _Cache_.
+Les _document / collection_ des périmètres sont lus de _Cache_ et inscrits en _DocStore_ qui en détient désormais la version connue en session.
+
+**Phase 2 : génération de la souscription**. Pour chaque `def`:
+- un item de souscription est généré en fonction:
+  - de la version du document / collection,
+  - du _message_ éventuel associé à `def`:
+    - la `docCl` détermine si oui ou non ce message est à générer,
+    - la présence et la personnalisation éventuelle du message par l'application peut faire intervenir: a) le champ _name_ du credential associé par docPk, b) de flags / libellés inscrits par l'utilisateur dans ses préférences.
 - une souscription globale est émise pour chaque couple `svc org` au site du service cloud qui le gère.
-- une demande de synchronisation est poussée dans la _syncQueue_ de `svc org`.
+- les demandes de synchronisation sont poussées dans la _syncQueue_ de `svc org` pour chaque item marqué _pas encore synchronisé_ (tous en fait dans le cas d'initialisation de la session).
 
 Le retour de chaque synchronisation est inscrit,
 - dans son _DocStore_,
 - dans _Cache_.
+
+### Mode _incognito_
+Même scénario que pour le mode _sync_ avec les variantes ci-près:
+- les lectures à _Cache_ retourne un résultat négatif (_ps trouvé_),
+- les écritures ne font rien.
+
+### Mode _avion_
+Principe: le _DocStore_ n'est pas préchargé, mais se charge au fur et à mesure des demandes de `fetch`.
+
+#### Calcul des périmètres, souscription
+Une classe de l'application effectue ce calcul, pour chaque _DocStore_ `svc org` depuis:
+- les résumés des credentials sont obtenus de _Cache_ et stockés dans le _DocStore_,
+- les options `orgs` et `roles`.
+
+De cette liste, on obtient la liste des _defs_ des souscriptions: celles _requises_ sont inscrites comme _optionnelles_. Les paramètres éventuels des notifications ne sont pas générés.
+
+Cette liste est conservée en _DocStore_ où pour l'instant les périmètres _optionnels_ (tous) sont marqués non chargés.
+
+## DocStore `fetch get...` : accès aux _document / collection_
+Quand une vue a besoin d'afficher des _document / collection_ (ou effectuer des calculs sur ceux-ci) il faut qu'elle s'assure de la présence en _DocStore_ du _périmètre_ les incluant en invoquant un `fetch` avec son type et ses arguments:
+- s'il s'agit d'un périmètre _NON optionnel_ ou d'un _optionnel_ marqué comme _synchronisé_, tous ses `defs` sont déjà inscrits comme synchronisés.
+- si tous les `def` du périmètre sont déjà inscrits en _DocStore_ comme synchronisé (ou sont en _syncQueue_), le périmètre peut être accédé. Au pire certaines parties sont incomplètes et seront mises à jour par réactivité en retour d'une synchronisation  suite à notification.
+- mais certains `def` peuvent ne pas être synchronisés:
+  - la souscription actuelle est augmentée pour les inclure et retransmise au service cloud.
+  - des requêtes de synchronisation des `defs` qui ne le sont pas encore sont inscrite en _syncQueue_.
+- le périmètre (_optionnel_ donc) est inscrit dans la liste des périmètres optionnels _synchronisés_. Si l'utilisateur modifie ultérieurement ses options, les périmètres seront régénérés et les périmètres optionnels _synchronisés_ seront ajoutés d'office.
+
+Après la prise de précaution d'un _fetch_, les _document / collection_ du _DocStore_ sont simplement obtenu par un `getDoc getColl` qui en retourne l'état courant (un `getDoc` d'un `def` non synchronisé échoue).
+
+### Variante en mode _avion_
+Par principe en _DocStore_ rien n'est marqué _synchronisé_ à l'initialisation.
+
+Sur demande d'un _périmètre_,
+- s'il est marqué comme chargé retour immédiat.
+- sinon,
+  - le _périmètre_ est marqué _chargé_
+  - puis les _document / collection_ sont chargés depuis _Cache_.
+
+## Mise à jour des _options_ en cours de session
+### Mode _avion_ 
+Aucune influence vis à vis du _DocStore_ ni sur l'état des souscriptions.
+
+La liste des organisations peut être réduite / étendu ce qui ne sera visible que sur les menus de choix des organisations.
+
+La liste des rôles a aussi une influence sur les options proposées à l'écran.
+
+La mémorisation ou non des nouvelles listes orgs / roles dans _Cache_ est une option qui peut être coché par l'utilisateur.
+
+### Mode _sync_ et _incognito_
+**Régénération de la souscription**. Pour chaque `def`un item de souscription est généré en fonction:
+- de la version du document / collection,
+- du _message_ éventuel associé à `def`:
+  - la `docCl` détermine si oui ou non ce message est à générer,
+  - la présence et la personnalisation éventuelle du message par l'application peut faire intervenir: a) le champ _name_ du credential associé par `docPk`, b) de flags / libellés inscrits par l'utilisateur dans ses préférences.
+
+La souscription globale est émise pour chaque couple `svc org` au site du service cloud qui le gère: les périmètres _optionnels_ chargés sont inclus.
+- normalement si la liste des périmètres n'a pas changé on pourrait penser que la souscription antérieure convient encore.
+- toutefois même dans ce cas, les _messages_ de notification pour chaque def _peut_ avoir évolué si la préférence courante a été changé ou édité. Si les _messages_ antérieurs sont identiques, la souscription n'est pas ré-émise et aucune resynchronisation n'est à effectuer.
+
+**En mode _sync_ seulement**, pour les seuls périmètres ajoutés, les _document / collection_ sont lus de _Cache_ et inscrits en _DocStore_.
+
+Les demandes de synchronisation sont poussées dans la _syncQueue_ de `svc org` pour chaque item marqué _pas encore synchronisé_.
+
+## Clôture de la session
+Pour le mode _avion_ il n'y a rien de particulier à faire.
+
+Dans les autres modes il faut basculer les souscriptions vers celles qui sont à activer ou rester actives _hors ligne_.
+
+L'utilisateur _peut_ fixer à cette occasion des **options de clôture**:
+- ne plus émettre que certaines des notifications (ou aucune),
+- fixer certains messages ...
+
+**Régénération de la souscription**. Pour chaque `def`un item de souscription est généré en fonction:
+- de la version du document / collection,
+- du _message_ éventuel associé à `def`:
+  - la `docCl` détermine si oui ou non ce message est à générer,
+  - la présence et la personnalisation éventuelle du message par l'application peut faire intervenir: a) le champ _name_ du credential associé par `docPk`, b) de flags / libellés inscrits par l'utilisateur dans ses préférences, c) les options de clôture.
+
+Pour chaque couple `svc org` la souscription régénérée (ou supprimée) est émise au service cloud en charge.
+
