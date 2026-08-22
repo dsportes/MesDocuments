@@ -78,69 +78,54 @@ Pour une application donnée, un _credential_ définit un droit d'accès:
 Par exemple: `AS2/demo/Auteur/sh(Zola)`
 
 ## Périmètres de synchronisation
-La logique de l'application calcule depuis les _credentials_ détenus par l'utilisateur une liste de **périmètres** de documents, chacun ayant:
-- un `role` qui correspond à sa _nature / fonctionnalité_ (et un libellé traduit).
-- `svc`: le service cloud concerné.
-- `org`: l'organisation concernée.
-- des paramètres `S1 S2 ...` étant des clés primaires de documents.
-  - chaque position dans la liste correspond à une classe de documents.
-- une **liste** `defs` de définitions d'abonnements, chaque terme étant de la forme:
+Un **périmètre** est toujours relatif à un couple `svc org` et est stocké dans le _DocStore_ correspondant.
+
+Pour chaque couple `svc org` pour lesquels il existe un credential, la logique de l'application calcule depuis chaque credential de 0 à N **périmètres** de documents, chacun ayant:
+- `id` : l'identifiant est fondé sur le credential source. 
+  - Si depuis un credential depuis _Auteur_ (`docCl`) pour une primary key `sh(Zola)`, plus d'un périmètre sont générés, l'application les qualifie par des ID `Auteur@code1/sh(Zola)`, `Auteur@code2/sh(Zola)` ... pour les différencier.
+  - s'il n'y en a qu'un `@...` est omis.
+- `role`: un code qui correspond à sa _nature / fonctionnalité_ (et un libellé traduit).
+- `plane`: un flag indiquant si les documents de ce périmètre sont consultables en mode _avion_.
+- `defs`: une **liste** de définitions d'abonnements, chaque terme étant de la forme:
   - soit `classe`
-  - soit `classe/$i`
-  - soit `classe/collection/$j`
-- par exemple pour un credential `Auteur/$1`,
-  - def: `Auteur/$1` : le document Auteur lui-même de clé primaire `$1`.
-  - def: `Article/auteurs/$1` : tous les articles dont un des auteurs a pour clé primaire `$1`.
+  - soit `classe/pk`
+  - soit `classe/collection/pk`
 
-L'application ne génère des périmètres que depuis certaines classes de credentials (pas de tous).
+> Pour un credential `docCl docPk` sont des propriétés immuables, en conséquence ils produiront toujours la même liste de périmètres. Pour une session donnée, la liste des credentials peut changer en cours de session, ce qui changera la liste des `IDs` des périmètres gérés (pas le contenu de chacun).
 
-Selon son _role_, un périmètre est _synchronisable_ (accessible en mode _avion_) ou non.
-
-> Les _credentials_ utilisés pour construire les périmètres peuvent évoluer en cours de session, en conséquence les périmètres peuvent aussi s'ajuster.
+L'application ne génère des périmètres que depuis certaines classes de credentials (pas de tous). C'est une méthode spécifique de chaque sous-classe applicative de _credential_ qui génère le ou les périmètres correspondants en retournant une liste de quadruplets `[id, role, plane, defs]`.
 
 ## Rôles
 Un rôle peut être considéré comme une _grande fonctionnalité_ de l'application. Un _service_ `Boutique` peut par exemple avoir des rôles `vente, comptabilité, stock, RH`.
 
-En scannant la liste des _credentials_ d'un utilisateur on obtient en conséquence,
-- la liste des organisations auxquels il a accès,
-- pour chacune quelles sont les _rôles_, les fonctionnalités accessibles.
+En scannant la liste des périmètres générés depuis les _credentials_ d'un utilisateur on obtient la liste des couples `[org role]` depuis lesquels des _groupes de documents synchronisés_ peuvent être obtenus.
+- un utilisateur pourrait ainsi avoir des rôles _stock_ et _ventes_ pour une boutique B1, mais seulement un rôle _comptabilité_ pour B2.
 
-Un utilisateur pourrait ainsi des rôles _stock_ et _ventes_ pour une boutique B1, mais seulement un rôle _comptabilité_ pour B2.
-
-La connaissance des _roles_ que peut tenir un utilisateur a une influence directe sur les possibilités proposées par l'interface graphique: par exemple ne pas proposer de _liens / boutons / pages_ associés aux fonctionnalités comptables pour une boutique pour laquelle l'utilisateur n'a pas les credentials requis. 
+> La connaissance des _roles_ que peut tenir un utilisateur a une influence directe sur les possibilités proposées par l'interface graphique: par exemple le UI ne proposera pas de _liens / boutons / pages_ associés aux fonctionnalités _comptables_ pour une boutique pour laquelle l'utilisateur n'a pas les credentials requis. 
 
 ### Liste _potentielle_ versus _effective_ de couples `[org, role]`
-De l'ensemble des périmètres calculés on obtient un ensemble de couples `org role`, qu'il est possible de structurer par exemple par organisation donnant la liste des rôles associés.
+De l'ensemble des périmètres calculés on obtient un ensemble de couples `org role` (qu'il est possible de proposer à l'écran par exemple par organisation donnant la liste des rôles associés).
 
-Pour une session donnée, possiblement en évolution au cours de la session, l'utilisateur peut déclarer une liste _effective_ de couples `org role`, sous liste de la liste potentielle.
+Pour une session donnée, possiblement en évolution au cours de la session, l'utilisateur peut déclarer une liste _effective_ de couples `org role`, sous liste de la liste _potentielle_.
 
-Ainsi bien que pouvant potentiellement accéder à plusieurs boutiques B1, B2 B3 aux fonctionnalités _vente comptabilité_, l'utilisateur _peut_ par exemple restreindre sa session courante à _comptabilité de B2_ simplement parce qu'à cet instant c'est sa préoccupation. Se faisant,
+Bien que pouvant potentiellement accéder à plusieurs boutiques B1, B2, B3 aux fonctionnalités _vente comptabilité_, l'utilisateur _peut_ par exemple restreindre sa session courante à _comptabilité de B2_ simplement parce qu'à cet instant c'est sa préoccupation. Se faisant,
 - son interface ne lui montrera pas les pages / liens / options de menu des autres fonctionnalités (ni des autres organisations),
 - seuls les documents des périmètres ayant un de ces couples seront accessibles et synchronisés ce qui va réduire à la fois les temps de chargement et de calcul _cloud_, rendre la session plus légère et plus fluide et moins consommatrice de ressources.
 
 ## _Options_
 Au cours d'une session un enregistrement `options` détient:
-- les listes _potentielle_ et _effective_ des couples `[org, role]` accessibles: seule la liste _effective_ pouvant être éditée.
+- les listes _potentielle_ et _effective_ des couples `[org, role]` accessibles: seule la liste _effective_ peut être éditée.
 - le code / nom de la _préférence_ d'affichage / comportement de l'interface, le code _default_ pouvant être utilisé pour appliquer toutes les valeurs / choix par défaut.
 
 L'enregistrement `options`:
 - est présent en mémoire d'une session,
 - le dernier état utilisé est sauvegardé dans la _Safe Box_ de l'utilisateur, s'il le souhaite, en modes _synchronisé / incognito_,
-- le dernier état utilisé sur un terminal est sauvegardé en _Cache_ de l'utilisateur en modes _synchronisé / avion_.
+- le dernier état utilisé sur un terminal est sauvegardé, s'il le souhaite, en _Cache_ de l'utilisateur en modes _synchronisé / avion_.
 
-#### Session en mode _incognito_
-`options` est obtenu de la _Safe Box_,
-- la liste _effective_ des `[org, role]` peut être modifiée en cours de session et sauvegardée en _Safe Box_ à chaque changement: une case à cocher précise si la sauvegarde en _Safe Box_ est souhaitée ou si la modification doit rester cantonnée cette session.
-- peut être ajusté à l'ajout / suppression de _credentials_ en cours de session.
-
-#### Session en mode _avion_
-`options` est obtenu de _Cache_
-- la liste _effective_ des `[org, role]` peut être modifiée en cours de session et sauvegardée en _Cache_ à chaque changement.
-
-#### Session en mode _synchronisé_
-`options` est obtenu par fusion des enregistrement obtenus de _Cache_ et de _Safe Box_, l'état fusionné est sauvegardé en _Cache_,
-- la liste _effective_ des `[org, role]` peut être modifiée en cours de session et sauvegardée en _Cache_ ET en _Safe Box_ à chaque changement: une case à cocher précise si la sauvegarde en _Safe Box_ est souhaitée ou si la modification doit rester cantonnée à ce terminal.
-- peut être ajusté à l'ajout / suppression de _credentials_ en cours de session.
+**Options selon les différents modes:**
+- en mode _incognito_, `options` est obtenu de la _Safe Box_.
+- en mode _avion_, `options` est obtenu de _Cache_.
+- en mode _synchronisé_, `options` est obtenu par fusion des enregistrement obtenus de _Cache_ et de _Safe Box_, l'état fusionné est sauvegardé en _Cache_ à l'ouverture de la session.
 
 **Règles de _fusion_:**
 - la liste _potentielle_ étant calculée depuis les credentials depuis _Safe Box_ n'est pas éditable, celle de _Cache_ est ignorée.
@@ -151,21 +136,23 @@ La liste des périmètres est calculée depuis les _credentials_ obtenus de la _
 - en session _synchronisée_ cette liste est sauvegardée en _Cache_ afin d'être rendue disponible en mode _avion_ sur ce terminal.
 
 ### États d'un périmètre en _DocStore_  
-- `stand-by`: il n'a jamais fait l'objet d'une demande `fetch`, ses documents ne sont pas, du moins pas tous, disponibles en _DocStore_.
+- `stand-by`: il n'a jamais fait l'objet d'une demande `fetch`, ses documents ne sont pas disponibles en _DocStore_ (du moins pas tous).
 - `loading`: il a fait l'objet d'une demande `fetch`,
   - un abonnement a été enregistré pour ses documents / collections auprès du _service cloud_ correspondant,
-  - MAIS en _DocStore_ tous ses documents / collections n'ont pas tous encore fait l'objet d'une _synchronisation_ depuis le début de la session.
-- `ready`: tous ses documents / collections ont fait l'objet d'un abonnement, sont disponibles en DocStore et ont tous encore fait l'objet d'une _synchronisation_ depuis le début de la session.
+  - MAIS en _DocStore_ tous ses documents / collections n'ont pas tous encore fait l'objet d'une _synchronisation_ depuis le début de la session: leur présence et _date de dernier rafraîchissement_ est incertaine.
+- `ready`: tous ses documents / collections ont fait l'objet d'un abonnement, sont disponibles en _DocStore_ et ont tous encore fait l'objet d'une _synchronisation_ depuis le début de la session.
 
-Pour chaque périmètre son _rôle_ peut être déclaré _avion_:
-- en mode _synchronisé_ il fera l'objet d'un `fetch` (avant toute demande) pour autant que son couple org role fasse partie des options: l'objectif est de _charger_ en _Cache_ toutes les données utilisables en mode _avion_.
-- dans les autres modes on attend les demandes de `fetch` provenant de l'interface avec l'utilisateur.
+> Un document (ou une collection) a deux dates: 
+> - sa **version** qui est la date-heure de sa modification la plus récente, 
+> - sa **date-heure d'assertion** (_de dernier rafraîchissement_) qui est la date-heure de l'opération la plus récente ayant vérifié qu'il n'en existait pas de plus récente. Un document peut avoir une **version** très ancienne et une **date d'assertion** très récente.
 
-Les périmètres sont calculés avant d'ouvrir une session, mais ils peuvent être recalculés en cours de session si la liste des _credentials_ change. 
-- Les périmètres _ajoutés_ et _modifiés_ peuvent changer d'état et donner lieu à modification d'abonnement et à des demandes de synchronisation.
-- Les périmètres _supprimés_ peuvent aussi changer d'état, toutefois les documents / collections devenus _inutiles_ ne sont pas purgés de _Cache_. Ils pourraient être ultérieurement être redemandés et au pire finiront par disparaître par _obsolescence_ en ayant une date d'assertion trop vieille.
+Le rôle d'un périmètre peut être déclaré _avion_:
+- en mode _synchronisé_ il fera l'objet en début de session d'un `fetch` (avant toute demande) pour autant que son couple `org role` fasse partie des options: l'objectif est de _charger en Cache_ toutes les données utilisables en mode _avion_.
+- dans les autres modes on attend les demandes de `fetch` provenant de l'interface avec l'utilisateur sans préchargement en début de session.
 
-> Un document ou une collection a deux dates: sa **version** qui est la date-heure de sa modification la plus récente, sa **date-heure d'assertion** qui est la date-heure de l'opération la plus récente ayant vérifié qu'il n'en existait pas de plus récente. Un document peut avoir une **version** très ancienne et une **date d'assertion** très récente.
+La liste des périmètres est calculée avant d'ouvrir une session, mais peut être recalculée en cours de session si la liste des _credentials_ change. 
+- Des périmètres peuvent être _ajoutés_ par rapport à la liste actuelle et donner lieu à modification d'abonnement et à des demandes de synchronisation.
+- Des périmètres peuvent être _supprimés_: toutefois les documents / collections devenus _inutiles_ ne sont pas purgés de _Cache_. Ils pourraient être ultérieurement être redemandés et au pire finiront par disparaître par _obsolescence_ en ayant une date d'assertion trop vieille.
 
 La mémoire de la session et le _Cache_ sont en conséquence plus ou moins chargés selon l'historique des sessions exécutées sur le terminal:
 - l'état de la mémoire de la session peut être affiché sur demande en cours de session.
@@ -177,7 +164,7 @@ La mémoire de la session et le _Cache_ sont en conséquence plus ou moins charg
 # Implémentation
 
 ## Authentification et choix d'options
-Le choix du mode est fait AVANT authentification, en cochant / décochant les cases _accès à Internet_ et _accès à la mémoire locale du terminal_ (dans un _browser_ à l'espace dédié au _domaine_ du site hébergeant l'application).
+Le choix du mode est fait AVANT authentification, en cochant / décochant les cases _accès à Internet_ et _accès à la mémoire locale du terminal_: dans un _browser_ cette mémoire persistante est cantonnée dans l'espace dédié au _domaine_ du site hébergeant l'application (et d'accès direct difficile, mais quoi qu'il en soit crypté).
 
 **Après authentification**, un choix est proposé si le terminal est considéré de confiance et que l'accès à Internet n'a pas été décoché:
 - **mode _sync_ sans reset** de la base _Cache_: coché par défaut.
@@ -193,17 +180,15 @@ En mode _sync_ à tout moment le choix de la sélection _RESET Cache_, relance c
 #### Mode _sync_
 - récupération depuis les credentials de la _Safe Box_ de la liste des couples `svc org`. Pour chaque couple, ouverture d'un _DocStore_.
 - calcul des `périmètres` depuis les credentials de la _Safe Box_ et mémorisation en _Cache_.
-- récupération des `prefs` de la _Safe Box_ inscription en _Cache_.
+- récupération des `prefs` de la _Safe Box_ et inscription en _Cache_.
 - récupération des `options` de la _Safe Box_ et inscription en _Cache_.
 
 #### Mode _avion_
 Si l'item _options_ n'existe pas en base _Cache_, c'est qu'elle vient d'être créée vide: alerte, mode impraticable faute de données et retour au _login_.
-
-Actions:
 - récupération des `périmètres`, des `prefs` et des `options` depuis _Cache_.
 
 #### Mode _incognito_
-- récupération depuis les credentials du _Safe_ de la liste des couples `svc org`. Pour chaque couple ouverture d'un _DocStore_.
+- récupération depuis les credentials de la _Safe Box_ de la liste des couples `svc org`. Pour chaque couple ouverture d'un _DocStore_.
 - calcul des `périmètres` depuis les credentials de la _Safe Box_.
 
 ### En fin de cette phase
@@ -229,7 +214,7 @@ Depuis cette page en mode _sync_ et _incognito_ l'utilisateur peut ouvrir sa _Sa
 
 ## Initialisation de la session
 ### Mode _sync_
-L'objectif est de charger le maximum de données requises en mode _avion_ dans la _Cache_ (et en _DocStore_).
+L'objectif est de charger le maximum de données requises en mode _avion_ dans _Cache_ (et en _DocStore_).
 
 #### Interprétation de la liste des périmètres
 De cette liste et des couples `[org role]` de `options`, on obtient la liste des _defs_ des souscriptions _à abonner et synchroniser_,
@@ -254,12 +239,11 @@ Le retour de chaque synchronisation est inscrit,
 Même scénario que pour le mode _sync_ avec les variantes ci-après:
 - les lectures à _Cache_ retourne un résultat négatif (_pas trouvé_), donc il n'y a pas de chargement initial de _DocStore_ depuis _Cache_.
 - les écritures en _Cache_ ne font rien.
-- aucun périmètre n'est _actif_ et seront chargés à première demande.
+- aucun périmètre n'est _actif_, ils seront chargés à première demande.
 
 ### Mode _avion_
 Principes: 
-- le _DocStore_ n'est pas préchargé, mais se charge au fur et à mesure des demandes de `fetch`.
-- aucun périmètre n'est _actif_.
+- aucun périmètre n'est _actif_: le _DocStore_ n'est pas préchargé, mais se charge au fur et à mesure des demandes de `fetch`.
 
 ## DocStore `fetch get...` : accès aux _document / collection_
 
@@ -270,9 +254,9 @@ Quand une vue a besoin d'afficher des _document / collection_ (ou effectuer des 
   - la souscription actuelle _peut_ être augmentée pour les inclure et retransmise au service cloud,
   - des requêtes de synchronisation des `defs` qui ne le sont pas encore sont inscrite en _syncQueue_.
 
-Un périmètre ajouté devient _actif_. Si l'utilisateur modifie ultérieurement ses options, les périmètres _actifs_ seront si nécessaire régénérés, d'autres peuvent être inscrits `loading`.
+Un périmètre ajouté devient _actif_. Si l'utilisateur modifie ultérieurement ses options, de nouveaux périmètres peuvent être générés, certains `actif`, les autres `loading`.
 
-Après la prise de précaution d'un _fetch_ d'un périmètre, ses _document / collection_ du _DocStore_ sont simplement obtenus par un `getDoc / getColl` qui en retourne l'état courant (un `getDoc` d'un `def` non synchronisé échoue).
+Dans une vue UI, après la prise de précaution d'un _fetch_ d'un ou plusieurs périmètres, les _document / collection_ du _DocStore_ affichables / calculables sont simplement obtenus par un `getDoc / getColl` qui en retourne l'état courant (un `getDoc` d'un `def` non synchronisé échoue).
 
 ### Variante en mode _avion_
 Par principe en _DocStore_ rien n'est marqué _synchronisé_ à l'initialisation.
@@ -294,7 +278,7 @@ La liste des rôles a aussi une influence sur les options proposées à l'écran
 La mémorisation ou non de la liste `[org role]` dans _Cache_ est une option qui peut être cochée / décochée par l'utilisateur.
 
 ### Mode _sync_ et _incognito_
-**Régénération de la souscription**. Pour chaque `def`un item de souscription est généré en fonction:
+**Régénération de la souscription**. Pour chaque `def` des périmètres un item de souscription est généré en fonction:
 - de la version du document / collection,
 - du _message_ éventuel associé à `def`:
   - la `docCl` détermine si oui ou non ce message est à générer,
